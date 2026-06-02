@@ -1,0 +1,125 @@
+[x-cloak] { display: none !important; }
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE 10+ */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.text-bsu-red {
+  color: #b91c1c;
+}
+
+.bg-bsu-red {
+  background-color: #b91c1c;
+}
+
+.hover\:bg-bsu-redDark:hover {
+  background-color: #991b1b;
+}
+
+.bg-bsu-redDark {
+  background-color: #991b1b;
+}
+
+.border-bsu-red {
+  border-color: #b91c1c;
+}
+
+.border-bsu-redDark {
+  border-color: #991b1b;
+}
+
+.hover\:border-bsu-redDark:hover {
+  border-color: #991b1b;
+}
+
+.hover\:shadow-bsu-red\/20:hover {
+  box-shadow: 0 10px 15px -3px rgba(185, 28, 28, 0.2), 0 4px 6px -2px rgba(185, 28, 28, 0.1);
+}
+
+/* Fix button height consistency - only apply to specific scholarship action buttons */
+.scholarship-action-buttons form {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex: 1;
+}
+
+/* Allow buttons inside scholarship-action-buttons to use their own utility styles */
+/* Removed overrides that were stripping button padding/background/border */
+
+/* Line clamp utility for notification preview */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Only apply these styles to buttons specifically within scholarship-action-buttons containers */
+.scholarship-action-buttons button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure our dropdown action buttons use their Tailwind classes properly */
+.flex.justify-end.gap-3 button,
+.flex.justify-end.gap-3 a {
+  /* Allow Tailwind utility classes to take precedence */
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Custom Scrollbar for SFAO Styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.6);
+}
+
+/* Landing Page Animations and Styles - Can be removed if not used in SFAO logic, but keeping for safety */
+@keyframes fadeInDown {
+    0% { opacity: 0; transform: translateY(-30px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseButton {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+.animate-fadeInDown { animation: fadeInDown 1s ease-out forwards; }
+.animate-fadeInUp { animation: fadeInUp 1.2s ease-out forwards; }
+.animate-pulseButton { animation: pulseButton 2s infinite; }

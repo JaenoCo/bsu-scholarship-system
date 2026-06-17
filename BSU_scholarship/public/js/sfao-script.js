@@ -67,6 +67,11 @@ window.sfaoStatisticsTab = function (config = {}) {
         searchResults: [],
         showSearchResults: false,
         selectedScholarshipName: '',
+        studentDetails: {
+            open: false,
+            title: '',
+            rows: []
+        },
 
         init() {
             try {
@@ -598,6 +603,96 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.showSearchResults = false;
             this.selectedScholarshipName = this.filters.search;
             this.applyFilters();
+        },
+
+        openStudentDetails(scope, type) {
+            const rows = this.getStudentDetailRows(scope, type);
+            this.studentDetails = {
+                open: true,
+                title: this.getStudentDetailsTitle(scope, type),
+                rows
+            };
+        },
+
+        closeStudentDetails() {
+            this.studentDetails.open = false;
+        },
+
+        getStudentDetailRows(scope, type) {
+            const source = this.filteredData.all_applications_data || [];
+            const validApplicantStatuses = ['pending', 'approved', 'rejected', 'in_progress'];
+
+            return source
+                .filter(item => {
+                    const isScholar = this.isScholarRecord(item);
+                    const isApplicant = !isScholar;
+                    const hasValidApplicantStatus = validApplicantStatuses.includes(item.status);
+
+                    if (scope === 'comparison') {
+                        if (type === 'applicants') return isApplicant && hasValidApplicantStatus;
+                        if (type === 'scholars') return isScholar;
+                        return isScholar || (isApplicant && hasValidApplicantStatus);
+                    }
+
+                    if (this.viewMode === 'scholars' && !isScholar) return false;
+                    if (this.viewMode === 'applicants' && (!isApplicant || !hasValidApplicantStatus)) return false;
+
+                    if (type === 'approved' || type === 'approvalRate') return item.status === 'approved';
+                    if (type === 'rejected') return item.status === 'rejected';
+                    if (type === 'active') return ['pending', 'in_progress'].includes(item.status);
+                    return true;
+                })
+                .map((item, index) => this.formatStudentDetailRow(item, index))
+                .sort((a, b) => a.studentNumber.localeCompare(b.studentNumber));
+        },
+
+        isScholarRecord(item) {
+            return (Number(item.is_global_scholar) || (item.scholar_id ? 1 : 0)) > 0;
+        },
+
+        formatStudentDetailRow(item, index) {
+            const nameParts = [item.first_name, item.middle_name, item.last_name]
+                .filter(Boolean)
+                .map(part => String(part).trim())
+                .filter(Boolean);
+            const campus = this.campusOptions.find(c => String(c.id) === String(item.campus_id));
+
+            return {
+                key: `${item.user_id || 'student'}-${item.scholarship_name || 'scholarship'}-${item.status || 'status'}-${index}`,
+                studentNumber: item.sr_code || item.student_number || item.student_no || `ID ${item.user_id || 'N/A'}`,
+                name: item.student_name || nameParts.join(' ') || 'Unnamed student',
+                campus: campus ? campus.name : (item.campus_name || item.campus || 'Unassigned campus'),
+                college: item.college || 'Unassigned college',
+                program: item.program || 'Unassigned program',
+                scholarship: item.scholarship_name || 'Unassigned scholarship',
+                status: this.formatStatusLabel(item.status, this.isScholarRecord(item))
+            };
+        },
+
+        formatStatusLabel(status, isScholar) {
+            if (isScholar && !status) return 'Scholar';
+            const labels = {
+                approved: 'Approved',
+                rejected: 'Rejected',
+                pending: 'Pending',
+                in_progress: 'In Progress'
+            };
+            return labels[status] || (isScholar ? 'Scholar' : 'Unknown');
+        },
+
+        getStudentDetailsTitle(scope, type) {
+            const context = scope === 'comparison' ? this.getComparisonChartTitle() : this.getChartTitle();
+            const labels = {
+                total: 'Total',
+                applicants: 'Applicants',
+                scholars: 'Scholars',
+                approved: 'Approved',
+                rejected: 'Rejected',
+                active: 'Pending/In Progress',
+                approvalRate: 'Approval Rate - Approved'
+            };
+
+            return `${labels[type] || 'Students'}: ${context}`;
         },
 
         createAllCharts(retryCount = 0) {
@@ -1574,6 +1669,7 @@ window.sfaoDashboardState = function (config) {
             'reports_grant_summary': 'reports-grant_summary',
             'all-app-forms': 'all-app-forms',
             'up-app-form': 'up-app-form',
+            'import-scholarships': 'import-scholarships',
             'account_settings': 'account',
             'account-info': 'account-info',
             'account-security': 'account-security'
@@ -1613,7 +1709,7 @@ window.sfaoDashboardState = function (config) {
 
             // Listen for Sidebar Tab Switch Events
             window.addEventListener('switch-tab', event => {
-                this.tab = event.detail;
+                this.switchTab(event.detail);
             });
 
             // Listen for Sidebar Stats Filter Events
@@ -1653,6 +1749,20 @@ window.sfaoDashboardState = function (config) {
             }
 
             this.updateUrl(this.tab);
+        },
+
+        switchTab(nextTab) {
+            const clickedCurrentTab = this.tab === nextTab;
+
+            this.tab = nextTab;
+
+            if (clickedCurrentTab) {
+                localStorage.setItem('sfaoTab', nextTab);
+                this.updateUrl(nextTab);
+                this.syncDropdowns(nextTab);
+                this.$dispatch('tab-changed', nextTab);
+                window.dispatchEvent(new CustomEvent('sfao-filter-tab-selected', { detail: nextTab }));
+            }
         },
 
         updateUrl(currentTab) {
@@ -1730,6 +1840,12 @@ window.sfaoScholarshipsFilter = function (config) {
             });
 
             this.updatePaginationLinks();
+
+            window.addEventListener('sfao-filter-tab-selected', event => {
+                if (event.detail && event.detail.startsWith('scholarships')) {
+                    this.handleTabChange(event.detail);
+                }
+            });
 
             if (this.filters.type !== 'all') {
                 this.fetchScholarships();
@@ -1902,6 +2018,12 @@ window.sfaoApplicantsFilter = function (config) {
                 this.openModal(e.detail);
             });
 
+            window.addEventListener('sfao-filter-tab-selected', event => {
+                if (event.detail && event.detail.startsWith('applicants')) {
+                    this.handleTabChange(event.detail);
+                }
+            });
+
             // Initial Sync if values present
             if (this.filters.campus !== 'all') this.updateColleges(false);
             if (this.filters.college !== 'all') this.updatePrograms(false);
@@ -1992,6 +2114,8 @@ window.sfaoApplicantsFilter = function (config) {
         },
 
         openStatusModal(status) {
+            this.handleTabChange(status === 'all' ? 'applicants' : `applicants-${status}`);
+
             this.statusModalCurrentStatus = status;
             this.showStatusModal = true;
             document.body.style.overflow = 'hidden';
@@ -2261,6 +2385,12 @@ window.sfaoScholarsFilter = function (config) {
             if (this.filters.campus !== 'all') this.updateColleges(false);
             if (this.filters.college !== 'all') this.updatePrograms(false);
             if (this.filters.program !== 'all') this.updateTracks(false);
+
+            window.addEventListener('sfao-filter-tab-selected', event => {
+                if (event.detail && event.detail.startsWith('scholars')) {
+                    this.handleTabChange(event.detail);
+                }
+            });
 
             // Initial fetch if filters are active (or always fetch? usually Dashboard loads data initially via blade)
             // But if filters exist in localStorage, we might need to fetch if default view is unfiltered.

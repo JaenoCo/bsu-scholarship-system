@@ -12,6 +12,7 @@ use App\Models\Scholarship;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ReportController extends Controller
@@ -76,6 +77,14 @@ class ReportController extends Controller
 
         $user = User::with('campus')->find(session('user_id'));
         $campus = $user->campus;
+        $monitoredCampusIds = $campus->getAllCampusesUnder()->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        if ($request->campus_id !== 'constituent_with_extensions' && !in_array((string) $request->campus_id, $monitoredCampusIds, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only generate reports for campuses under your jurisdiction.'
+            ], 403);
+        }
 
         // Generate report data
         $reportData = Report::generateReportData(
@@ -1080,6 +1089,34 @@ class ReportController extends Controller
         $campus = $user->campus;
         $monitoredCampuses = $campus->getAllCampusesUnder();
         $campusIds = $monitoredCampuses->pluck('id');
+        $allowedCampusIds = $campusIds->map(fn ($id) => (string) $id)->all();
+
+        $request->validate([
+            'student_type' => 'nullable|in:applicants,scholars',
+            'campus_id' => [
+                'nullable',
+                function ($attribute, $value, $fail) use ($allowedCampusIds) {
+                    if ($value !== null && $value !== 'all' && !in_array((string) $value, $allowedCampusIds, true)) {
+                        $fail('The selected campus is outside your SFAO scope.');
+                    }
+                },
+            ],
+            'college' => 'nullable|string|max:255',
+            'program' => 'nullable|string|max:255',
+            'track' => 'nullable|string|max:255',
+            'academic_year' => ['nullable', 'regex:/^(all|custom|\\d{4}-\\d{4})$/'],
+            'custom_start' => 'nullable|required_if:academic_year,custom|date',
+            'custom_end' => 'nullable|required_if:academic_year,custom|date|after_or_equal:custom_start',
+            'scholarship_id' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value !== null && $value !== 'all' && !Scholarship::whereKey($value)->exists()) {
+                        $fail('The selected scholarship is invalid.');
+                    }
+                },
+            ],
+            'export' => 'nullable|in:excel',
+        ]);
 
         // Filters
         $studentType = $request->get('student_type', 'applicants'); // applicants, scholars
@@ -1428,19 +1465,28 @@ class ReportController extends Controller
         if ($request->get('export') === 'excel') {
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
+            $setText = function (string $cell, $value) use ($sheet) {
+                $value = $value === null ? '' : (string) $value;
+                if ($value !== '' && preg_match('/^[=+\-@]/', $value)) {
+                    $value = "'" . $value;
+                }
+                $sheet->setCellValueExplicit($cell, $value, DataType::TYPE_STRING);
+            };
             
             // Set Headers
             $headers = ['Seq', 'Last Name', 'First Name', 'Middle Name', 'Sex', 'Birthdate', 'Course/Program', 'Track', 'Year Level', 'Units', 'Municipality', 'Province', 'PWD', 'Scholarship', 'Grant', 'Status/Remarks'];
-            $sheet->fromArray($headers, NULL, 'A1');
+            foreach ($headers as $index => $header) {
+                $setText(chr(ord('A') + $index) . '1', $header);
+            }
             
             // Style Header
-            $sheet->getStyle('A1:O1')->getFont()->setBold(true);
+            $sheet->getStyle('A1:P1')->getFont()->setBold(true);
 
             $row = 2;
             foreach ($reportData as $data) {
                 // Campus Header Row (Optional, but good for separation if multiple campuses)
                 if (count($reportData) > 1) {
-                    $sheet->setCellValue('A' . $row, $data['campus']->name);
+                    $setText('A' . $row, $data['campus']->name);
                     $sheet->mergeCells("A{$row}:P{$row}");
                     $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setItalic(true);
                     $row++;
@@ -1448,22 +1494,22 @@ class ReportController extends Controller
 
                 foreach ($data['students'] as $student) {
                     $sheet->setCellValue('A' . $row, $student['seq']);
-                    $sheet->setCellValue('B' . $row, $student['last_name']);
-                    $sheet->setCellValue('C' . $row, $student['first_name']);
-                    $sheet->setCellValue('D' . $row, $student['middle_name']);
-                    $sheet->setCellValue('E' . $row, $student['sex']);
+                    $setText('B' . $row, $student['last_name']);
+                    $setText('C' . $row, $student['first_name']);
+                    $setText('D' . $row, $student['middle_name']);
+                    $setText('E' . $row, $student['sex']);
                     // Check if keys exist (Applicant vs Scholar diffs)
-                    $sheet->setCellValue('F' . $row, $student['birthdate'] ?? 'N/A');
-                    $sheet->setCellValue('G' . $row, $student['course'] ?? ($student['program'] ?? 'N/A'));
-                    $sheet->setCellValue('H' . $row, $student['track'] ?? 'N/A');
-                    $sheet->setCellValue('I' . $row, $student['year_level'] ?? 'N/A');
-                    $sheet->setCellValue('J' . $row, $student['units'] ?? 'N/A');
-                    $sheet->setCellValue('K' . $row, $student['municipality'] ?? 'N/A');
-                    $sheet->setCellValue('L' . $row, $student['province'] ?? 'N/A');
-                    $sheet->setCellValue('M' . $row, $student['pwd'] ?? 'N/A');
-                    $sheet->setCellValue('N' . $row, $student['scholarship']);
+                    $setText('F' . $row, $student['birthdate'] ?? 'N/A');
+                    $setText('G' . $row, $student['course'] ?? ($student['program'] ?? 'N/A'));
+                    $setText('H' . $row, $student['track'] ?? 'N/A');
+                    $setText('I' . $row, $student['year_level'] ?? 'N/A');
+                    $setText('J' . $row, $student['units'] ?? 'N/A');
+                    $setText('K' . $row, $student['municipality'] ?? 'N/A');
+                    $setText('L' . $row, $student['province'] ?? 'N/A');
+                    $setText('M' . $row, $student['pwd'] ?? 'N/A');
+                    $setText('N' . $row, $student['scholarship']);
                     $sheet->setCellValue('O' . $row, $student['grant'] ?? 'N/A');
-                    $sheet->setCellValue('P' . $row, $student['status_remarks'] ?? ($student['status'] ?? 'N/A'));
+                    $setText('P' . $row, $student['status_remarks'] ?? ($student['status'] ?? 'N/A'));
                     $row++;
                 }
             }

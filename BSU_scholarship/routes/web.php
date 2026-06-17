@@ -241,6 +241,7 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::get('/applicants/list', [ApplicationController::class, 'sfaoApplicantsList'])->name('applicants.list');
     Route::get('/applicants', [ApplicationController::class, 'sfaoApplicants'])->name('applicants');
     Route::get('/applicant/{user_id}/documents', [ApplicationController::class, 'viewDocuments'])->name('applicant.documents');
+    Route::post('/scholarships/import', [App\Http\Controllers\ScholarshipImportController::class, 'store'])->name('scholarships.import');
 
     Route::post('/applications/{id}/claim', [ApplicationController::class, 'sfaoClaimGrant'])->name('applications.claim');
 
@@ -280,7 +281,7 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::delete('/application-forms/{id}', [App\Http\Controllers\ApplicationFormController::class, 'destroy'])->name('application-forms.destroy');
     
     // Change Password
-    Route::post('/change-password', [UserManagementController::class, 'changePassword'])->name('change-password');
+    Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
     // Profile Update
     Route::put('/profile/update', [UserController::class, 'updateProfile'])->name('profile.update');
 });
@@ -356,8 +357,8 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
 // --------------------------------------------------
 
 // SFAO password setup after email verification
-Route::get('/sfao/password-setup', [UserManagementController::class, 'showSFAOPasswordSetup'])->name('sfao.password.setup');
-Route::post('/sfao/password-setup', [UserManagementController::class, 'setupSFAOPassword'])->name('sfao.password.setup');
+Route::get('/sfao/password-setup', [UserController::class, 'showSFAOPasswordSetup'])->name('sfao.password.setup');
+Route::post('/sfao/password-setup', [UserController::class, 'setupSFAOPassword'])->name('sfao.password.setup');
 
 // =====================================================
 // NOTIFICATION ROUTES

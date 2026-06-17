@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process as SymfonyProcess;
 
 class MLAnalyticsService
 {
@@ -99,15 +99,19 @@ class MLAnalyticsService
         file_put_contents($tempFile, json_encode($data));
 
         try {
-            // Run Python script
-            $command = "python3 {$this->pythonScriptPath} --data-file {$tempFile}";
-            $result = Process::run($command);
+            $binary = env('PYTHON_BINARY') ?: (PHP_OS_FAMILY === 'Windows' ? 'python' : 'python3');
+            $process = new SymfonyProcess([$binary, $this->pythonScriptPath, '--data-file', $tempFile], base_path());
+            $process->setTimeout(90);
+            $process->run();
 
-            if ($result->failed()) {
-                throw new \Exception('Python ML analysis failed: ' . $result->errorOutput());
+            if (!$process->isSuccessful()) {
+                throw new \Exception('Python ML analysis failed: ' . $process->getErrorOutput());
             }
 
-            $mlResults = json_decode($result->output(), true);
+            $mlResults = json_decode($process->getOutput(), true);
+            if (!is_array($mlResults)) {
+                throw new \Exception('Python ML analysis returned invalid JSON.');
+            }
             
             // Clean up
             unlink($tempFile);
@@ -263,6 +267,9 @@ class MLAnalyticsService
             
             // Save performance metrics
             $performanceFile = $this->modelsPath . '/model_performance.json';
+            if (!is_dir($this->modelsPath)) {
+                mkdir($this->modelsPath, 0755, true);
+            }
             file_put_contents($performanceFile, json_encode($mlResults));
             
             return true;

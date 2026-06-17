@@ -616,6 +616,11 @@ class DashboardController extends Controller
             ->whereIn('users.campus_id', $campusIds)
             ->select(
                 'users.id as user_id', 
+                'users.sr_code',
+                'users.name as student_name',
+                'users.first_name',
+                'users.middle_name',
+                'users.last_name',
                 'users.sex', 
                 'users.campus_id', 
                 'users.college', 
@@ -1056,6 +1061,11 @@ class DashboardController extends Controller
             ->where('users.role', 'student')
             ->select(
                 'users.id as user_id', 
+                'users.sr_code',
+                'users.name as student_name',
+                'users.first_name',
+                'users.middle_name',
+                'users.last_name',
                 'users.sex', 
                 'users.campus_id', 
                 'users.college', 

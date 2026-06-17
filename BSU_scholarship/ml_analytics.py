@@ -108,6 +108,7 @@ class ScholarshipMLAnalytics:
         # Train model
         model = LogisticRegression(random_state=42, max_iter=1000)
         model.fit(X_train_scaled, y_train)
+        model.feature_names_in_ = np.array(available_cols)
         
         # Evaluate on both train and test sets
         y_train_pred = model.predict(X_train_scaled)
@@ -386,6 +387,32 @@ def run_ml_analysis(applications_data, students_data, scholarships_data):
     
     # Prepare data
     df = ml_analytics.prepare_data(applications_data, students_data, scholarships_data)
+    if df.empty:
+        return {
+            'approval_prediction': {
+                'error': 'Insufficient application data for training',
+                'model': 'Logistic Regression',
+                'data_points': 0
+            },
+            'success_prediction': {
+                'error': 'Insufficient approved applications for training',
+                'model': 'Random Forest'
+            },
+            'approval_rate_regression': {
+                'error': 'Insufficient campus data for regression',
+                'model': 'Linear Regression',
+                'campus_count': 0
+            },
+            'insights': {
+                'predictions': {},
+                'recommendations': ['ML Analysis: Not enough historical data to train models yet.'],
+                'risk_factors': [],
+                'opportunities': []
+            },
+            'trends': {
+                'error': 'Insufficient historical data for trend prediction'
+            }
+        }
     
     # Train models
     results = {}

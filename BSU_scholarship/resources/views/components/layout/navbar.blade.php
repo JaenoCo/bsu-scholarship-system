@@ -1,4 +1,4 @@
-@props(['title', 'subtitle', 'user', 'settings' => false, 'logout' => false, 'profile' => false, 'sidebar' => true, 'backUrl' => null, 'backText' => null, 'settingsClick' => null, 'settingsUrl' => null, 'onclick' => null])
+@props(['title', 'subtitle', 'user', 'settings' => false, 'logout' => false, 'profile' => false, 'sidebar' => true, 'backUrl' => null, 'backText' => null, 'settingsClick' => null, 'settingsUrl' => null, 'onclick' => null, 'actionText' => null, 'actionClick' => null, 'actionUrl' => null, 'actionTitle' => null])
 
 <!-- Main Header -->
 <header class="flex items-center justify-between px-8 py-4 bg-[#2f2f2f] dark:bg-gray-800 shadow-sm sticky top-0 z-30 border-b border-gray-700 transition-all duration-300 print:hidden"
@@ -38,6 +38,29 @@
 
   <!-- Dark Mode Toggle & User Profile -->
   <div class="flex items-center gap-2">
+      @if($actionText)
+        @if($actionUrl)
+            <a href="{{ $actionUrl }}"
+               class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-bsu-red hover:bg-red-700 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-bsu-red focus:ring-offset-[#2f2f2f]"
+               title="{{ $actionTitle ?? $actionText }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" />
+                </svg>
+                <span class="hidden sm:inline">{{ $actionText }}</span>
+            </a>
+        @else
+            <button type="button"
+                    @click="{{ $actionClick }}"
+                    class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-bsu-red hover:bg-red-700 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-bsu-red focus:ring-offset-[#2f2f2f]"
+                    title="{{ $actionTitle ?? $actionText }}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" />
+                </svg>
+                <span class="hidden sm:inline">{{ $actionText }}</span>
+            </button>
+        @endif
+      @endif
+
       <!-- Dark Mode Toggle -->
       <button @click="darkMode = !darkMode" 
               class="p-2 rounded-full hover:bg-gray-700 transition-colors focus:outline-none"

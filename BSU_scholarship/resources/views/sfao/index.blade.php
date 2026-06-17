@@ -48,6 +48,7 @@
            @include('sfao.reports.index')      <!-- Reports -->
            @include('sfao.analytics.index')    <!-- Analytics -->
            @include('sfao.application-forms.index')  <!-- Application Forms -->
+           @include('sfao.import.scholarships') <!-- Scholarship Import -->
            
            <!-- Account Settings (Conditional rendering managed by x-show in parent or inner logic?) 
                 Wait, SFAO dashboard uses `activeTab` variable in x-data.
@@ -77,6 +78,9 @@
       :user="$user" 
       :settings="false" 
       :logout="true" 
+      action-text="Import"
+      action-click="$dispatch('switch-tab', 'import-scholarships')"
+      action-title="Import scholarships from CSV or Excel"
   />
 @endsection
 

@@ -236,20 +236,29 @@
             <!-- Summary Cards for Scholarships Tab -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                  <!-- Total -->
-                 <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600">
+                 <button type="button"
+                         @click="openStudentDetails('comparison', 'total')"
+                         class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600 hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-500 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show student numbers">
                      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Total</p>
                      <p class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.counts?.total || 0"></p>
-                 </div>
+                 </button>
                  <!-- Applicants -->
-                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800">
+                 <button type="button"
+                         @click="openStudentDetails('comparison', 'applicants')"
+                         class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show applicant student numbers">
                      <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Applicants</p>
                      <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="filteredData.counts?.applicantsCount || 0"></p>
-                 </div>
+                 </button>
                  <!-- Scholars -->
-                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                 <button type="button"
+                         @click="openStudentDetails('comparison', 'scholars')"
+                         class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show scholar student numbers">
                      <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Scholars</p>
                      <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.counts?.scholarsCount || 0"></p>
-                 </div>
+                 </button>
             </div>
 
 
@@ -291,30 +300,45 @@
             <!-- Dynamic Summary Counts -->
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                  <!-- Total -->
-                 <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600">
+                 <button type="button"
+                         @click="openStudentDetails('status', 'total')"
+                         class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600 hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-500 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show student numbers">
                      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Total</p>
                      <p class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.counts?.total || 0"></p>
-                 </div>
+                 </button>
                  <!-- Approved -->
-                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                 <button type="button"
+                         @click="openStudentDetails('status', 'approved')"
+                         class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show approved student numbers">
                      <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Approved</p>
                      <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.counts?.approved || 0"></p>
-                 </div>
+                 </button>
                  <!-- Rejected -->
-                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800">
+                 <button type="button"
+                         @click="openStudentDetails('status', 'rejected')"
+                         class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show rejected student numbers">
                      <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Rejected</p>
                      <p class="text-xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.counts?.rejected || 0"></p>
-                 </div>
+                 </button>
                  <!-- Active / Pending -->
-                 <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800">
+                 <button type="button"
+                         @click="openStudentDetails('status', 'active')"
+                         class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800 hover:ring-2 hover:ring-yellow-300 dark:hover:ring-yellow-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show pending and in-progress student numbers">
                      <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Pending/In Progress</p>
                      <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.counts?.active || 0"></p>
-                 </div>
+                 </button>
                  <!-- Rate -->
-                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800">
+                 <button type="button"
+                         @click="openStudentDetails('status', 'approvalRate')"
+                         class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show approved student numbers used for the rate">
                      <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Approval Rate</p>
                      <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="(filteredData.counts?.approvalRate || '0.0') + '%'"></p>
-                 </div>
+                 </button>
             </div>
 
             <!-- Chart Container -->
@@ -352,6 +376,66 @@
             </div>
         </div>
 
+    </div>
+
+    <div x-show="studentDetails.open"
+         x-cloak
+         x-transition.opacity
+         @keydown.escape.window="closeStudentDetails()"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div @click.away="closeStudentDetails()"
+             class="w-full max-w-5xl max-h-[85vh] overflow-hidden rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
+            <div class="flex items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 px-5 py-4">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white" x-text="studentDetails.title"></h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        <span x-text="studentDetails.rows.length"></span>
+                        <span x-text="studentDetails.rows.length === 1 ? 'record' : 'records'"></span>
+                    </p>
+                </div>
+                <button type="button"
+                        @click="closeStudentDetails()"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-bsu-red dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                        title="Close">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="max-h-[68vh] overflow-auto">
+                <template x-if="studentDetails.rows.length === 0">
+                    <div class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                        No student numbers found for this selection.
+                    </div>
+                </template>
+
+                <table x-show="studentDetails.rows.length > 0" class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                    <thead class="sticky top-0 bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Student No.</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Scholarship</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">College</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Program</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                        <template x-for="row in studentDetails.rows" :key="row.key">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/60">
+                                <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white" x-text="row.studentNumber"></td>
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.name"></td>
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.scholarship"></td>
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.status"></td>
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.college"></td>
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.program"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
 </div>

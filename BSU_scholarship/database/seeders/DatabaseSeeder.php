@@ -3,20 +3,11 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     *
-     * @return void
-     */
     public function run(): void
     {
-        // Disable foreign key checks temporarily
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        
         $this->call([
             // 1. Structure / Static Data
             CampusSeeder::class,
@@ -31,17 +22,14 @@ class DatabaseSeeder extends Seeder
             // 3. Scholarships (Depends on Admin)
             ScholarshipsTableSeeder::class,
 
-            // 4. Students (Depends on Campuses/Programs)
+            // 4. Students (Depends on structure data)
             StudentSeeder::class,
 
-            // 5. Applications (Depends on Students & Scholarships)
+            // 5. Applications
             ApplicationSeeder::class,
 
-            // 6. Notifications (Depends on Users)
+            // 6. Notifications
             NotificationSeeder::class,
         ]);
-        
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 }

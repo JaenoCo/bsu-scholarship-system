@@ -2,6 +2,7 @@
 
 echo "Running migrations..."
 php artisan migrate --force
+php artisan db:seed --force
 
 echo "Clearing cache..."
 php artisan config:clear

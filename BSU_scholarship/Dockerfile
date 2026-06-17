@@ -1,50 +1,28 @@
 FROM php:8.2-cli
 
-# Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    unzip \
-    zip \
-    libpq-dev \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev
+    git curl unzip zip libpq-dev nodejs npm
 
-# Install PHP extensions (IMPORTANT for Laravel stability)
+# PHP extensions (PostgreSQL)
 RUN docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd
 
-# Install Composer
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /app
 
-# Copy project files
 COPY . .
 
-# Install PHP dependencies
+# Install backend dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Install Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
+# Install frontend dependencies
+RUN npm install && npm run build
 
-# Install frontend dependencies + build assets
-RUN npm install
-RUN npm run build
-
-# Laravel permissions (VERY IMPORTANT)
+# Permissions
 RUN chmod -R 775 storage bootstrap/cache
 
-# Clear cached config (prevents env mismatch issues)
-RUN php artisan config:clear
-RUN php artisan cache:clear
-RUN php artisan view:clear
-
-
-# Expose port
 EXPOSE 10000
-RUN chmod +x start.sh
-# Start Laravel
+
 CMD ["sh", "start.sh"]

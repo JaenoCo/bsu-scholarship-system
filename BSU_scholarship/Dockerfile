@@ -38,7 +38,6 @@ RUN npm run build
 RUN chmod -R 775 storage bootstrap/cache
 
 # Clear cached config (prevents env mismatch issues)
-RUN php artisan migrate --force
 RUN php artisan config:clear
 RUN php artisan cache:clear
 RUN php artisan view:clear

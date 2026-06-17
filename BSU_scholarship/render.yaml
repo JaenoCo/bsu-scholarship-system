@@ -1,0 +1,52 @@
+version: "1"
+
+services:
+  - type: web
+    name: bsu-scholarship-system-3
+    runtime: docker
+    repo: https://github.com/JaenoCo/bsu-scholarship-system
+    plan: free
+
+    region: oregon
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    rootDir: BSU_scholarship
+
+    autoDeployTrigger: commit
+
+    # 🔥 THIS is your post-deployment command (IMPORTANT)
+    releaseCommand: php artisan migrate --force
+
+    envVars:
+      - key: APP_DEBUG
+        sync: false
+      - key: APP_KEY
+        sync: false
+      - key: QUEUE_CONNECTION
+        sync: false
+      - key: SESSION_DRIVER
+        sync: false
+      - key: CACHE_STORE
+        sync: false
+      - key: LOG_CHANNEL
+        sync: false
+
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_CONNECTION
+        sync: false
+
+      - key: APP_URL
+        sync: false
+      - key: APP_ENV
+        sync: false
+      - key: APP_NAME
+        sync: false

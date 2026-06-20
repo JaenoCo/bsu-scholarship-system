@@ -362,7 +362,7 @@ class DashboardController extends Controller
         $academicYears = Application::whereHas('user', function($q) use ($campusIds) {
                 $q->whereIn('campus_id', $campusIds);
             })
-            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month')
+            ->selectRaw('DISTINCT EXTRACT(YEAR FROM created_at) as year, MONTH(created_at) as month')
             ->distinct()
             ->get()
             ->map(function($app) {

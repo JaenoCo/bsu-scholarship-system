@@ -1,5 +1,6 @@
-FROM php:8.2-cli
+FROM php:8.2-fpm
 
+# Install system dependencies, Nginx, and Supervisor
 RUN apt-get update && apt-get install -y \
     git curl unzip zip \
     libpq-dev \
@@ -8,30 +9,38 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
-    nodejs npm
+    nginx \
+    supervisor \
+    nodejs \
+    npm
 
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg
+# Configure and install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd
 
-RUN docker-php-ext-install \
-    pdo \
-    pdo_pgsql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd
-
+# Copy Composer from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+# Set working directory
+WORKDIR /var/www/html
 
+# Copy project files
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader
+# Install dependencies and build frontend assets
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 RUN npm install && npm run build
 
-RUN chmod -R 775 storage bootstrap/cache
+# Copy configuration files (Make sure these match your project)
+COPY .docker/nginx.conf /etc/nginx/sites-available/default
+COPY .docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 
-EXPOSE 10000
+# Set production permissions
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-CMD ["sh", "start.sh"]
+# Render automatically maps its traffic here; EXPOSE is optional but good practice
+EXPOSE 8080
+
+# This fixes your migration and startup logic cleanly
+CMD php artisan migrate --force && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisor.conf

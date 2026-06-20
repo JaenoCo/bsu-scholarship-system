@@ -363,7 +363,6 @@ class DashboardController extends Controller
                 $q->whereIn('campus_id', $campusIds);
             })
             ->selectRaw('DISTINCT EXTRACT(YEAR FROM created_at) as year, MONTH(created_at) as month')
-            ->distinct()
             ->get()
             ->map(function($app) {
                 // Assumption: AY starts in August (Month 8)

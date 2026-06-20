@@ -10,9 +10,9 @@ class CampusSeeder extends Seeder
     public function run()
     {
         // Clear existing data - handle foreign key constraints
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        //DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('campuses')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+       // DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // Insert constituent campuses first (use exact names as requested)
         $pabloBorbon = DB::table('campuses')->insertGetId([

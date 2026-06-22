@@ -730,6 +730,10 @@ window.sfaoStatisticsTab = function (config = {}) {
             return this.localFilters.program !== 'all';
         },
 
+        shouldUseDonutChart(total) {
+            return total > 0 && (total <= 9 || this.isGranularAnalyticsView());
+        },
+
         buildGranularBreakdown(rawData, mode = 'comparison') {
             const breakdown = {
                 labels: [],
@@ -945,8 +949,9 @@ window.sfaoStatisticsTab = function (config = {}) {
             // We keep the logging but remove the redundant filter to prevent double-filtering (though harmless here, it's cleaner).
 
 
-            if (this.isGranularAnalyticsView()) {
-                const breakdown = this.buildGranularBreakdown(rawData, this.viewMode);
+            const compactBreakdown = this.buildGranularBreakdown(rawData, this.viewMode);
+            if (this.shouldUseDonutChart(compactBreakdown.total)) {
+                const breakdown = compactBreakdown;
                 this.chartStatus = { ...this.chartStatus, college: breakdown.total > 0 };
 
                 if (breakdown.total === 0) {
@@ -1467,8 +1472,9 @@ window.sfaoStatisticsTab = function (config = {}) {
             // Determine Mode Early
             const isSearchActive = (this.filters.search && this.filters.search.trim() !== '');
 
-            if (this.isGranularAnalyticsView()) {
-                const breakdown = this.buildGranularBreakdown(rawData, 'comparison');
+            const compactBreakdown = this.buildGranularBreakdown(rawData, 'comparison');
+            if (this.shouldUseDonutChart(compactBreakdown.total)) {
+                const breakdown = compactBreakdown;
                 this.chartStatus = { ...this.chartStatus, comparison: breakdown.total > 0 };
 
                 if (breakdown.total === 0) {

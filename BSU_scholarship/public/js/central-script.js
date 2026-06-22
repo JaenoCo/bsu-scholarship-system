@@ -6,6 +6,7 @@ window.centralDashboard = function (config = {}) {
     return {
         tab: config.initialTab || new URLSearchParams(window.location.search).get('tabs') || new URLSearchParams(window.location.search).get('tab') || localStorage.getItem('activeTab') || 'all_scholarships',
         currentStatsCampus: 'all',
+        campusList: config.campusList || [],
         showLogoutModal: false,
         rightSidebarOpen: false,
         initialParams: new URLSearchParams(window.location.search),
@@ -145,7 +146,21 @@ window.centralDashboard = function (config = {}) {
 
             // Global event listeners
             window.addEventListener('change-stats-campus', (event) => {
-                this.currentStatsCampus = event.detail;
+                const campusId = event.detail ? String(event.detail) : 'all';
+                this.currentStatsCampus = campusId;
+
+                if (this.getTabGroup(this.tab) === 'statistics') {
+                    const campus = this.campusList.find(item => String(item.id) === campusId);
+                    const statsTab = campusId === 'all' ? 'all_statistics' : (campus ? `${campus.slug}_statistics` : this.tab);
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('tabs', statsTab);
+                    params.delete('tab');
+                    params.delete('campus');
+                    this.tab = statsTab;
+                    const newUrl = new URL(window.location);
+                    newUrl.search = params.toString();
+                    window.history.pushState({}, '', newUrl);
+                }
             });
 
             window.addEventListener('switch-tab', (event) => {

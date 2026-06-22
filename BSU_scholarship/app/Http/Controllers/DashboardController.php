@@ -1354,8 +1354,9 @@ class DashboardController extends Controller
         // Get scholar statistics
         $totalScholars = $scholarQuery->count();
         $activeScholars = (clone $scholarQuery)->where('status', 'active')->count();
-        $graduatedScholars = (clone $scholarQuery)->where('status', 'graduated')->count();
-        $droppedScholars = (clone $scholarQuery)->where('status', 'dropped')->count();
+        $completedScholars = (clone $scholarQuery)->where('status', 'completed')->count();
+        $inactiveScholars = (clone $scholarQuery)->where('status', 'inactive')->count();
+        $suspendedScholars = (clone $scholarQuery)->where('status', 'suspended')->count();
         $uniqueScholars = (clone $scholarQuery)->whereHas('user', function($q){ $q->where('role', 'student'); })->distinct('user_id')->count('user_id');
 
         // Get user statistics
@@ -1499,8 +1500,11 @@ class DashboardController extends Controller
             'scholars' => [
                 'total' => $totalScholars,
                 'active' => $activeScholars,
-                'graduated' => $graduatedScholars,
-                'dropped' => $droppedScholars
+                'completed' => $completedScholars,
+                'inactive' => $inactiveScholars,
+                'suspended' => $suspendedScholars,
+                'graduated' => $completedScholars,
+                'dropped' => $inactiveScholars + $suspendedScholars
             ],
             'users' => [
                 'total_students' => $totalStudents,

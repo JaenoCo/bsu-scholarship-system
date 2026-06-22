@@ -13,6 +13,14 @@
     Session::flush();
     Redirect::to('login')->send();
   }
+
+  $centralCampusList = collect($campuses ?? [])->map(function ($campus) {
+    return [
+      'id' => $campus->id,
+      'name' => $campus->name,
+      'slug' => strtolower(str_replace(' ', '_', $campus->name)),
+    ];
+  })->values();
 @endphp
 
 @extends('layouts.dashboard', ['user' => $user, 'title' => 'Central Dashboard'])
@@ -40,7 +48,8 @@
 
 @section('content')
 <div x-data="centralDashboard({
-    initialTab: {{ json_encode(request()->query('tab')) }}
+    initialTab: @js(request()->query('tab')),
+    campusList: @js($centralCampusList)
 })">
 
   <!-- Right Sidebar Component -->
@@ -95,4 +104,3 @@
 <!-- Load Central Dashboard Script -->
 <script src="{{ asset('js/central-script.js') }}"></script>
 @endsection
-

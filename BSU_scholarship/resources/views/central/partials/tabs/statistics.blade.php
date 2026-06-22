@@ -4,7 +4,7 @@
      x-transition:enter-end="opacity-100 transform scale-100"
      x-cloak 
      x-data='statisticsTab({ analytics: @json($analytics ?? []), campusOptions: @json($campusOptions ?? []) })'
-     @change-stats-campus.window="filters.campus = $event.detail; applyFilters()">
+     @change-stats-campus.window="handleCampusChange($event.detail)">
     <div class="space-y-6">
 
         <!-- Filter Controls -->
@@ -195,30 +195,50 @@
             <!-- Dynamic Summary Counts -->
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                  <!-- Total -->
-                 <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600">
+                 <button type="button"
+                         @click="openStudentDetails('total')"
+                         class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600 hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-500 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show student records">
                      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Total</p>
-                     <p class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.counts?.total || 0"></p>
-                 </div>
+                     <p x-show="!isMetricsLoading" class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.counts?.total || 0"></p>
+                     <div x-show="isMetricsLoading" class="flex h-7 items-center justify-center"><span class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700 dark:border-gray-600 dark:border-t-white"></span></div>
+                 </button>
                  <!-- Approved -->
-                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                 <button type="button"
+                         @click="openStudentDetails('approved')"
+                         class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show approved student records">
                      <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Approved</p>
-                     <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.counts?.approved || 0"></p>
-                 </div>
+                     <p x-show="!isMetricsLoading" class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.counts?.approved || 0"></p>
+                     <div x-show="isMetricsLoading" class="flex h-7 items-center justify-center"><span class="h-4 w-4 animate-spin rounded-full border-2 border-green-200 border-t-green-700 dark:border-green-800 dark:border-t-green-300"></span></div>
+                 </button>
                  <!-- Rejected -->
-                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800">
+                 <button type="button"
+                         @click="openStudentDetails('rejected')"
+                         class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show rejected student records">
                      <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Rejected</p>
-                     <p class="text-xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.counts?.rejected || 0"></p>
-                 </div>
+                     <p x-show="!isMetricsLoading" class="text-xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.counts?.rejected || 0"></p>
+                     <div x-show="isMetricsLoading" class="flex h-7 items-center justify-center"><span class="h-4 w-4 animate-spin rounded-full border-2 border-red-200 border-t-red-700 dark:border-red-800 dark:border-t-red-300"></span></div>
+                 </button>
                  <!-- Active / Pending -->
-                 <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800">
+                 <button type="button"
+                         @click="openStudentDetails('active')"
+                         class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800 hover:ring-2 hover:ring-yellow-300 dark:hover:ring-yellow-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show pending and in-progress student records">
                      <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Pending/In Progress</p>
-                     <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.counts?.active || 0"></p>
-                 </div>
+                     <p x-show="!isMetricsLoading" class="text-xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.counts?.active || 0"></p>
+                     <div x-show="isMetricsLoading" class="flex h-7 items-center justify-center"><span class="h-4 w-4 animate-spin rounded-full border-2 border-yellow-200 border-t-yellow-700 dark:border-yellow-800 dark:border-t-yellow-300"></span></div>
+                 </button>
                  <!-- Rate -->
-                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800">
+                 <button type="button"
+                         @click="openStudentDetails('approvalRate')"
+                         class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-700 focus:outline-none focus:ring-2 focus:ring-bsu-red transition"
+                         title="Show approved records used for the rate">
                      <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Approval Rate</p>
-                     <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="(filteredData.counts?.approvalRate || '0.0') + '%'"></p>
-                 </div>
+                     <p x-show="!isMetricsLoading" class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="(filteredData.counts?.approvalRate || '0.0') + '%'"></p>
+                     <div x-show="isMetricsLoading" class="flex h-7 items-center justify-center"><span class="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700 dark:border-blue-800 dark:border-t-blue-300"></span></div>
+                 </button>
             </div>
 
 
@@ -241,55 +261,155 @@
                 </div>
             </div>
 
-            <!-- Trend Graph (Integrated) -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
-                <h4 class="text-md font-bold text-gray-900 dark:text-white mb-4 text-center">Trend Analysis</h4>
-                <div class="relative h-64 w-full">
-                    <div x-show="chartStatus.trend" class="h-full w-full">
-                        <canvas id="sfaoTrendChart"></canvas>
-                    </div>
-                    <div x-show="!chartStatus.trend" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">No trend data available for this selection.</p>
-                    </div>
+        </div>
+
+        <!-- Unified Visualization Hub -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6 mb-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Visualization Hub</h3>
+                <div class="inline-flex flex-wrap gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-1">
+                    <button type="button"
+                            @click="setVisualization('comparison')"
+                            :class="activeVisualization === 'comparison' ? 'bg-bsu-red text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800'"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-md transition">
+                        Scholarship Comparison
+                    </button>
+                    <button type="button"
+                            @click="setVisualization('studentRatio')"
+                            :class="activeVisualization === 'studentRatio' ? 'bg-bsu-red text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800'"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-md transition">
+                        Student Ratio
+                    </button>
+                    <button type="button"
+                            @click="setVisualization('trend')"
+                            :class="activeVisualization === 'trend' ? 'bg-bsu-red text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800'"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-md transition">
+                        Trend Analysis
+                    </button>
                 </div>
             </div>
 
-        </div>
-
-        <!-- Comparison Charts Layout -->
-        <div class="flex flex-col lg:flex-row gap-6 mt-6 mb-6">
-            
-            <!-- Scholarship Comparison Graph (Flex Grow - Maximized Width) -->
-            <div class="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">Scholarship Comparison (All Programs)</h3>
-                <!-- Scroll Container -->
-                <div class="overflow-x-auto w-full">
-                    <div class="relative" :style="'height: 600px; min-width: ' + Math.max(100, (chartStatus.comparisonCount || 1) * 15) + '%'">
+            <div class="relative" style="min-height: 420px;">
+                <div x-show="activeVisualization === 'comparison'" class="absolute inset-0">
+                    <div class="overflow-x-auto w-full h-full">
+                        <div class="relative h-full" :style="'min-width: ' + Math.max(100, (chartStatus.comparisonCount || 1) * 15) + '%'">
                             <div x-show="chartStatus.comparison" class="h-full w-full">
-                            <canvas id="sfaoComparisonChart"></canvas>
-                        </div>
-                            <!-- No Data Message -->
+                                <canvas id="sfaoComparisonChart"></canvas>
+                            </div>
                             <div x-show="!chartStatus.comparison" class="absolute inset-0 flex items-center justify-center pointer-events-none" style="left: 0; right: 0;">
-                            <div class="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No Comparison Data</h3>
-                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your filters.</p>
+                                <div class="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No Comparison Data</h3>
+                                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your filters.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Student Comparison Graph (Fixed Width: 15rem/240px) -->
-            <div class="lg:w-60 flex-none bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">Student Ratio</h3>
-                <div class="relative w-full flex items-center justify-center" style="height: 600px;">
-                     <div class="h-full w-full">
+                <div x-show="activeVisualization === 'studentRatio'" class="absolute inset-0">
+                    <div class="relative h-full w-full flex items-center justify-center">
                         <canvas id="sfaoStudentComparisonChart"></canvas>
+                    </div>
+                </div>
+
+                <div x-show="activeVisualization === 'trend'" class="absolute inset-0">
+                    <div x-show="chartStatus.trend" class="h-full w-full">
+                        <canvas id="sfaoTrendChart"></canvas>
+                    </div>
+                    <div x-show="!chartStatus.trend" class="absolute inset-0 flex items-center justify-center">
+                        <div class="max-w-md text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m4-14v14m4-9v9M5 13v8" />
+                            </svg>
+                            <h3 class="mt-3 text-sm font-semibold text-gray-900 dark:text-white">Insufficient historical data</h3>
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                Trend Analysis requires multi-period historical data. Current filter selection contains insufficient data.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="!['comparison', 'studentRatio', 'trend'].includes(activeVisualization)" class="absolute inset-0 flex items-center justify-center">
+                    <div class="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <h3 class="text-sm font-medium text-gray-900 dark:text-white">Select a visualization</h3>
                     </div>
                 </div>
             </div>
         </div>
 
+    </div>
+
+    <div x-show="studentDetails.open"
+         x-cloak
+         x-transition.opacity
+         @keydown.escape.window="closeStudentDetails()"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
+         style="display: none;">
+        <div @click.away="closeStudentDetails()"
+             class="flex w-full flex-col overflow-hidden rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl"
+             style="height: 88vh; max-width: 72rem;">
+            <div class="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-5 sm:py-4">
+                <div class="min-w-0">
+                    <h3 class="truncate text-sm font-semibold text-gray-900 dark:text-white sm:text-base" x-text="studentDetails.title"></h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        <span x-text="studentDetails.rows.length"></span>
+                        <span x-text="studentDetails.rows.length === 1 ? 'record' : 'records'"></span>
+                    </p>
+                </div>
+                <button type="button"
+                        @click="closeStudentDetails()"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-bsu-red dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                        title="Close">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex-1"
+                 style="min-height: 0; max-height: calc(88vh - 74px); overflow-y: auto; overflow-x: auto; overscroll-behavior: contain;">
+                <template x-if="studentDetails.rows.length === 0">
+                    <div class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                        No student records found for this selection.
+                    </div>
+                </template>
+
+                <table x-show="studentDetails.rows.length > 0"
+                       class="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700 text-xs sm:text-sm"
+                       style="min-width: 1060px;">
+                    <colgroup>
+                        <col style="width: 140px;">
+                        <col style="width: 190px;">
+                        <col style="width: 240px;">
+                        <col style="width: 120px;">
+                        <col style="width: 150px;">
+                        <col style="width: 260px;">
+                    </colgroup>
+                    <thead class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900 shadow-sm">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Student No.</th>
+                            <th class="px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Name</th>
+                            <th class="px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Scholarship</th>
+                            <th class="px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Status</th>
+                            <th class="px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">College</th>
+                            <th class="px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Program</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                        <template x-for="row in studentDetails.rows" :key="row.key">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/60">
+                                <td class="px-3 py-2.5 font-semibold text-gray-900 dark:text-white sm:px-4" x-text="row.studentNumber"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.name" :title="row.name"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.scholarship" :title="row.scholarship"></td>
+                                <td class="px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.status"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.college" :title="row.college"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.program" :title="row.program"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <!-- Analytics Data and Configuration passed from Controller -->
@@ -317,6 +437,11 @@
                     college_stats: [],
                     scholarshipStats: {}
                 },
+                studentDetails: {
+                    open: false,
+                    title: '',
+                    rows: []
+                },
                 availableColleges: [],
                 availableTracks: [],
                 localFilters: {
@@ -340,6 +465,13 @@
                     trend: true
                 },
                 availablePrograms: [],
+                activeVisualization: 'comparison',
+                isMetricsLoading: false,
+                loadingOptions: {
+                    colleges: false,
+                    programs: false,
+                    tracks: false
+                },
                 filters: {
                     campus: 'all',
                     scholarship: 'all',
@@ -354,8 +486,8 @@
                             this.campusOptions = window.sfaoCampusOptions;
                         }
 
-                        // Initial Filters
-                        this.filters.campus = localStorage.getItem('centralStatsCampus') || 'all';
+                        // Initial Filters: URL statistics tab wins over stale localStorage.
+                        this.filters.campus = this.getCampusIdFromStatsTab() || localStorage.getItem('centralStatsCampus') || 'all';
 
                         // Persist ViewMode (Student Type)
                         const savedViewMode = localStorage.getItem('central_view_mode');
@@ -395,34 +527,19 @@
                                     this.filters.scholarship = 'all';
                                 }
                             } else {
-                                const available = this.analyticsData.available_scholarships || [];
-                                if (available.length > 0) {
-                                    this.filters.scholarship = String(available[0].id);
-                                }
+                                this.filters.scholarship = 'all';
                             }
                             this.applyFilters();
                         });
 
-                        this.$watch('filters.campus', (value) => {
-                            this.updateCollegesList(value);
-                            this.updateProgramList();
-                            this.updateTrackList();
-                            this.applyFilters();
-                        });
+                        this.$watch('filters.campus', (value) => this.handleCampusChange(value));
 
                         this.$watch('filters.scholarship', () => this.applyFilters());
                         this.$watch('filters.timePeriod', () => this.applyFilters());
                         this.$watch('viewMode', () => this.applyFilters());
 
-                        this.$watch('localFilters.college', (val) => {
-                            this.updateProgramList();
-                            this.updateTrackList();
-                            this.applyFilters();
-                        });
-                        this.$watch('localFilters.program', () => {
-                            this.updateTrackList();
-                            this.applyFilters();
-                        });
+                        this.$watch('localFilters.college', () => this.handleCollegeChange());
+                        this.$watch('localFilters.program', () => this.handleProgramChange());
 
                         this.$watch('localFilters.track', () => {
                             this.applyFilters();
@@ -437,7 +554,7 @@
                         });
 
                         window.addEventListener('set-stats-filter', (e) => {
-                            this.filters.campus = e.detail;
+                            this.handleCampusChange(e.detail);
                         });
 
                         const observer = new MutationObserver((mutations) => {
@@ -455,6 +572,10 @@
 
                 handleTabChange(newTab) {
                     if (newTab && newTab.includes('statistics')) {
+                        const campusId = this.getCampusIdFromStatsTab(newTab);
+                        if (campusId && String(campusId) !== String(this.filters.campus)) {
+                            this.handleCampusChange(campusId);
+                        }
                         window.dispatchEvent(new Event('resize'));
                         requestAnimationFrame(() => {
                             setTimeout(() => {
@@ -464,13 +585,211 @@
                     }
                 },
 
+                getCampusIdFromStatsTab(tabName = null) {
+                    const params = new URLSearchParams(window.location.search);
+                    const tab = tabName || params.get('tabs') || params.get('tab') || '';
+                    if (!tab || tab === 'all_statistics' || !tab.endsWith('_statistics')) return null;
+
+                    const slug = tab.replace(/_statistics$/, '');
+                    const campus = (this.campusOptions || []).find(campus => {
+                        const nameSlug = String(campus.name || '').toLowerCase().replace(/\s+/g, '_');
+                        return nameSlug === slug;
+                    });
+
+                    return campus ? String(campus.id) : null;
+                },
+
+                handleCampusChange(campusId) {
+                    const nextCampus = campusId ? String(campusId) : 'all';
+                    const changed = String(this.filters.campus) !== nextCampus;
+
+                    this.isMetricsLoading = true;
+                    this.loadingOptions.colleges = true;
+                    this.loadingOptions.programs = true;
+                    this.loadingOptions.tracks = true;
+
+                    if (changed) {
+                        this.filters.campus = nextCampus;
+                    }
+
+                    localStorage.setItem('centralStatsCampus', nextCampus);
+                    this.filters.scholarship = 'all';
+                    this.localFilters.college = 'all';
+                    this.localFilters.program = 'all';
+                    this.localFilters.track = 'all';
+                    this.updateCollegesList(nextCampus);
+                    this.updateProgramList();
+                    this.updateTrackList();
+                    this.refreshAnalyticsView();
+                },
+
+                handleCollegeChange() {
+                    this.isMetricsLoading = true;
+                    this.loadingOptions.programs = true;
+                    this.loadingOptions.tracks = true;
+                    this.localFilters.program = 'all';
+                    this.localFilters.track = 'all';
+                    this.updateProgramList();
+                    this.updateTrackList();
+                    this.refreshAnalyticsView();
+                },
+
+                handleProgramChange() {
+                    this.isMetricsLoading = true;
+                    this.loadingOptions.tracks = true;
+                    this.localFilters.track = 'all';
+                    this.updateTrackList();
+                    this.refreshAnalyticsView();
+                },
+
+                refreshAnalyticsView() {
+                    requestAnimationFrame(() => {
+                        this.applyFilters();
+                        this.loadingOptions.colleges = false;
+                        this.loadingOptions.programs = false;
+                        this.loadingOptions.tracks = false;
+                        setTimeout(() => {
+                            this.isMetricsLoading = false;
+                        }, 120);
+                    });
+                },
+
+                setVisualization(view) {
+                    this.activeVisualization = view;
+                    this.$nextTick(() => this.renderActiveVisualizationChart());
+                },
+
+                renderActiveVisualizationChart() {
+                    if (this.activeVisualization === 'comparison') {
+                        this.createComparisonChart();
+                    } else if (this.activeVisualization === 'studentRatio') {
+                        this.createStudentComparisonChart();
+                    } else if (this.activeVisualization === 'trend') {
+                        this.createTrendChart();
+                    }
+                },
+
+                openStudentDetails(type) {
+                    this.studentDetails = {
+                        open: true,
+                        title: this.getStudentDetailsTitle(type),
+                        rows: this.getStudentDetailRows(type)
+                    };
+                },
+
+                closeStudentDetails() {
+                    this.studentDetails.open = false;
+                },
+
+                getStudentDetailRows(type) {
+                    const validStatuses = ['pending', 'approved', 'rejected', 'in_progress'];
+                    const rows = (this.filteredData.all_applications_data || [])
+                        .filter(item => {
+                            const isScholar = this.isScholarRecord(item);
+                            const isApplicant = !isScholar;
+                            const hasValidApplicantStatus = validStatuses.includes(item.status);
+
+                            if (this.viewMode === 'scholars' && !isScholar) return false;
+                            if (this.viewMode === 'applicants' && (!isApplicant || !hasValidApplicantStatus)) return false;
+
+                            if (this.viewMode === 'scholars') {
+                                const scholarStatus = item.scholar_status || 'active';
+                                if (type === 'approved' || type === 'approvalRate') return ['active', 'completed'].includes(scholarStatus);
+                                if (type === 'rejected') return ['inactive', 'suspended'].includes(scholarStatus);
+                                if (type === 'active') return scholarStatus === 'active';
+                                return true;
+                            }
+
+                            if (type === 'approved' || type === 'approvalRate') return item.status === 'approved';
+                            if (type === 'rejected') return item.status === 'rejected';
+                            if (type === 'active') return ['pending', 'in_progress'].includes(item.status);
+                            return true;
+                        })
+                        .map((item, index) => this.formatStudentDetailRow(item, index));
+
+                    return rows.sort((a, b) => a.studentNumber.localeCompare(b.studentNumber));
+                },
+
+                formatStudentDetailRow(item, index) {
+                    const nameParts = [item.first_name, item.middle_name, item.last_name]
+                        .filter(Boolean)
+                        .map(part => String(part).trim())
+                        .filter(Boolean);
+                    const campus = this.campusOptions.find(c => String(c.id) === String(item.campus_id));
+
+                    return {
+                        key: `${item.user_id || 'student'}-${item.scholarship_name || 'scholarship'}-${item.status || 'status'}-${index}`,
+                        studentNumber: item.sr_code || item.student_number || item.student_no || `ID ${item.user_id || 'N/A'}`,
+                        name: item.student_name || nameParts.join(' ') || 'Unnamed student',
+                        campus: campus ? campus.name : (item.campus_name || item.campus || 'Unassigned campus'),
+                        college: item.college || 'Unassigned college',
+                        program: item.program || 'Unassigned program',
+                        scholarship: item.scholarship_name || 'Unassigned scholarship',
+                        status: this.formatStatusLabel(item.scholar_status || item.status, this.isScholarRecord(item))
+                    };
+                },
+
+                formatStatusLabel(status, isScholar) {
+                    if (isScholar && !status) return 'Scholar';
+                    const labels = {
+                        approved: 'Approved',
+                        rejected: 'Rejected',
+                        pending: 'Pending',
+                        in_progress: 'In Progress',
+                        active: 'Active',
+                        completed: 'Completed',
+                        inactive: 'Inactive',
+                        suspended: 'Suspended'
+                    };
+                    return labels[status] || (isScholar ? 'Scholar' : 'Unknown');
+                },
+
+                isScholarRecord(item) {
+                    return !!(item && item.scholar_id);
+                },
+
+                getStudentDetailsTitle(type) {
+                    const labels = {
+                        total: 'Total',
+                        approved: 'Approved',
+                        rejected: 'Rejected',
+                        active: 'Pending/In Progress',
+                        approvalRate: 'Approval Rate - Approved'
+                    };
+
+                    return `${labels[type] || 'Students'}: ${this.getChartTitle()}`;
+                },
+
                 createStudentComparisonChart() {
                     const ctx = document.getElementById('sfaoStudentComparisonChart');
                     if (!ctx) return;
                     if (chartInstances.studentComparison) chartInstances.studentComparison.destroy();
 
-                    const applicantsCount = this.analyticsData.users?.unique_applicants || 0;
-                    const scholarsCount = this.analyticsData.users?.unique_scholars || 0;
+                    const rawData = this.filteredData.all_applications_data || [];
+                    const applicantIds = new Set();
+                    const scholarIds = new Set();
+
+                    rawData.forEach(item => {
+                        const isScholar = this.isScholarRecord(item);
+                        if (isScholar) scholarIds.add(item.user_id);
+                        else if (['pending', 'approved', 'rejected', 'in_progress'].includes(item.status)) applicantIds.add(item.user_id);
+                    });
+
+                    const applicantsCount = applicantIds.size;
+                    const scholarsCount = scholarIds.size;
+                    const ratioLabels = ['Applicants', 'Scholars'];
+                    const ratioValues = [applicantsCount, scholarsCount];
+
+                    if (this.isSparseDataset(ratioLabels, ratioValues)) {
+                        chartInstances.studentComparison = this.createDonutChart(
+                            ctx,
+                            ratioLabels.filter((_, index) => ratioValues[index] > 0),
+                            ratioValues.filter(value => value > 0),
+                            ['#3B82F6', '#10B981'].filter((_, index) => ratioValues[index] > 0),
+                            'Student Ratio'
+                        );
+                        return;
+                    }
 
                     chartInstances.studentComparison = new Chart(ctx, {
                         type: 'bar',
@@ -527,6 +846,100 @@
 
                 getTextColor() {
                     return document.documentElement.classList.contains('dark') ? '#ffffff' : '#374151';
+                },
+
+                isSparseDataset(labels, values, totalOverride = null) {
+                    const total = totalOverride ?? values.reduce((sum, value) => sum + Number(value || 0), 0);
+                    return total > 0 && (total <= 9 || this.localFilters.program !== 'all');
+                },
+
+                buildStatusBreakdown(rawData) {
+                    const counts = this.viewMode === 'scholars'
+                        ? { 'New Scholars': 0, 'Old Scholars': 0 }
+                        : { Approved: 0, Pending: 0, Rejected: 0, 'In Progress': 0 };
+
+                    rawData.forEach(item => {
+                        const isScholar = this.isScholarRecord(item);
+
+                        if (this.viewMode === 'scholars') {
+                            if (!isScholar) return;
+                            if (item.scholar_type === 'new') counts['New Scholars']++;
+                            else counts['Old Scholars']++;
+                            return;
+                        }
+
+                        if (isScholar || !['pending', 'approved', 'rejected', 'in_progress'].includes(item.status)) return;
+                        if (item.status === 'approved') counts.Approved++;
+                        if (item.status === 'pending') counts.Pending++;
+                        if (item.status === 'rejected') counts.Rejected++;
+                        if (item.status === 'in_progress') counts['In Progress']++;
+                    });
+
+                    const colors = {
+                        Approved: '#10B981',
+                        Pending: '#F59E0B',
+                        Rejected: '#EF4444',
+                        'In Progress': '#3B82F6',
+                        'New Scholars': '#3B82F6',
+                        'Old Scholars': '#10B981'
+                    };
+
+                    const labels = Object.keys(counts).filter(label => counts[label] > 0);
+                    return {
+                        labels,
+                        values: labels.map(label => counts[label]),
+                        colors: labels.map(label => colors[label])
+                    };
+                },
+
+                createDonutChart(ctx, labels, values, colors, title) {
+                    const total = values.reduce((sum, value) => sum + Number(value || 0), 0);
+
+                    return new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: colors,
+                                borderColor: document.documentElement.classList.contains('dark') ? '#1F2937' : '#FFFFFF',
+                                borderWidth: 2,
+                                hoverOffset: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '58%',
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'bottom',
+                                    labels: {
+                                        color: this.getTextColor(),
+                                        usePointStyle: true,
+                                        padding: 14
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: title,
+                                    color: this.getTextColor(),
+                                    font: { size: 13, weight: '600' },
+                                    padding: { bottom: 12 }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: context => {
+                                            const value = context.parsed || 0;
+                                            const percent = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                            return `${context.label}: ${value} (${percent}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
                 },
 
 
@@ -668,9 +1081,9 @@
                     }
 
                     allApplications.forEach(app => {
-                        if (this.viewMode === 'scholars' && (app.status !== 'approved' || !app.scholar_id)) return;
-                        const isScholarVal = Number(app.is_global_scholar);
-                        if (this.viewMode === 'applicants' && isScholarVal > 0) return;
+                        const isScholar = this.isScholarRecord(app);
+                        if (this.viewMode === 'scholars' && !isScholar) return;
+                        if (this.viewMode === 'applicants' && isScholar) return;
 
                         if (this.viewMode === 'applicants') {
                             if (!['pending', 'approved', 'rejected', 'in_progress'].includes(app.status)) return;
@@ -679,19 +1092,17 @@
                             if (app.status === 'rejected' && !this.chartLegend.rejected) return;
                             if (app.status === 'in_progress' && !this.chartLegend.inProgress) return;
                         } else {
-                            if (app.status === 'approved' && app.scholar_id) {
-                                const isNew = app.scholar_type === 'new';
-                                if (isNew && !this.chartLegend.newScholars) return;
-                                if (!isNew && !this.chartLegend.oldScholars) return;
-                            }
+                            const isNew = app.scholar_type === 'new';
+                            if (isNew && !this.chartLegend.newScholars) return;
+                            if (!isNew && !this.chartLegend.oldScholars) return;
                         }
                     });
 
                     const scholarshipStats = {};
                     allApplications.forEach(app => {
-                        if (this.viewMode === 'scholars' && (app.status !== 'approved' || !app.scholar_id)) return;
-                        const isScholarVal2 = Number(app.is_global_scholar);
-                        if (this.viewMode === 'applicants' && isScholarVal2 > 0) return;
+                        const isScholar = this.isScholarRecord(app);
+                        if (this.viewMode === 'scholars' && !isScholar) return;
+                        if (this.viewMode === 'applicants' && isScholar) return;
 
                         const name = app.scholarship_name || 'Unknown';
                         if (!scholarshipStats[name]) {
@@ -700,7 +1111,7 @@
                                 nonScholars: new Set()
                             };
                         }
-                        if (app.status === 'approved' && app.scholar_id) {
+                        if (isScholar) {
                             scholarshipStats[name].scholars.add(app.user_id);
                         } else {
                             scholarshipStats[name].nonScholars.add(app.user_id);
@@ -728,16 +1139,24 @@
                     };
 
                     allApplications.forEach(app => {
-                        if (this.viewMode === 'scholars' && (app.status !== 'approved' || !app.scholar_id)) return;
-                        const isScholarVal = Number(app.is_global_scholar);
-                        if (this.viewMode === 'applicants' && isScholarVal > 0) return;
+                        const isScholar = this.isScholarRecord(app);
+                        if (this.viewMode === 'scholars' && !isScholar) return;
+                        if (this.viewMode === 'applicants' && isScholar) return;
                         if (this.viewMode === 'applicants' && !['pending', 'approved', 'rejected', 'in_progress'].includes(app.status)) return;
 
                         summaryCounts.total++;
-                        if (app.status === 'approved') summaryCounts.approved++;
-                        if (app.status === 'rejected') summaryCounts.rejected++;
-                        if (app.status === 'in_progress') summaryCounts.inProgress++;
-                        if (app.status === 'pending') summaryCounts.pending++;
+
+                        if (this.viewMode === 'scholars') {
+                            const scholarStatus = app.scholar_status || 'active';
+                            if (['active', 'completed'].includes(scholarStatus)) summaryCounts.approved++;
+                            if (['inactive', 'suspended'].includes(scholarStatus)) summaryCounts.rejected++;
+                            if (scholarStatus === 'active') summaryCounts.pending++;
+                        } else {
+                            if (app.status === 'approved') summaryCounts.approved++;
+                            if (app.status === 'rejected') summaryCounts.rejected++;
+                            if (app.status === 'in_progress') summaryCounts.inProgress++;
+                            if (app.status === 'pending') summaryCounts.pending++;
+                        }
                     });
 
                     summaryCounts.active = summaryCounts.total - summaryCounts.approved - summaryCounts.rejected;
@@ -795,17 +1214,12 @@
                     ro.observe(container);
 
                     this.createCollegeChart();
-                    this.createCollegeChart();
-                    this.createComparisonChart();
-                    this.createStudentComparisonChart();
-                    this.createTrendChart();
+                    this.renderActiveVisualizationChart();
                 },
 
                 updateCharts() {
                     this.createCollegeChart();
-                    this.createComparisonChart();
-                    this.createStudentComparisonChart();
-                    this.createTrendChart();
+                    this.$nextTick(() => this.renderActiveVisualizationChart());
                 },
 
                 createCollegeChart() {
@@ -814,6 +1228,23 @@
                     if (chartInstances.college) chartInstances.college.destroy();
 
                     let rawData = this.filteredData.all_applications_data || [];
+                    const sparseBreakdown = this.buildStatusBreakdown(rawData);
+                    const sparseTotal = sparseBreakdown.values.reduce((sum, value) => sum + value, 0);
+
+                    if (this.isSparseDataset(sparseBreakdown.labels, sparseBreakdown.values, sparseTotal)) {
+                        this.chartStatus = { ...this.chartStatus, college: sparseTotal > 0 };
+                        if (sparseTotal === 0) return;
+
+                        chartInstances.college = this.createDonutChart(
+                            ctx,
+                            sparseBreakdown.labels,
+                            sparseBreakdown.values,
+                            sparseBreakdown.colors,
+                            'Campus Status Breakdown'
+                        );
+                        return;
+                    }
+
                     const groupedData = {};
                     const campusMap = {};
                     this.campusOptions.forEach(c => {
@@ -822,8 +1253,9 @@
                     const isComparisonMode = (this.filters.campus === 'all');
 
                     rawData.forEach(item => {
-                        const isGlobalScholar = Number(item.is_global_scholar);
-                        if (this.viewMode === 'applicants' && isGlobalScholar > 0) return;
+                        const isScholar = this.isScholarRecord(item);
+                        if (this.viewMode === 'applicants' && isScholar) return;
+                        if (this.viewMode === 'scholars' && !isScholar) return;
 
                         let groupKey = 'Unknown';
                         if (isComparisonMode) {
@@ -845,10 +1277,8 @@
                             else if (item.status === 'rejected') groupedData[groupKey].rejected.add(item.user_id);
                             else if (item.status === 'in_progress') groupedData[groupKey].inProgress.add(item.user_id);
                         } else {
-                            if (item.status === 'approved' && item.scholar_id) {
-                                if (item.scholar_type === 'new') groupedData[groupKey].newScholars.add(item.user_id);
-                                else groupedData[groupKey].oldScholars.add(item.user_id);
-                            }
+                            if (item.scholar_type === 'new') groupedData[groupKey].newScholars.add(item.user_id);
+                            else groupedData[groupKey].oldScholars.add(item.user_id);
                         }
                     });
 
@@ -965,15 +1395,31 @@
                         rawData = rawData.filter(item => item.track === this.localFilters.track);
                     }
 
+                    const sparseBreakdown = this.buildStatusBreakdown(rawData);
+                    const sparseTotal = sparseBreakdown.values.reduce((sum, value) => sum + value, 0);
+
+                    if (this.isSparseDataset(sparseBreakdown.labels, sparseBreakdown.values, sparseTotal)) {
+                        this.chartStatus = { ...this.chartStatus, comparison: sparseTotal > 0, comparisonCount: sparseBreakdown.labels.length };
+                        if (sparseTotal === 0) return;
+
+                        chartInstances.comparison = this.createDonutChart(
+                            ctx,
+                            sparseBreakdown.labels,
+                            sparseBreakdown.values,
+                            sparseBreakdown.colors,
+                            'Scholarship Status Breakdown'
+                        );
+                        return;
+                    }
 
                     // Group by Scholarship Name (Counting Unique Applicants per Status)
                     const groupedData = {};
                     rawData.forEach(item => {
                         // View Mode Filter
-                        if (this.viewMode === 'scholars' && (item.status !== 'approved' || !item.scholar_id)) return;
+                        const isScholar = this.isScholarRecord(item);
+                        if (this.viewMode === 'scholars' && !isScholar) return;
 
-                        const isScholarVal = Number(item.is_global_scholar);
-                        if (this.viewMode === 'applicants' && isScholarVal > 0) return;
+                        if (this.viewMode === 'applicants' && isScholar) return;
                         
                         // Graph only shows: Pending, Approved, Rejected, AND In Progress.
                         if (this.viewMode === 'applicants') {
@@ -999,10 +1445,8 @@
                             else if (item.status === 'in_progress') groupedData[name].inProgress.add(item.user_id);
                         } else {
                             // Scholars Mode
-                            if (item.status === 'approved' && item.scholar_id) {
-                                if (item.scholar_type === 'new') groupedData[name].newScholars.add(item.user_id);
-                                else groupedData[name].oldScholars.add(item.user_id);
-                            }
+                            if (item.scholar_type === 'new') groupedData[name].newScholars.add(item.user_id);
+                            else groupedData[name].oldScholars.add(item.user_id);
                         }
                     });
 
@@ -1148,9 +1592,9 @@
                         if (!item.created_at) return;
 
                         // View Mode Logic 
-                        if (this.viewMode === 'scholars' && (item.status !== 'approved' || !item.scholar_id)) return;
-                        const isScholarVal = Number(item.is_global_scholar);
-                        if (this.viewMode === 'applicants' && isScholarVal > 0) return;
+                        const isScholar = this.isScholarRecord(item);
+                        if (this.viewMode === 'scholars' && !isScholar) return;
+                        if (this.viewMode === 'applicants' && isScholar) return;
                         if (this.viewMode === 'applicants' && !['pending', 'approved', 'rejected', 'in_progress'].includes(item.status)) return;
 
                         const date = new Date(item.created_at);
@@ -1171,10 +1615,8 @@
                             else if (item.status === 'rejected') groupedData[key].rejected++;
                             else if (item.status === 'in_progress') groupedData[key].in_progress++;
                         } else {
-                            if (item.status === 'approved' && item.scholar_id) {
-                                if (item.scholar_type === 'new') groupedData[key].new++;
-                                else groupedData[key].old++;
-                            }
+                            if (item.scholar_type === 'new') groupedData[key].new++;
+                            else groupedData[key].old++;
                         }
                     });
 
@@ -1183,9 +1625,15 @@
                     const chartLabels = sortedLabels.map(l => l.label);
                     const timeKeys = sortedLabels.map(l => l.key);
 
-                    // Update Status
-                    this.chartStatus.trend = timeKeys.length > 0;
-                    if (timeKeys.length === 0) return;
+                    // Trend needs at least two periods to communicate movement.
+                    this.chartStatus.trend = timeKeys.length >= 2;
+                    if (timeKeys.length < 2) {
+                        if (chartInstances.trend) {
+                            chartInstances.trend.destroy();
+                            chartInstances.trend = null;
+                        }
+                        return;
+                    }
 
                     // Calculate Visible Count for Shading logic
                     let visibleCount = 0;

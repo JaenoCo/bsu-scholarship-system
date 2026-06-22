@@ -731,7 +731,7 @@ window.sfaoStatisticsTab = function (config = {}) {
         },
 
         shouldUseDonutChart(total) {
-            return total > 0 && (total <= 9 || this.isGranularAnalyticsView());
+            return total > 0 && (total <= 15 || this.isGranularAnalyticsView());
         },
 
         buildGranularBreakdown(rawData, mode = 'comparison') {

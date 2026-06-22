@@ -850,7 +850,7 @@
 
                 isSparseDataset(labels, values, totalOverride = null) {
                     const total = totalOverride ?? values.reduce((sum, value) => sum + Number(value || 0), 0);
-                    return total > 0 && (total <= 9 || this.localFilters.program !== 'all');
+                    return total > 0 && (total <= 15 || this.localFilters.program !== 'all');
                 },
 
                 buildStatusBreakdown(rawData) {

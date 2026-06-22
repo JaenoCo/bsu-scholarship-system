@@ -355,10 +355,14 @@ class DashboardController extends Controller
         $tracks = $filterOptions->pluck('track')->filter()->unique()->values();
         
         // Academic Years (from Applications) — PostgreSQL-compatible using EXTRACT
+        $datePartsSelect = DB::connection()->getDriverName() === 'pgsql'
+            ? 'DISTINCT EXTRACT(YEAR FROM created_at) as year, EXTRACT(MONTH FROM created_at) as month'
+            : 'DISTINCT YEAR(created_at) as year, MONTH(created_at) as month';
+
         $academicYears = Application::whereHas('user', function($q) use ($campusIds) {
                 $q->whereIn('campus_id', $campusIds);
             })
-            ->selectRaw('DISTINCT EXTRACT(YEAR FROM created_at) as year, EXTRACT(MONTH FROM created_at) as month')
+            ->selectRaw($datePartsSelect)
             ->get()
             ->map(function($app) {
                 // Assumption: AY starts in August (Month 8)
@@ -1376,12 +1380,14 @@ class DashboardController extends Controller
         });
 
         // Application Status Trends (Monthly for current year) — PostgreSQL-compatible
-        $monthlyApplications = \App\Models\Application::selectRaw(
-                'EXTRACT(MONTH FROM created_at)::integer as month, COUNT(*) as count'
-            )
+        $monthExpression = DB::connection()->getDriverName() === 'pgsql'
+            ? 'EXTRACT(MONTH FROM created_at)::integer'
+            : 'MONTH(created_at)';
+
+        $monthlyApplications = \App\Models\Application::selectRaw("{$monthExpression} as month, COUNT(*) as count")
             ->whereYear('created_at', date('Y'))
-            ->groupByRaw('EXTRACT(MONTH FROM created_at)::integer')
-            ->orderByRaw('EXTRACT(MONTH FROM created_at)::integer')
+            ->groupByRaw($monthExpression)
+            ->orderByRaw($monthExpression)
             ->pluck('count', 'month')
             ->toArray();
             

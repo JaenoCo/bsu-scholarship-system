@@ -382,12 +382,14 @@
          x-cloak
          x-transition.opacity
          @keydown.escape.window="closeStudentDetails()"
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
+         style="display: none;">
         <div @click.away="closeStudentDetails()"
-             class="w-full max-w-5xl max-h-[85vh] overflow-hidden rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
-            <div class="flex items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 px-5 py-4">
-                <div>
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-white" x-text="studentDetails.title"></h3>
+             class="flex w-full flex-col overflow-hidden rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl"
+             style="height: 88vh; max-width: 72rem;">
+            <div class="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-5 sm:py-4">
+                <div class="min-w-0">
+                    <h3 class="truncate text-sm font-semibold text-gray-900 dark:text-white sm:text-base" x-text="studentDetails.title"></h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                         <span x-text="studentDetails.rows.length"></span>
                         <span x-text="studentDetails.rows.length === 1 ? 'record' : 'records'"></span>
@@ -403,33 +405,44 @@
                 </button>
             </div>
 
-            <div class="max-h-[68vh] overflow-auto">
+            <div class="flex-1"
+                 style="min-height: 0; max-height: calc(88vh - 74px); overflow-y: auto; overflow-x: auto; overscroll-behavior: contain;">
                 <template x-if="studentDetails.rows.length === 0">
                     <div class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                         No student numbers found for this selection.
                     </div>
                 </template>
 
-                <table x-show="studentDetails.rows.length > 0" class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                    <thead class="sticky top-0 bg-gray-50 dark:bg-gray-900">
+                <table x-show="studentDetails.rows.length > 0"
+                       class="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700 text-xs sm:text-sm"
+                       style="min-width: 920px;">
+                    <colgroup>
+                        <col style="width: 140px;">
+                        <col style="width: 180px;">
+                        <col style="width: 240px;">
+                        <col style="width: 120px;">
+                        <col style="width: 120px;">
+                        <col style="width: 260px;">
+                    </colgroup>
+                    <thead class="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900 shadow-sm">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Student No.</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Scholarship</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">College</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Program</th>
+                            <th class="w-[140px] px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Student No.</th>
+                            <th class="w-[180px] px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Name</th>
+                            <th class="w-[240px] px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Scholarship</th>
+                            <th class="w-[120px] px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Status</th>
+                            <th class="w-[120px] px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">College</th>
+                            <th class="w-[260px] px-3 py-3 text-left text-[11px] font-semibold uppercase text-gray-500 dark:text-gray-400 sm:px-4">Program</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
                         <template x-for="row in studentDetails.rows" :key="row.key">
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/60">
-                                <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white" x-text="row.studentNumber"></td>
-                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.name"></td>
-                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.scholarship"></td>
-                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.status"></td>
-                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.college"></td>
-                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" x-text="row.program"></td>
+                                <td class="px-3 py-2.5 font-semibold text-gray-900 dark:text-white sm:px-4" x-text="row.studentNumber"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.name" :title="row.name"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.scholarship" :title="row.scholarship"></td>
+                                <td class="px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.status"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.college" :title="row.college"></td>
+                                <td class="truncate px-3 py-2.5 text-gray-700 dark:text-gray-200 sm:px-4" x-text="row.program" :title="row.program"></td>
                             </tr>
                         </template>
                     </tbody>

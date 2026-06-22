@@ -72,6 +72,9 @@ window.sfaoStatisticsTab = function (config = {}) {
             title: '',
             rows: []
         },
+        isAnonymized: false,
+        activeView: null,
+        nameHashCache: {},
 
         init() {
             try {
@@ -605,8 +608,16 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.applyFilters();
         },
 
-        openStudentDetails(scope, type) {
-            const rows = this.getStudentDetailRows(scope, type);
+        async openStudentDetails(scope, type) {
+            this.isAnonymized = true;
+            this.activeView = `${scope}:${type}`;
+            this.studentDetails = {
+                open: true,
+                title: this.getStudentDetailsTitle(scope, type),
+                rows: []
+            };
+
+            const rows = await this.getStudentDetailRows(scope, type);
             this.studentDetails = {
                 open: true,
                 title: this.getStudentDetailsTitle(scope, type),
@@ -618,11 +629,11 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.studentDetails.open = false;
         },
 
-        getStudentDetailRows(scope, type) {
+        async getStudentDetailRows(scope, type) {
             const source = this.filteredData.all_applications_data || [];
             const validApplicantStatuses = ['pending', 'approved', 'rejected', 'in_progress'];
 
-            return source
+            const rows = source
                 .filter(item => {
                     const isScholar = this.isScholarRecord(item);
                     const isApplicant = !isScholar;
@@ -644,6 +655,11 @@ window.sfaoStatisticsTab = function (config = {}) {
                 })
                 .map((item, index) => this.formatStudentDetailRow(item, index))
                 .sort((a, b) => a.studentNumber.localeCompare(b.studentNumber));
+
+            return Promise.all(rows.map(async row => ({
+                ...row,
+                name: this.isAnonymized ? await this.anonymizeName(row.name) : row.name
+            })));
         },
 
         isScholarRecord(item) {
@@ -693,6 +709,135 @@ window.sfaoStatisticsTab = function (config = {}) {
             };
 
             return `${labels[type] || 'Students'}: ${context}`;
+        },
+
+        async anonymizeName(name) {
+            const rawName = String(name || 'Unnamed student').trim();
+            if (this.nameHashCache[rawName]) return this.nameHashCache[rawName];
+
+            this.nameHashCache[rawName] = rawName.split(/\s+/)
+                .map(part => {
+                    if (!part) return '';
+                    return `${part[0]}${'*'.repeat(Math.max(part.length - 1, 3))}`;
+                })
+                .filter(Boolean)
+                .join(' ');
+
+            return this.nameHashCache[rawName];
+        },
+
+        isGranularAnalyticsView() {
+            return this.localFilters.program !== 'all';
+        },
+
+        buildGranularBreakdown(rawData, mode = 'comparison') {
+            const breakdown = {
+                labels: [],
+                values: [],
+                colors: [],
+                total: 0
+            };
+            const statusCounts = {
+                approved: 0,
+                rejected: 0,
+                pending: 0,
+                in_progress: 0,
+                scholars: 0,
+                new_scholars: 0,
+                old_scholars: 0
+            };
+
+            rawData.forEach(item => {
+                const isScholar = this.isScholarRecord(item);
+                const isValidApplicant = ['pending', 'approved', 'rejected', 'in_progress'].includes(item.status);
+
+                if (mode === 'scholars') {
+                    if (!isScholar) return;
+                    if (item.scholar_type === 'new') statusCounts.new_scholars++;
+                    else statusCounts.old_scholars++;
+                    return;
+                }
+
+                if (mode === 'applicants') {
+                    if (isScholar || !isValidApplicant) return;
+                    statusCounts[item.status]++;
+                    return;
+                }
+
+                if (isScholar) statusCounts.scholars++;
+                else if (isValidApplicant) statusCounts[item.status]++;
+            });
+
+            const items = mode === 'scholars'
+                ? [
+                    ['Old Scholars', statusCounts.old_scholars, '#10B981'],
+                    ['New Scholars', statusCounts.new_scholars, '#3B82F6']
+                ]
+                : [
+                    ['Approved', statusCounts.approved, '#15803D'],
+                    ['Rejected', statusCounts.rejected, '#B91C1C'],
+                    ['Pending Review', statusCounts.pending, '#CA8A04'],
+                    ['In Progress', statusCounts.in_progress, '#2563EB'],
+                    ...(mode === 'comparison' ? [['Scholars', statusCounts.scholars, '#7C3AED']] : [])
+                ];
+
+            items.forEach(([label, value, color]) => {
+                if (value <= 0) return;
+                breakdown.labels.push(label);
+                breakdown.values.push(value);
+                breakdown.colors.push(color);
+                breakdown.total += value;
+            });
+
+            return breakdown;
+        },
+
+        createGranularDonutChart(ctx, breakdown, title) {
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: breakdown.labels,
+                    datasets: [{
+                        data: breakdown.values,
+                        backgroundColor: breakdown.colors,
+                        borderColor: document.documentElement.classList.contains('dark') ? '#1F2937' : '#FFFFFF',
+                        borderWidth: 2,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '58%',
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                color: this.getTextColor(),
+                                usePointStyle: true,
+                                padding: 16
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: title,
+                            color: this.getTextColor(),
+                            font: { size: 13, weight: '600' },
+                            padding: { bottom: 14 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: context => {
+                                    const value = context.parsed || 0;
+                                    const percent = breakdown.total > 0 ? ((value / breakdown.total) * 100).toFixed(1) : '0.0';
+                                    return `${context.label}: ${value} (${percent}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         },
 
         createAllCharts(retryCount = 0) {
@@ -799,6 +944,22 @@ window.sfaoStatisticsTab = function (config = {}) {
             // NOTE: Local Filters are now applied in updateFilteredData, so rawData is ALREADY filtered by Dept/Program.
             // We keep the logging but remove the redundant filter to prevent double-filtering (though harmless here, it's cleaner).
 
+
+            if (this.isGranularAnalyticsView()) {
+                const breakdown = this.buildGranularBreakdown(rawData, this.viewMode);
+                this.chartStatus = { ...this.chartStatus, college: breakdown.total > 0 };
+
+                if (breakdown.total === 0) {
+                    chartInstances.college = null;
+                    return;
+                }
+
+                const title = this.viewMode === 'scholars'
+                    ? 'Scholar Type Breakdown'
+                    : 'Applicant Status Breakdown';
+                chartInstances.college = this.createGranularDonutChart(ctx, breakdown, title);
+                return;
+            }
 
 
             // Group by Department OR Campus based on View
@@ -1305,6 +1466,23 @@ window.sfaoStatisticsTab = function (config = {}) {
 
             // Determine Mode Early
             const isSearchActive = (this.filters.search && this.filters.search.trim() !== '');
+
+            if (this.isGranularAnalyticsView()) {
+                const breakdown = this.buildGranularBreakdown(rawData, 'comparison');
+                this.chartStatus = { ...this.chartStatus, comparison: breakdown.total > 0 };
+
+                if (breakdown.total === 0) {
+                    chartInstances.comparison = null;
+                    return;
+                }
+
+                chartInstances.comparison = this.createGranularDonutChart(
+                    ctx,
+                    breakdown,
+                    'Program Status Breakdown'
+                );
+                return;
+            }
 
             // Group by Scholarship Name (Counting Unique Applicants per Status)
             const groupedData = {};

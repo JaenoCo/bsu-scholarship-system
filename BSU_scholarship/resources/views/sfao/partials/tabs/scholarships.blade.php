@@ -5,7 +5,7 @@
      x-cloak
      class="px-4 py-6"
      x-data="sfaoScholarshipsFilter()"
-     x-init="$watch('tab', value => handleTabChange(value))">
+     x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
      
   <!-- Header -->
   <div class="mb-6">

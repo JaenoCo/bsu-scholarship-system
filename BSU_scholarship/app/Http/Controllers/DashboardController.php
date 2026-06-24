@@ -93,7 +93,7 @@ class DashboardController extends Controller
         $limit = 5; // Dashboard preview limit
         
         // 2. Scholarships Data
-        $scholarshipsQuery = Scholarship::withCount([
+        $scholarshipsQuery = $this->scopeScholarshipCampusAvailability(Scholarship::withCount([
             'applications' => function($query) use ($campusIds) {
                 $query->whereHas('user', function($userQuery) use ($campusIds) {
                     $userQuery->whereIn('campus_id', $campusIds);
@@ -104,21 +104,16 @@ class DashboardController extends Controller
                     $userQuery->whereIn('campus_id', $campusIds);
                 });
             }
-        ])->whereHas('campuses', function($q) use ($campusIds) {
-            $q->whereIn('campus_id', $campusIds);
-        });
+        ]), $campusIds);
 
         $scholarshipsAll = (clone $scholarshipsQuery)->orderBy('scholarship_name', 'asc')->get();
         // Sorting and Pagination logic for scholarships... (Simplified for initial migration)
         $scholarshipsAll = $this->paginate($scholarshipsAll, 5, $request->get('page_all', 1), 'page_all');
-        $scholarshipsPrivate = $this->paginate((clone $scholarshipsQuery)->where('scholarship_type', 'private')->orderBy('scholarship_name', 'asc')->get(), 5, $request->get('page_private', 1), 'page_private');
-        $scholarshipsGov = $this->paginate((clone $scholarshipsQuery)->where('scholarship_type', 'government')->orderBy('scholarship_name', 'asc')->get(), 5, $request->get('page_gov', 1), 'page_gov');
+        $scholarshipsPrivate = $this->paginate($this->scopeScholarshipType(clone $scholarshipsQuery, 'private')->orderBy('scholarship_name', 'asc')->get(), 5, $request->get('page_private', 1), 'page_private');
+        $scholarshipsGov = $this->paginate($this->scopeScholarshipType(clone $scholarshipsQuery, 'government')->orderBy('scholarship_name', 'asc')->get(), 5, $request->get('page_gov', 1), 'page_gov');
         
         // Scholarships List for Dropdowns (Unpaginated)
-        $activeScholarshipsList = Scholarship::where('is_active', true)
-            ->whereHas('campuses', function($q) use ($campusIds) {
-                $q->whereIn('campus_id', $campusIds);
-            })
+        $activeScholarshipsList = $this->scopeScholarshipCampusAvailability(Scholarship::where('is_active', true), $campusIds)
             ->orderBy('scholarship_name', 'asc')
             ->get();
 
@@ -161,7 +156,7 @@ class DashboardController extends Controller
                 // In a perfect refactor, we'd move this query logic to a service or dedicated method.
                 
                 // Recalculate based on specific request filters to be safe
-                $query = Scholarship::withCount([
+                $query = $this->scopeScholarshipCampusAvailability(Scholarship::withCount([
                     'applications' => function($query) use ($campusIds) {
                         $query->whereHas('user', function($userQuery) use ($campusIds) {
                             $userQuery->whereIn('campus_id', $campusIds);
@@ -172,9 +167,7 @@ class DashboardController extends Controller
                             $userQuery->whereIn('campus_id', $campusIds);
                         });
                     }
-                ])->whereHas('campuses', function($q) use ($campusIds) {
-                    $q->whereIn('campus_id', $campusIds);
-                });
+                ]), $campusIds);
                 
                 if ($request->get('campus_filter') && $request->get('campus_filter') !== 'all') {
                     $campusFilter = $request->get('campus_filter');
@@ -187,7 +180,7 @@ class DashboardController extends Controller
                     $eligibility = $request->get('type_filter');
                     // Check if filter is Government/Private (Legacy/Fallback) or Condition
                     if (in_array($eligibility, ['private', 'government'])) {
-                        $query->where('scholarship_type', $eligibility);
+                        $this->scopeScholarshipType($query, $eligibility);
                     } else {
                         // Filter by eligibility condition
                         $query->whereHas('conditions', function($q) use ($eligibility) {
@@ -709,6 +702,20 @@ class DashboardController extends Controller
         return $paginator->appends(request()->query());
     }
 
+    private function scopeScholarshipType($query, string $type)
+    {
+        return $query->whereRaw('LOWER(scholarship_type) = ?', [strtolower($type)]);
+    }
+
+    private function scopeScholarshipCampusAvailability($query, $campusIds)
+    {
+        return $query->where(function($scope) use ($campusIds) {
+            $scope->whereHas('campuses', function($campusQuery) use ($campusIds) {
+                $campusQuery->whereIn('campus_id', $campusIds);
+            })->orDoesntHave('campuses');
+        });
+    }
+
     /**
      * Central Dashboard Logic
      */
@@ -813,7 +820,7 @@ class DashboardController extends Controller
             $type = $request->type;
 
             if (in_array($type, ['private', 'government'])) {
-                $queryAll->where('scholarship_type', $type);
+                $this->scopeScholarshipType($queryAll, $type);
                 
                 if ($type === 'private') $queryGov->where('id', -1); // Force empty
                 if ($type === 'government') $queryPrivate->where('id', -1); // Force empty
@@ -827,8 +834,8 @@ class DashboardController extends Controller
 
         // Apply sorting (and type restrictions for tabs)
         $queryAll = $this->sortScholarships($queryAll->get(), $sortBy, $sortOrder);
-        $queryPrivate = $this->sortScholarships($queryPrivate->where('scholarship_type', 'private')->get(), $sortBy, $sortOrder);
-        $queryGov = $this->sortScholarships($queryGov->where('scholarship_type', 'government')->get(), $sortBy, $sortOrder);
+        $queryPrivate = $this->sortScholarships($this->scopeScholarshipType($queryPrivate, 'private')->get(), $sortBy, $sortOrder);
+        $queryGov = $this->sortScholarships($this->scopeScholarshipType($queryGov, 'government')->get(), $sortBy, $sortOrder);
 
         // Pagination Logic for Scholarships
         $perPage = 5;
@@ -1564,15 +1571,14 @@ class DashboardController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
         $type = $request->get('type', 'all');
 
-        $scholarshipsQuery = \App\Models\Scholarship::where('is_active', true)
-            ->whereHas('campuses', function($query) use ($user) {
-                $query->where('campus_id', $user->campus_id);
-            })
-            ->withCount('applications');
+        $scholarshipsQuery = $this->scopeScholarshipCampusAvailability(
+            \App\Models\Scholarship::where('is_active', true),
+            collect([$user->campus_id])
+        )->withCount('applications');
 
         if ($type !== 'all') {
             if (in_array($type, ['private', 'government'])) {
-                $scholarshipsQuery->where('scholarship_type', $type);
+                $this->scopeScholarshipType($scholarshipsQuery, $type);
             } else {
                  $scholarshipsQuery->whereHas('conditions', function($q) use ($type) {
                     $q->where('name', $type);
@@ -1631,8 +1637,8 @@ class DashboardController extends Controller
         $unreadCountComments = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'sfao_comment')->count();
 
         // 5. Scholarship Counts for Empty States
-        $privateScholarshipsCount = \App\Models\Scholarship::where('is_active', true)->where('scholarship_type', 'Private')->count();
-        $governmentScholarshipsCount = \App\Models\Scholarship::where('is_active', true)->where('scholarship_type', 'Government')->count();
+        $privateScholarshipsCount = $this->scopeScholarshipType(\App\Models\Scholarship::where('is_active', true), 'private')->count();
+        $governmentScholarshipsCount = $this->scopeScholarshipType(\App\Models\Scholarship::where('is_active', true), 'government')->count();
 
         // 6. User's Filled Application Form (for SFAO/TDP tabs)
         $form = \App\Models\Form::where('user_id', $user->id)->first();

@@ -107,32 +107,32 @@
                 <!-- Slots Information -->
                 @if($scholarship->slots_available)
                 @php
-                  // Use passed fillPercentage if available, otherwise calculate
-                  if (!isset($fillPercentage) || $fillPercentage === 0) {
-                      $applicationsCount = $scholarship->applications()->count();
-                      $slotsAvailable = $scholarship->slots_available;
-                      $fillPercentage = min(100, ($applicationsCount / $slotsAvailable) * 100);
-                  } else {
-                      // If fillPercentage is passed (e.g. from SFAO controller), use it.
-                      // We might need applications count too if we want to show "X / Y"
-                      $applicationsCount = $scholarship->applications_count ?? $scholarship->applications()->count();
-                      $slotsAvailable = $scholarship->slots_available;
-                  }
+                  $applicationsCount = $scholarship->applications_count ?? $scholarship->applications()->count();
+                  $approvedCount = $scholarship->scholars_count ?? $scholarship->scholars()->count();
+                  $applicantCount = max(0, $applicationsCount - $approvedCount);
+                  $slotsAvailable = max(1, (int) $scholarship->slots_available);
+                  $approvedDisplayCount = min($approvedCount, $slotsAvailable);
+                  $fillPercentage = min(100, ($approvedCount / $slotsAvailable) * 100);
+                  $applicantPercentage = min(100 - $fillPercentage, ($applicantCount / $slotsAvailable) * 100);
                 @endphp
                 <div class="mt-2">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Available Slots:</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Approved Slots:</span>
                         <span class="text-sm font-semibold text-gray-900 dark:text-white">
-                            {{ $applicationsCount }} / {{ $slotsAvailable }}
+                            {{ $approvedDisplayCount }} / {{ $slotsAvailable }}
                         </span>
                     </div>
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div class="bg-bsu-red h-2 rounded-full transition-all duration-300" 
-                             data-width="{{ $fillPercentage }}"
-                             x-bind:style="'width: ' + $el.dataset.width + '%'"></div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 flex overflow-hidden">
+                        <div class="bg-bsu-red h-2 transition-all duration-300"
+                             style="width: {{ $fillPercentage }}%"></div>
+                        @if($applicantPercentage > 0)
+                            <div class="bg-gray-400 dark:bg-gray-500 h-2 transition-all duration-300"
+                                 style="width: {{ $applicantPercentage }}%"></div>
+                        @endif
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {{ number_format($fillPercentage, 1) }}% filled
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                        <span>{{ number_format($fillPercentage, 1) }}% occupied</span>
+                        <span>{{ $applicantCount }} applicant{{ $applicantCount === 1 ? '' : 's' }}pending approval</span>
                     </div>
                 </div>
                 @endif

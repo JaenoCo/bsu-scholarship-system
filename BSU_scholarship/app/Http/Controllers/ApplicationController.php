@@ -915,7 +915,7 @@ class ApplicationController extends Controller
                 
                 $paginatedScholarships->getCollection()->each(function($scholarship) {
                     if($scholarship->slots_available && $scholarship->slots_available > 0) {
-                        $scholarship->fill_percentage = min(($scholarship->applications_count / $scholarship->slots_available) * 100, 100);
+                        $scholarship->fill_percentage = min((($scholarship->scholars_count ?? 0) / $scholarship->slots_available) * 100, 100);
                     } else {
                         $scholarship->fill_percentage = 0;
                     }
@@ -965,10 +965,16 @@ class ApplicationController extends Controller
         $tracks = $filterOptions->pluck('track')->filter()->unique()->values();
         
         // Academic Years (from Applications)
+        $yearExpression = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql'
+            ? 'EXTRACT(YEAR FROM created_at)::integer'
+            : 'YEAR(created_at)';
+        $monthExpression = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql'
+            ? 'EXTRACT(MONTH FROM created_at)::integer'
+            : 'MONTH(created_at)';
         $academicYears = Application::whereHas('user', function($q) use ($campusIds) {
                 $q->whereIn('campus_id', $campusIds);
             })
-            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month')
+            ->selectRaw("{$yearExpression} as year, {$monthExpression} as month")
             ->distinct()
             ->get()
             ->map(function($app) {
@@ -2056,7 +2062,7 @@ class ApplicationController extends Controller
                 'slots_available' => $scholarship->slots_available,
                 'grant_amount' => $scholarship->grant_amount,
                 'fill_percentage' => $scholarship->slots_available > 0 ? 
-                    min(($scholarship->applications_count / $scholarship->slots_available) * 100, 100) : 0,
+                    min(($scholarship->approved_applications_count / $scholarship->slots_available) * 100, 100) : 0,
                 'approval_rate' => $scholarship->applications_count > 0 ? 
                     round(($scholarship->approved_applications_count / $scholarship->applications_count) * 100, 2) : 0
             ];

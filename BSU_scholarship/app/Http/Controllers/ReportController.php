@@ -1208,11 +1208,22 @@ class ReportController extends Controller
             }
         };
 
+        $yearExpression = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql'
+            ? 'EXTRACT(YEAR FROM %s)::integer'
+            : 'YEAR(%s)';
+        $monthExpression = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql'
+            ? 'EXTRACT(MONTH FROM %s)::integer'
+            : 'MONTH(%s)';
+
         // 1. Fetch Applicants Dates per Campus (via User)
         $appRaw = \Illuminate\Support\Facades\DB::table('applications')
             ->join('users', 'applications.user_id', '=', 'users.id')
             ->whereIn('users.campus_id', $allMonitoredIds)
-            ->selectRaw('users.campus_id, YEAR(applications.created_at) as y, MONTH(applications.created_at) as m')
+            ->selectRaw(
+                'users.campus_id, ' .
+                sprintf($yearExpression, 'applications.created_at') . ' as y, ' .
+                sprintf($monthExpression, 'applications.created_at') . ' as m'
+            )
             ->distinct()
             ->get();
 
@@ -1233,7 +1244,11 @@ class ReportController extends Controller
         $scholarRaw = \Illuminate\Support\Facades\DB::table('scholars')
              ->join('users', 'scholars.user_id', '=', 'users.id')
              ->whereIn('users.campus_id', $allMonitoredIds)
-             ->selectRaw('users.campus_id, YEAR(scholars.created_at) as y, MONTH(scholars.created_at) as m')
+             ->selectRaw(
+                 'users.campus_id, ' .
+                 sprintf($yearExpression, 'scholars.created_at') . ' as y, ' .
+                 sprintf($monthExpression, 'scholars.created_at') . ' as m'
+             )
              ->distinct()
              ->get();
 

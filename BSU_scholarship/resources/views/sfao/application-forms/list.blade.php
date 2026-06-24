@@ -88,7 +88,7 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
-                                                {{ $form->form_type ?? 'General' }}
+                                                {{ ($form->form_type && strtolower($form->form_type) !== 'all') ? $form->form_type : $form->form_name }}
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-center">

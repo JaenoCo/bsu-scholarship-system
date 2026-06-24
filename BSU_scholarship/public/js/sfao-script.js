@@ -121,6 +121,7 @@ window.sfaoStatisticsTab = function (config = {}) {
                 });
 
                 this.availableColleges = this.analyticsData.all_colleges || [];
+                this.generateAcademicYears();
 
                 // Initialize logic
                 // Initialize logic (Deferred ensures reactivity)
@@ -158,7 +159,7 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                 // Watch Chart Legend
                 this.$watch('chartLegend', () => {
-                    this.createComparisonChart(); // Optimized update
+                    this.updateCharts();
                 }, { deep: true });
 
                 this.$watch('localFilters.track', () => {
@@ -256,6 +257,87 @@ window.sfaoStatisticsTab = function (config = {}) {
             return document.documentElement.classList.contains('dark') ? '#ffffff' : '#374151';
         },
 
+        getCollegeColorMap() {
+            return {
+                CABEIHM: '#FACC15',
+                CABE: '#FACC15',
+                CAS: '#EF4444',
+                CCJE: '#7F1D1D',
+                CTE: '#2563EB',
+                CICS: '#14B8A6',
+                CHS: '#166534',
+                CAFAD: '#F97316',
+                CIT: '#7F1D1D',
+                CAF: '#22C55E',
+                COE: '#9CA3AF',
+                COL: '#7C3AED'
+            };
+        },
+
+        normalizeCollegeCode(label) {
+            const value = String(label || '').toUpperCase();
+            return Object.keys(this.getCollegeColorMap()).find(code => value === code || value.includes(code)) || null;
+        },
+
+        getCollegeColor(label) {
+            const code = this.normalizeCollegeCode(label);
+            return code ? this.getCollegeColorMap()[code] : '#64748B';
+        },
+
+        getApplicantStatusKeys() {
+            return ['approved', 'pending', 'rejected', 'inProgress'];
+        },
+
+        getApplicantStatusColor(status) {
+            return {
+                approved: '#10B981',
+                pending: '#F59E0B',
+                rejected: '#EF4444',
+                inProgress: '#2563EB'
+            }[status] || '#9CA3AF';
+        },
+
+        getApplicantStatusLabel(status) {
+            return {
+                approved: 'Approved',
+                pending: 'Pending',
+                rejected: 'Rejected',
+                inProgress: 'In Progress'
+            }[status] || status;
+        },
+
+        getActiveApplicantStatusKeys() {
+            return this.getApplicantStatusKeys().filter(key => this.chartLegend[key]);
+        },
+
+        isSingleApplicantStatusActive() {
+            return this.getActiveApplicantStatusKeys().length === 1;
+        },
+
+        selectApplicantStatus(status) {
+            const activeStatuses = this.getActiveApplicantStatusKeys();
+            const isCurrentlyActive = this.chartLegend[status];
+
+            if (!isCurrentlyActive) {
+                // Switch to single selected status
+                this.chartLegend.approved = false;
+                this.chartLegend.rejected = false;
+                this.chartLegend.pending = false;
+                this.chartLegend.inProgress = false;
+                this.chartLegend[status] = true;
+            } else if (activeStatuses.length === 1) {
+                // If the single selected status is clicked again, restore all statuses
+                this.chartLegend.approved = true;
+                this.chartLegend.rejected = true;
+                this.chartLegend.pending = true;
+                this.chartLegend.inProgress = true;
+            } else {
+                // Toggle off the currently active status in multi-select mode
+                this.chartLegend[status] = false;
+            }
+
+            this.updateCharts();
+        },
 
 
         updateCollegesList(campusId) {
@@ -384,6 +466,12 @@ window.sfaoStatisticsTab = function (config = {}) {
                 const startYear = month >= 7 ? year : year - 1;
                 years.add(`${startYear}-${startYear + 1}`);
             });
+
+            // Ensure a base range of academic years is always available.
+            for (let start = 2018; start <= 2026; start++) {
+                years.add(`${start}-${start + 1}`);
+            }
+
             // Also add current year if empty
             if (years.size === 0) {
                 const now = new Date();
@@ -1045,8 +1133,22 @@ window.sfaoStatisticsTab = function (config = {}) {
             const approvedData = labels.map(l => groupedData[l].approved.size);
             const rejectedData = labels.map(l => groupedData[l].rejected.size);
             const inProgressData = labels.map(l => groupedData[l].inProgress.size);
+            const applicantData = labels.map(l => {
+                let count = 0;
+                if (this.chartLegend.pending) count += groupedData[l].pending.size;
+                if (this.chartLegend.rejected) count += groupedData[l].rejected.size;
+                if (this.chartLegend.inProgress) count += groupedData[l].inProgress.size;
+                return count;
+            });
             const newScholarsData = labels.map(l => groupedData[l].newScholars.size);
             const oldScholarsData = labels.map(l => groupedData[l].oldScholars.size);
+            const scholarsData = labels.map(l => {
+                let count = 0;
+                if (this.chartLegend.newScholars) count += groupedData[l].newScholars.size;
+                if (this.chartLegend.oldScholars) count += groupedData[l].oldScholars.size;
+                return count;
+            });
+            const collegeColors = labels.map(label => this.getCollegeColor(label));
             // nonScholars no longer used in Scholars mode but logic preserved in object structure for safety
 
             // Process labels for multi-line display to avoid diagonal rotation
@@ -1092,45 +1194,59 @@ window.sfaoStatisticsTab = function (config = {}) {
 
             let datasets = [];
             if (this.viewMode === 'applicants') {
-                datasets = [
-                    {
-                        label: 'Approved',
-                        data: approvedData,
-                        backgroundColor: '#7F1D1D', // Darkest Red (900)
-                        hidden: !this.chartLegend.approved
-                    },
-                    {
-                        label: 'Rejected',
-                        data: rejectedData,
-                        backgroundColor: '#991B1B', // Darker Red (800)
-                        hidden: !this.chartLegend.rejected
-                    },
-                    {
-                        label: 'Pending',
-                        data: pendingData,
-                        backgroundColor: '#B91C1C', // Dark Red (700)
-                        hidden: !this.chartLegend.pending
-                    },
-                    {
-                        label: 'In Progress',
-                        data: inProgressData,
-                        backgroundColor: '#DC2626', // Red (600)
-                        hidden: !this.chartLegend.inProgress
-                    }
-                ];
+                const activeStatuses = this.getActiveApplicantStatusKeys();
+                const statusDataMap = {
+                    approved: approvedData,
+                    pending: pendingData,
+                    rejected: rejectedData,
+                    inProgress: inProgressData
+                };
+
+                if (activeStatuses.length === 1) {
+                    const statusKey = activeStatuses[0];
+                    datasets = [
+                        {
+                            label: this.getApplicantStatusLabel(statusKey),
+                            data: statusDataMap[statusKey] || [],
+                            backgroundColor: collegeColors,
+                            borderColor: collegeColors,
+                            borderWidth: 1
+                        }
+                    ];
+                } else {
+                    datasets = [
+                        {
+                            label: 'Approved',
+                            data: approvedData,
+                            backgroundColor: this.getApplicantStatusColor('approved'),
+                            hidden: !this.chartLegend.approved
+                        },
+                        {
+                            label: 'Pending',
+                            data: pendingData,
+                            backgroundColor: this.getApplicantStatusColor('pending'),
+                            hidden: !this.chartLegend.pending
+                        },
+                        {
+                            label: 'Rejected',
+                            data: rejectedData,
+                            backgroundColor: this.getApplicantStatusColor('rejected'),
+                            hidden: !this.chartLegend.rejected
+                        },
+                        {
+                            label: 'In Progress',
+                            data: inProgressData,
+                            backgroundColor: this.getApplicantStatusColor('inProgress'),
+                            hidden: !this.chartLegend.inProgress
+                        }
+                    ];
+                }
             } else {
                 datasets = [
                     {
-                        label: 'Old Scholars',
-                        data: oldScholarsData,
-                        backgroundColor: '#10B981',
-                        hidden: !this.chartLegend.oldScholars
-                    },
-                    {
-                        label: 'New Scholars',
-                        data: newScholarsData,
-                        backgroundColor: '#3B82F6',
-                        hidden: !this.chartLegend.newScholars
+                        label: 'Scholars',
+                        data: scholarsData,
+                        backgroundColor: collegeColors
                     }
                 ];
             }
@@ -1152,11 +1268,11 @@ window.sfaoStatisticsTab = function (config = {}) {
                                 maxRotation: 0,  // Force horizontal
                                 minRotation: 0   // Force horizontal
                             },
-                            stacked: isComparisonMode // Stacked only for Campus Comparison
+                            stacked: true
                         },
                         y: {
                             ticks: { color: this.getTextColor(), beginAtZero: true, precision: 0 },
-                            stacked: isComparisonMode // Stacked only for Campus Comparison
+                            stacked: true
                         }
                     },
                     plugins: {
@@ -1648,9 +1764,11 @@ window.sfaoStatisticsTab = function (config = {}) {
                 // DEFAULT MODE
                 const applicantsData = labels.map(l => groupedData[l].applicantsSet.size);
                 const scholarsData = labels.map(l => groupedData[l].scholarsSet.size);
+                const collegeColors = labels.map(label => this.getCollegeColor(label));
+                const applicantColors = labels.map(() => '#9CA3AF');
                 datasets = [
-                    { label: 'Applicants', data: applicantsData, backgroundColor: '#991B1B', stack: 'total' },
-                    { label: 'Scholars', data: scholarsData, backgroundColor: '#EF4444', stack: 'total' }
+                    { label: 'Applicants', data: applicantsData, backgroundColor: applicantColors, stack: 'total' },
+                    { label: 'Scholars', data: scholarsData, backgroundColor: collegeColors, stack: 'total' }
                 ];
             }
 

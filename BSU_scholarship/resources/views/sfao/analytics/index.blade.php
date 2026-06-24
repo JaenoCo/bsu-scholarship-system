@@ -12,7 +12,7 @@
 
         <!-- Filter Controls -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
-            <div class="flex flex-wrap gap-4 items-end">
+            <div class="flex flex-wrap gap-3 items-end">
                 
                 <!-- Scholarship Filters Removed -->
 
@@ -167,33 +167,29 @@
                 <template x-if="subTab === 'applicants'">
                     <div class="flex flex-wrap justify-between w-full gap-2">
                         <!-- Approved -->
-                         <button @click="chartLegend.approved = !chartLegend.approved"
-                                :class="chartLegend.approved ? 'text-white ring-2 ring-red-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.approved ? 'background-color: #7F1D1D;' : ''"
+                        <button @click="selectApplicantStatus('approved')"
+                                :class="chartLegend.approved ? 'text-white ring-2 ring-green-300 bg-[#10B981]' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
                                 class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
                                 <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.approved"></span>
                                 Approved
                         </button>
                         <!-- Rejected -->
-                        <button @click="chartLegend.rejected = !chartLegend.rejected"
-                                :class="chartLegend.rejected ? 'text-white ring-2 ring-red-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.rejected ? 'background-color: #991B1B;' : ''"
+                        <button @click="selectApplicantStatus('rejected')"
+                                :class="chartLegend.rejected ? 'text-white ring-2 ring-red-300 bg-[#EF4444]' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
                                 class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
                                 <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.rejected"></span>
                                 Rejected
                         </button>
                         <!-- Pending -->
-                         <button @click="chartLegend.pending = !chartLegend.pending"
-                                :class="chartLegend.pending ? 'text-white ring-2 ring-red-600' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.pending ? 'background-color: #B91C1C;' : ''"
+                        <button @click="selectApplicantStatus('pending')"
+                                :class="chartLegend.pending ? 'text-white ring-2 ring-yellow-300 bg-[#F59E0B]' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
                                 class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
                                 <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.pending"></span>
                                 Pending
                         </button>
                         <!-- In Progress -->
-                        <button @click="chartLegend.inProgress = !chartLegend.inProgress"
-                                :class="chartLegend.inProgress ? 'text-white ring-2 ring-red-500' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.inProgress ? 'background-color: #DC2626;' : ''"
+                        <button @click="selectApplicantStatus('inProgress')"
+                                :class="chartLegend.inProgress ? 'text-white ring-2 ring-yellow-300 bg-[#FBBF24]' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
                                 class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
                                 <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.inProgress"></span>
                                 In Progress
@@ -342,24 +338,27 @@
             </div>
 
             <!-- Chart Container -->
-            <div class="relative h-96 w-full mb-6">
-                <div x-show="chartStatus.college" class="h-full w-full">
-                    <canvas id="sfaoCollegeChart"></canvas>
-                </div>
-                <!-- No Data Message -->
-                <div x-show="!chartStatus.college" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div class="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white" 
-                            x-text="filters.search ? 'No scholarship named \'' + filters.search + '\' found' : (viewMode === 'applicants' ? 'No Applicants Found' : 'No Scholars Found')">
-                        </h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" 
-                           x-text="filters.search ? 'Try checking for typos or use a different keyword.' : 'Try adjusting your filters.'">
-                        </p>
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] mb-6">
+                <div class="relative h-96 w-full">
+                    <div x-show="chartStatus.college" class="h-full w-full">
+                        <canvas id="sfaoCollegeChart"></canvas>
+                    </div>
+                    <!-- No Data Message -->
+                    <div x-show="!chartStatus.college" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white" 
+                                x-text="filters.search ? 'No scholarship named \'' + filters.search + '\' found' : (viewMode === 'applicants' ? 'No Applicants Found' : 'No Scholars Found')">
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" 
+                               x-text="filters.search ? 'Try checking for typos or use a different keyword.' : 'Try adjusting your filters.'">
+                            </p>
+                        </div>
                     </div>
                 </div>
+                
             </div>
 
             <!-- Trend Graph (Integrated) -->

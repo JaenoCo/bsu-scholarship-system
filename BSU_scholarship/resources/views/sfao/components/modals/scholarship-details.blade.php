@@ -44,12 +44,12 @@
                     <span class="text-sm text-gray-600 dark:text-gray-400">Slots Available</span>
                 </div>
 
-                <!-- Filled (Applicants) -->
+                <!-- Applicants -->
                 <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-center">
                     <span class="block text-3xl font-bold text-yellow-600 dark:text-yellow-400">
-                        {{ $scholarship->applications_count ?? 0 }}
+                        {{ max(0, ($scholarship->applications_count ?? 0) - ($scholarship->scholars_count ?? 0)) }}
                     </span>
-                    <span class="text-sm text-gray-600 dark:text-gray-400">Total Applicants</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-400">Applicants Pending Approval</span>
                 </div>
 
                 <!-- Approved Scholars -->
@@ -66,23 +66,13 @@
                 $slots = $scholarship->slots_available;
                 $scholars = $scholarship->scholars_count ?? 0;
                 $applications = $scholarship->applications_count ?? 0;
-                
-                // Applicants here means "Pending/Other applications" that are NOT yet scholars
-                // Assumption: applications_count includes scholars if using withCount('applications') unless filtered.
-                // Based on controller, it counts all applications.
-                // But logically, if someone is a scholar, they have an application.
-                // User wants "Approved" vs "Applicants".
-                // If 5 approved, 20 total applications -> 15 are just "applicants".
-                
                 $approvedCount = $scholars;
                 $pendingCount = max(0, $applications - $scholars);
-                $filledTotal = $approvedCount + $pendingCount;
-                
-                $slotsLeft = max(0, $slots - $filledTotal);
+                $slotsLeft = max(0, $slots - $approvedCount);
                 
                 // Percentages for bar
-                $approvedPercent = $slots ? ($approvedCount / $slots) * 100 : 0;
-                $pendingPercent = $slots ? ($pendingCount / $slots) * 100 : 0;
+                $approvedPercent = $slots ? min(100, ($approvedCount / $slots) * 100) : 0;
+                $pendingPercent = $slots ? min(100 - $approvedPercent, ($pendingCount / $slots) * 100) : 0;
             @endphp
             @if($slots)
             <div class="mt-6">
@@ -90,10 +80,10 @@
                 <div class="flex justify-between text-sm mb-2 font-medium text-gray-700 dark:text-gray-300">
                     <div>
                         @if($approvedCount > 0)
-                            <span class="text-green-600 font-bold">{{ $approvedCount }} approved</span>
+                            <span class="text-green-600 font-bold">{{ min($approvedCount, $slots) }} approved</span>
                             <span class="text-gray-400 mx-1">|</span>
                         @endif
-                        <span class="text-yellow-600 font-bold">{{ $pendingCount }} applicants</span>
+                        <span class="text-gray-500 font-bold">{{ $pendingCount }} applicants pending approval</span>
                         <span class="text-gray-400 mx-1">|</span>
                         <span class="text-gray-500">{{ $slotsLeft }} slots left</span>
                     </div>
@@ -109,7 +99,7 @@
                     
                     <!-- Pending Segment -->
                     @if($pendingPercent > 0)
-                        <div class="bg-yellow-500 h-full" style="width: {{ $pendingPercent }}%" title="{{ $pendingCount }} Applicants"></div>
+                        <div class="bg-gray-400 dark:bg-gray-500 h-full" style="width: {{ $pendingPercent }}%" title="{{ $pendingCount }} Applicants Pending Approval"></div>
                     @endif
                 </div>
                 
@@ -120,8 +110,8 @@
                         <span class="text-gray-600 dark:text-gray-400">Approved</span>
                     </div>
                     <div class="flex items-center gap-1">
-                        <div class="w-3 h-3 bg-yellow-500 rounded-sm"></div>
-                        <span class="text-gray-600 dark:text-gray-400">Applicants</span>
+                        <div class="w-3 h-3 bg-gray-400 dark:bg-gray-500 rounded-sm"></div>
+                        <span class="text-gray-600 dark:text-gray-400">Applicants Pending Approval</span>
                     </div>
                 </div>
             </div>

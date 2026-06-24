@@ -1,7 +1,7 @@
 <div class="container mx-auto px-4 py-8">
     <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Application Forms</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Download application forms for your campus</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">BatStateU ISO Form</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Download the BatStateU ISO application form for your campus.</p>
     </div>
 
     @if($forms->isEmpty())
@@ -24,11 +24,9 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-bsu-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
-                                    @if($form->form_type)
-                                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                                            {{ $form->form_type }}
-                                        </span>
-                                    @endif
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                                        {{ ($form->form_type && strtolower($form->form_type) !== 'all') ? $form->form_type : 'BatStateU ISO Form' }}
+                                    </span>
                                 </div>
                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                                     {{ $form->form_name }}

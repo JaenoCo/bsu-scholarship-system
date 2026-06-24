@@ -243,22 +243,39 @@
 
 
             <!-- Chart Container -->
-            <div class="relative h-96 w-full mb-6">
-                <div x-show="chartStatus.college" class="h-full w-full">
-                    <canvas id="sfaoCollegeChart"></canvas>
-                </div>
-                <!-- No Data Message -->
-                <div x-show="!chartStatus.college" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div class="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white" 
-                            x-text="viewMode === 'applicants' ? 'No Applicants Found' : 'No Scholars Found'">
-                        </h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your filters.</p>
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] mb-6">
+                <div class="relative h-96 w-full">
+                    <div x-show="chartStatus.college" class="h-full w-full">
+                        <canvas id="sfaoCollegeChart"></canvas>
+                    </div>
+                    <!-- No Data Message -->
+                    <div x-show="!chartStatus.college" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="text-center p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white" 
+                                x-text="viewMode === 'applicants' ? 'No Applicants Found' : 'No Scholars Found'">
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your filters.</p>
+                        </div>
                     </div>
                 </div>
+                <aside class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">College Colors</h4>
+                    <div class="space-y-2">
+                        <template x-for="entry in getCollegeColorLegend()" :key="entry[0]">
+                            <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                                <span class="h-3 w-3 rounded-sm border border-black/10" :style="'background-color: ' + entry[1]"></span>
+                                <span x-text="entry[0]"></span>
+                            </div>
+                        </template>
+                        <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 pt-2 border-t border-gray-200 dark:border-gray-700">
+                            <span class="h-3 w-3 rounded-sm bg-gray-400 dark:bg-gray-500"></span>
+                            <span>Applicants pending approval</span>
+                        </div>
+                    </div>
+                </aside>
             </div>
 
         </div>
@@ -848,6 +865,55 @@
                     return document.documentElement.classList.contains('dark') ? '#ffffff' : '#374151';
                 },
 
+                getCollegeColorMap() {
+                    return {
+                        CABEIHM: '#FACC15',
+                        CABE: '#FACC15',
+                        CAS: '#EF4444',
+                        CCJE: '#7F1D1D',
+                        CTE: '#2563EB',
+                        CICS: '#14B8A6',
+                        CHS: '#166534',
+                        CAFAD: '#F97316',
+                        CIT: '#7F1D1D',
+                        CAF: '#22C55E',
+                        COE: '#9CA3AF',
+                        COL: '#7C3AED'
+                    };
+                },
+
+                normalizeCollegeCode(label) {
+                    const value = String(label || '').toUpperCase();
+                    return Object.keys(this.getCollegeColorMap()).find(code => value === code || value.includes(code)) || null;
+                },
+
+                getCollegeColor(label) {
+                    const code = this.normalizeCollegeCode(label);
+                    return code ? this.getCollegeColorMap()[code] : '#64748B';
+                },
+
+                getCollegeColorLegend() {
+                    const visibleCodes = new Set((this.filteredData?.all_applications_data || [])
+                        .map(item => this.normalizeCollegeCode(item.college))
+                        .filter(Boolean));
+                    const entries = [
+                        ['CABEIHM/CABE', '#FACC15'],
+                        ['CAS', '#EF4444'],
+                        ['CCJE', '#7F1D1D'],
+                        ['CTE', '#2563EB'],
+                        ['CICS', '#14B8A6'],
+                        ['CHS', '#166534'],
+                        ['CAFAD', '#F97316'],
+                        ['CIT', '#7F1D1D'],
+                        ['CAF', '#22C55E'],
+                        ['COE', '#9CA3AF'],
+                        ['COL', '#7C3AED']
+                    ];
+
+                    if (visibleCodes.size === 0 || this.filters.campus === 'all') return entries;
+                    return entries.filter(([label]) => label.split('/').some(code => visibleCodes.has(code)));
+                },
+
                 isSparseDataset(labels, values, totalOverride = null) {
                     const total = totalOverride ?? values.reduce((sum, value) => sum + Number(value || 0), 0);
                     return total > 0 && (total <= 15 || this.localFilters.program !== 'all');
@@ -1302,8 +1368,22 @@
                     const approvedData = labels.map(l => groupedData[l].approved.size);
                     const rejectedData = labels.map(l => groupedData[l].rejected.size);
                     const inProgressData = labels.map(l => groupedData[l].inProgress.size);
+                    const applicantData = labels.map(l => {
+                        let count = 0;
+                        if (this.chartLegend.pending) count += groupedData[l].pending.size;
+                        if (this.chartLegend.rejected) count += groupedData[l].rejected.size;
+                        if (this.chartLegend.inProgress) count += groupedData[l].inProgress.size;
+                        return count;
+                    });
                     const newScholarsData = labels.map(l => groupedData[l].newScholars.size);
                     const oldScholarsData = labels.map(l => groupedData[l].oldScholars.size);
+                    const scholarsData = labels.map(l => {
+                        let count = 0;
+                        if (this.chartLegend.newScholars) count += groupedData[l].newScholars.size;
+                        if (this.chartLegend.oldScholars) count += groupedData[l].oldScholars.size;
+                        return count;
+                    });
+                    const collegeColors = labels.map(label => this.getCollegeColor(label));
 
                     const processedLabels = labels.map(label => {
                         const words = label.split(' ');
@@ -1333,13 +1413,23 @@
 
                     const datasets = [];
                    if (this.viewMode === 'applicants') {
-                        if (this.chartLegend.approved) datasets.push({ label: 'Approved', data: approvedData, backgroundColor: '#10B981' });
-                        if (this.chartLegend.pending) datasets.push({ label: 'Pending', data: pendingData, backgroundColor: '#F59E0B' });
-                        if (this.chartLegend.rejected) datasets.push({ label: 'Rejected', data: rejectedData, backgroundColor: '#EF4444' });
-                        if (this.chartLegend.inProgress) datasets.push({ label: 'In Progress', data: inProgressData, backgroundColor: '#3B82F6' });
+                        datasets.push({
+                            label: 'Approved',
+                            data: approvedData,
+                            backgroundColor: collegeColors,
+                            hidden: !this.chartLegend.approved
+                        });
+                        datasets.push({
+                            label: 'Applicants Pending Approval',
+                            data: applicantData,
+                            backgroundColor: '#9CA3AF'
+                        });
                     } else {
-                        if (this.chartLegend.newScholars) datasets.push({ label: 'New Scholars', data: newScholarsData, backgroundColor: '#3B82F6' });
-                        if (this.chartLegend.oldScholars) datasets.push({ label: 'Old Scholars', data: oldScholarsData, backgroundColor: '#10B981' });
+                        datasets.push({
+                            label: 'Scholars',
+                            data: scholarsData,
+                            backgroundColor: collegeColors
+                        });
                     }
 
                     chartInstances.college = new Chart(ctx, {

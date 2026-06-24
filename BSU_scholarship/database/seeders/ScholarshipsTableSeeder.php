@@ -211,11 +211,8 @@ class ScholarshipsTableSeeder extends Seeder
             
             $scholarship = Scholarship::create($data);
             
-            // ATTACH TO RANDOM CAMPUSES
-            // Randomly pick 1 to 3 campuses to attach this scholarship to
             if ($campuses->count() > 0) {
-                $randomCampuses = $campuses->random(rand(1, min(3, $campuses->count())));
-                $scholarship->campuses()->attach($randomCampuses);
+                $scholarship->campuses()->attach($campuses->pluck('id')->all());
             }
 
             // Add multiple conditions for each scholarship

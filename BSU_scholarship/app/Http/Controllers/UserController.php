@@ -1726,8 +1726,8 @@ class UserController extends Controller
         $filePath = Storage::disk('public')->path($document->file_path);
         $fileType = strtolower($document->file_type);
         
-        // Generate file URL (accessible via browser)
-        $fileUrl = asset('storage/' . ltrim($document->file_path, '/'));
+        // Use a stream URL to serve the file from the application directly
+        $fileUrl = route('document.stream', ['id' => $document->id]);
         
         $viewers = [];
         $viewerType = 'fallback'; // default
@@ -1780,9 +1780,47 @@ class UserController extends Controller
             'viewers' => $viewers,
             'viewerType' => $viewerType,
             'fileUrl' => $fileUrl, // For direct access
-            'downloadUrl' => $fileUrl,
+            'downloadUrl' => route('document.download', ['id' => $document->id]),
             'isLocalhost' => $isLocalhost ?? false
         ]);
+    }
+
+    /**
+     * Download student submitted document
+     */
+    public function streamDocument($id)
+    {
+        $document = StudentSubmittedDocument::findOrFail($id);
+
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            abort(404, 'Document not found');
+        }
+
+        $path = Storage::disk('public')->path($document->file_path);
+        $mimeType = match(strtolower($document->file_type)) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            default => Storage::disk('public')->mimeType($document->file_path),
+        };
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $document->original_filename . '"',
+        ]);
+    }
+
+    public function downloadDocument($id)
+    {
+        $document = StudentSubmittedDocument::findOrFail($id);
+
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            abort(404, 'Document not found');
+        }
+
+        return Storage::disk('public')->download($document->file_path, $document->original_filename);
     }
 
     /**

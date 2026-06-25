@@ -159,7 +159,8 @@ Route::post('/upload-profile-picture/{role}', [UserController::class, 'uploadPro
 
 // Document Viewer (for DOCX files)
 Route::get('/document/view/{id}', [UserController::class, 'viewDocument'])->name('document.view');
-
+Route::get('/document/stream/{id}', [UserController::class, 'streamDocument'])->name('document.stream');
+Route::get('/document/download/{id}', [UserController::class, 'downloadDocument'])->name('document.download');
 // --------------------------------------------------
 // STUDENT ROUTES
 // --------------------------------------------------

@@ -697,7 +697,7 @@ window.sfaoStatisticsTab = function (config = {}) {
         },
 
         async openStudentDetails(scope, type) {
-            this.isAnonymized = true;
+            this.isAnonymized = false;
             this.activeView = `${scope}:${type}`;
             this.studentDetails = {
                 open: true,
@@ -866,10 +866,10 @@ window.sfaoStatisticsTab = function (config = {}) {
                     ['New Scholars', statusCounts.new_scholars, '#3B82F6']
                 ]
                 : [
-                    ['Approved', statusCounts.approved, '#15803D'],
-                    ['Rejected', statusCounts.rejected, '#B91C1C'],
-                    ['Pending Review', statusCounts.pending, '#CA8A04'],
-                    ['In Progress', statusCounts.in_progress, '#2563EB'],
+                    ['Approved', statusCounts.approved, this.getApplicantStatusColor('approved')],
+                    ['Rejected', statusCounts.rejected, this.getApplicantStatusColor('rejected')],
+                    ['Pending Review', statusCounts.pending, this.getApplicantStatusColor('pending')],
+                    ['In Progress', statusCounts.in_progress, this.getApplicantStatusColor('inProgress')],
                     ...(mode === 'comparison' ? [['Scholars', statusCounts.scholars, '#7C3AED']] : [])
                 ];
 
@@ -1441,8 +1441,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'Approved',
                         data: timeKeys.map(k => groupedData[k].approved),
-                        borderColor: '#7F1D1D', // Darkest Red
-                        backgroundColor: shouldFill ? 'rgba(127, 29, 29, 0.2)' : '#7F1D1D',
+                        borderColor: this.getApplicantStatusColor('approved'),
+                        backgroundColor: shouldFill ? 'rgba(16, 185, 129, 0.2)' : this.getApplicantStatusColor('approved'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.approved
@@ -1450,8 +1450,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'Rejected',
                         data: timeKeys.map(k => groupedData[k].rejected),
-                        borderColor: '#991B1B', // Darker Red
-                        backgroundColor: shouldFill ? 'rgba(153, 27, 27, 0.2)' : '#991B1B',
+                        borderColor: this.getApplicantStatusColor('rejected'),
+                        backgroundColor: shouldFill ? 'rgba(239, 68, 68, 0.2)' : this.getApplicantStatusColor('rejected'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.rejected
@@ -1459,8 +1459,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'Pending',
                         data: timeKeys.map(k => groupedData[k].pending),
-                        borderColor: '#B91C1C', // Dark Red
-                        backgroundColor: shouldFill ? 'rgba(185, 28, 28, 0.2)' : '#B91C1C',
+                        borderColor: this.getApplicantStatusColor('pending'),
+                        backgroundColor: shouldFill ? 'rgba(245, 158, 11, 0.2)' : this.getApplicantStatusColor('pending'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.pending
@@ -1468,8 +1468,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'In Progress',
                         data: timeKeys.map(k => groupedData[k].in_progress),
-                        borderColor: '#DC2626', // Red
-                        backgroundColor: shouldFill ? 'rgba(220, 38, 38, 0.2)' : '#DC2626',
+                        borderColor: this.getApplicantStatusColor('inProgress'),
+                        backgroundColor: shouldFill ? 'rgba(37, 99, 235, 0.2)' : this.getApplicantStatusColor('inProgress'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.inProgress
@@ -1747,10 +1747,10 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                     datasets = [
                         // Stack: Applicants
-                        { label: 'Approved', data: d(true, stats.approved.size), backgroundColor: '#7F1D1D', stack: 'main' },
-                        { label: 'Rejected', data: d(true, stats.rejected.size), backgroundColor: '#991B1B', stack: 'main' },
-                        { label: 'Pending', data: d(true, stats.pending.size), backgroundColor: '#B91C1C', stack: 'main' },
-                        { label: 'In Progress', data: d(true, stats.inProgress.size), backgroundColor: '#DC2626', stack: 'main' },
+                        { label: 'Approved', data: d(true, stats.approved.size), backgroundColor: this.getApplicantStatusColor('approved'), stack: 'main' },
+                        { label: 'Rejected', data: d(true, stats.rejected.size), backgroundColor: this.getApplicantStatusColor('rejected'), stack: 'main' },
+                        { label: 'Pending', data: d(true, stats.pending.size), backgroundColor: this.getApplicantStatusColor('pending'), stack: 'main' },
+                        { label: 'In Progress', data: d(true, stats.inProgress.size), backgroundColor: this.getApplicantStatusColor('inProgress'), stack: 'main' },
 
                         // Stack: Scholars
                         { label: 'New Scholars', data: d(false, stats.newScholars.size), backgroundColor: '#EF4444', stack: 'main' },

@@ -78,32 +78,23 @@
                         @csrf
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             @php
-                                $docNames = [
-                                    'form_137' => ['Form 137', 'form_137'],
-                                    'grades' => ['Grades', 'grades'],
-                                    'certificate' => ['Certificate', 'certificate'],
-                                    'application_form' => ['Application Form', 'application_form'],
-                                ];
-
-                                $getDoc = function($key) use ($submittedDocuments, $docNames) {
-                                    $allowedNames = $docNames[$key] ?? [$key];
+                                $getDoc = function($name) use ($submittedDocuments) {
                                     return $submittedDocuments->where('document_category', 'sfao_required')
-                                        ->first(function ($d) use ($allowedNames) {
-                                            return in_array($d->document_name, $allowedNames, true);
-                                        });
+                                        ->filter(function($d) use ($name) { return str_contains($d->document_name, $name); })
+                                        ->first();
                                 };
                                 
                                 $docs = [
-                                    'form_137' => ['label' => 'Form 137', 'required' => true, 'desc' => 'Your high school report card or transcript.'],
-                                    'grades' => ['label' => 'Grades', 'required' => true, 'desc' => 'Recent copy of grades or certificate of grades.'],
-                                    'certificate' => ['label' => 'Certificate', 'required' => false, 'desc' => 'Certificate of Good Moral Character (optional).'],
-                                    'application_form' => ['label' => 'Application Form', 'required' => true, 'desc' => 'Duly accomplished scholarship application form.'],
+                                    'form_137' => ['name' => 'Form 137', 'required' => true, 'desc' => 'Your high school report card or transcript.'],
+                                    'grades' => ['name' => 'Grades', 'required' => true, 'desc' => 'Recent copy of grades or certificate of grades.'],
+                                    'certificate' => ['name' => 'Certificate', 'required' => false, 'desc' => 'Certificate of Good Moral Character (optional).'],
+                                    'application_form' => ['name' => 'Application Form', 'required' => true, 'desc' => 'Duly accomplished scholarship application form.'],
                                 ];
                             @endphp
 
                             @foreach($docs as $key => $config)
                                 @php
-                                    $doc = $getDoc($key);
+                                    $doc = $getDoc($config['name']);
                                     $status = $doc ? $doc->evaluation_status : null;
                                     $isApproved = $status === 'approved';
                                     $isRejected = $status === 'rejected';
@@ -113,29 +104,27 @@
                                 <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-5 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">
                                     <div class="flex justify-between items-start mb-3">
                                         <label class="block text-base font-bold text-gray-900 dark:text-white">
-                                            {{ $config['label'] }}
+                                            {{ $config['name'] }}
                                             @if($config['required'] && !$isApproved)
                                                 <span class="text-red-500 ml-1">*</span>
                                             @endif
                                         </label>
                                         
-                                        @if($doc)
-                                            @if($isApproved)
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
-                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                    Approved
-                                                </span>
-                                            @elseif($isRejected)
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
-                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                                    Rejected
-                                                </span>
-                                            @elseif($isPending)
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">
-                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                    Pending
-                                                </span>
-                                            @endif
+                                        @if($isApproved)
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                Approved
+                                            </span>
+                                        @elseif($isRejected)
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                Rejected
+                                            </span>
+                                        @elseif($isPending)
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                Pending
+                                            </span>
                                         @else
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-200">
                                                 Not Uploaded
@@ -145,14 +134,12 @@
                                     
                                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">{{ $config['desc'] }}</p>
 
-                                    @if($doc)
-                                        <div class="flex items-center p-3 text-sm text-gray-700 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-100 dark:border-gray-700 mb-4">
+                                    @if($isApproved)
+                                        <div class="flex items-center p-3 text-sm text-green-700 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-800">
                                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                             <span class="truncate">{{ $doc->original_filename }}</span>
                                         </div>
-                                    @endif
-
-                                    @if(!$isApproved)
+                                    @else
                                         <div class="relative">
                                             <input type="file" name="{{ $key }}" id="{{ $key }}" 
                                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-700 cursor-pointer"

@@ -149,9 +149,9 @@
             
             
             <div class="text-sm space-y-1">
-                <p><span class="font-semibold">Campus:</span> {{ $monitoredCampuses->count() > 1 && request('campus_id', 'all') == 'all' ? 'All Campuses' : $monitoredCampuses->first()->display_name }}</p>
+                <p><span class="font-semibold">Campus:</span> {{ $monitoredCampuses->count() > 1 && request('campus_id', 'all') == 'all' ? 'All Campuses' : $monitoredCampuses->first()->name }}</p>
                 <p><span class="font-semibold">Generated on:</span> {{ now()->format('F d, Y') }}</p>
-                <p><span class="font-semibold">Prepared by:</span> {{ 'SFAO ' . ($user->campus->display_name ?? $user->name) }}</p>
+                <p><span class="font-semibold">Prepared by:</span> {{ $user->name }}</p>
             </div>
         </div>
 

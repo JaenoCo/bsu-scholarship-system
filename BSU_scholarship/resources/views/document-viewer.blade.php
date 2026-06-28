@@ -56,7 +56,8 @@
                 <p class="text-sm opacity-90">{{ $document->getFileTypeDisplayName() }} • {{ $document->getFileSizeFormatted() }}</p>
             </div>
             <div class="flex gap-2">
-                <a href="{{ route('document.download', ['id' => $document->id]) }}" 
+                <a href="{{ asset('storage/' . ltrim($document->file_path, '/')) }}" 
+                   download 
                    class="bg-white text-red-700 px-4 py-2 rounded hover:bg-gray-100 transition-colors font-semibold">
                     Download
                 </a>
@@ -82,7 +83,8 @@
                             Document viewers require a publicly accessible URL. Please download the document to view it.
                         @endif
                     </p>
-                    <a href="{{ route('document.download', ['id' => $document->id]) }}" 
+                    <a href="{{ $downloadUrl }}" 
+                       download 
                        class="bg-red-700 text-white px-6 py-3 rounded-lg hover:bg-red-800 transition-colors font-semibold inline-block">
                         Download Document
                     </a>

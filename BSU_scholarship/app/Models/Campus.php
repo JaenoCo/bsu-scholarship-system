@@ -95,9 +95,4 @@ class Campus extends Model
     {
         return $this->belongsToMany(Scholarship::class, 'campus_scholarship');
     }
-
-    public function getDisplayNameAttribute()
-    {
-        return $this->name === 'ARASOF' ? 'ARASOF-Nasugbu' : $this->name;
-    }
 }

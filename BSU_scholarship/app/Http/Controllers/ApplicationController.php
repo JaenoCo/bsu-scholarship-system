@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Application;
 use App\Models\Scholarship;
-use App\Models\SfaoRequirement;
 use App\Models\StudentSubmittedDocument;
 use App\Models\Campus;
 use App\Models\Notification;
@@ -189,7 +188,8 @@ class ApplicationController extends Controller
         $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'asc');
         $campusFilter = $request->get('campus_filter', 'all');
-        $statusFilter = $request->get('status_filter', 'all');
+        $statusFilter = str_replace('-', '_', $request->get('status_filter', 'all'));
+        $activeTab = str_replace('applicants_', 'applicants-', $activeTab);
 
         // 3. Base Query
         $query = User::where('role', 'student')
@@ -242,6 +242,7 @@ class ApplicationController extends Controller
 
         if (str_starts_with($activeTab, 'applicants-')) {
             $effectiveStatus = str_replace('applicants-', '', $activeTab);
+            $effectiveStatus = str_replace(['-', '_'], '_', $effectiveStatus);
         } elseif ($statusFilter !== 'all') {
              $effectiveStatus = $statusFilter;
         }
@@ -396,6 +397,7 @@ class ApplicationController extends Controller
         // Note: 'approved' tab shows applicants with approved documents, not application status
         if (str_starts_with($activeTab, 'applicants-')) {
             $statusFromTab = str_replace('applicants-', '', $activeTab);
+            $statusFromTab = str_replace(['-', '_'], '_', $statusFromTab);
             if (in_array($statusFromTab, ['not_applied', 'in_progress', 'pending', 'rejected'])) {
                 $statusFilter = $statusFromTab;
             }
@@ -1069,7 +1071,11 @@ class ApplicationController extends Controller
         }
 
         $student = User::findOrFail($user_id);
-        $documents = SfaoRequirement::where('user_id', $user_id)->get();
+        $documents = StudentSubmittedDocument::with('scholarship')
+            ->where('user_id', $user_id)
+            ->where('document_category', 'sfao_required')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return view('sfao.applicants.view-documents', compact('student', 'documents'));
     }

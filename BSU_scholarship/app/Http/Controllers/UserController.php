@@ -12,7 +12,6 @@ use Illuminate\Support\Str;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\Campus;
-use App\Models\SfaoRequirement;
 use App\Models\Application;
 use App\Models\Notification;
 use App\Models\Form;
@@ -923,13 +922,37 @@ class UserController extends Controller
             }
         }
 
-        // Ensure scholarship_id is stored
-        $filePaths['scholarship_id'] = $scholarship_id;
+        $sfaoDocuments = [
+            'form_137' => ['name' => 'Form 137', 'mandatory' => true],
+            'grades' => ['name' => 'Grades', 'mandatory' => true],
+            'certificate' => ['name' => 'Certificate', 'mandatory' => false],
+            'application_form' => ['name' => 'Application Form', 'mandatory' => true],
+        ];
 
-        SfaoRequirement::updateOrCreate(
-            ['user_id' => $userId, 'scholarship_id' => $scholarship_id],
-            $filePaths
-        );
+        foreach ($filePaths as $field => $path) {
+            if (!isset($sfaoDocuments[$field])) {
+                continue;
+            }
+
+            $file = $files[$field] ?? null;
+
+            StudentSubmittedDocument::updateOrCreate(
+                [
+                    'user_id' => $userId,
+                    'scholarship_id' => $scholarship_id,
+                    'document_category' => 'sfao_required',
+                    'document_name' => $sfaoDocuments[$field]['name'],
+                ],
+                [
+                    'file_path' => $path,
+                    'original_filename' => $file ? $file->getClientOriginalName() : basename($path),
+                    'file_type' => $file ? $file->getClientOriginalExtension() : pathinfo($path, PATHINFO_EXTENSION),
+                    'file_size' => $file ? $file->getSize() : null,
+                    'is_mandatory' => $sfaoDocuments[$field]['mandatory'],
+                    'evaluation_status' => 'pending',
+                ]
+            );
+        }
 
         // Mark student as applied
         Application::updateOrCreate(

@@ -1999,14 +1999,21 @@ window.sfaoDashboardState = function (config) {
 
             // Watch Tab Change
             this.$watch('tab', val => {
-                if (val === 'account_settings') {
-                    this.tab = 'account';
-                    return; // Let the next watch trigger handle the rest
+                let normalizedTab = this.normalizeTab(val);
+                if (normalizedTab === 'account_settings') {
+                    normalizedTab = 'account';
                 }
-                localStorage.setItem('sfaoTab', val);
-                this.updateUrl(val);
-                this.syncDropdowns(val);
-                this.$dispatch('tab-changed', val);
+
+                if (normalizedTab !== val) {
+                    this.tab = normalizedTab;
+                    return; // Re-run watcher with normalized value
+                }
+
+                localStorage.setItem('sfaoTab', normalizedTab);
+                this.updateUrl(normalizedTab);
+                this.syncDropdowns(normalizedTab);
+                this.$dispatch('tab-changed', normalizedTab);
+                window.dispatchEvent(new CustomEvent('sfao-filter-tab-selected', { detail: normalizedTab }));
             });
 
             // Listen for Sidebar Tab Switch Events
@@ -2037,12 +2044,14 @@ window.sfaoDashboardState = function (config) {
             } else {
                 // Fallback favoring Analytics ("Overview") if no specific tab
                 let savedTab = localStorage.getItem('sfaoTab');
-                // Ensure valid tab
+                // Normalize legacy tab strings
+                savedTab = this.normalizeTab(savedTab);
                 this.tab = savedTab || config.activeTab || 'analytics_scholarships';
 
                 // Cleanup legacy values
                 if (this.tab === 'statistics' || this.tab === 'dashboard') this.tab = 'analytics';
                 if (this.tab === 'account_settings') this.tab = 'account';
+                this.tab = this.normalizeTab(this.tab);
             }
 
             // Ensure correct dropdown is open
@@ -2054,17 +2063,16 @@ window.sfaoDashboardState = function (config) {
         },
 
         switchTab(nextTab) {
-            const clickedCurrentTab = this.tab === nextTab;
+            const normalizedTab = this.normalizeTab(nextTab);
+            const clickedCurrentTab = this.tab === normalizedTab;
 
-            this.tab = nextTab;
+            this.tab = normalizedTab;
+            localStorage.setItem('sfaoTab', normalizedTab);
+            this.updateUrl(normalizedTab);
+            this.syncDropdowns(normalizedTab);
+            this.$dispatch('tab-changed', normalizedTab);
 
-            if (clickedCurrentTab) {
-                localStorage.setItem('sfaoTab', nextTab);
-                this.updateUrl(nextTab);
-                this.syncDropdowns(nextTab);
-                this.$dispatch('tab-changed', nextTab);
-                window.dispatchEvent(new CustomEvent('sfao-filter-tab-selected', { detail: nextTab }));
-            }
+            return clickedCurrentTab;
         },
 
         updateUrl(currentTab) {
@@ -2089,6 +2097,14 @@ window.sfaoDashboardState = function (config) {
                 url.searchParams.delete('tab');
                 window.history.pushState({}, '', url);
             }
+        },
+
+        normalizeTab(tab) {
+            if (!tab || typeof tab !== 'string') return tab;
+            if (tab.startsWith('applicants_')) return tab.replace('applicants_', 'applicants-');
+            if (tab.startsWith('scholars_')) return tab.replace('scholars_', 'scholars-');
+            if (tab.startsWith('reports_')) return tab.replace('reports_', 'reports-');
+            return tab;
         },
 
         syncDropdowns(currentTab) {
@@ -2591,12 +2607,13 @@ window.sfaoApplicantsFilter = function (config) {
         },
 
         handleTabChange(tab) {
-            this.currentTab = tab;
+            const normalizedTab = tab.replace('applicants_', 'applicants-');
+            this.currentTab = normalizedTab;
 
-            if (tab === 'applicants') {
+            if (normalizedTab === 'applicants') {
                 this.filters.status = 'all';
-            } else if (tab.startsWith('applicants-')) {
-                this.filters.status = tab.replace('applicants-', '');
+            } else if (normalizedTab.startsWith('applicants-')) {
+                this.filters.status = normalizedTab.replace('applicants-', '').replace(/-/g, '_');
             }
 
             this.fetchApplicants();

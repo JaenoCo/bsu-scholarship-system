@@ -75,8 +75,7 @@
                 <p class="text-sm opacity-90">{{ $document->getFileTypeDisplayName() }} • {{ $document->getFileSizeFormatted() }}</p>
             </div>
             <div class="flex gap-2">
-                <a href="{{ asset('storage/' . ltrim($document->file_path, '/')) }}" 
-                   download 
+                <a href="{{ $downloadUrl }}" 
                    class="bg-white text-red-700 px-4 py-2 rounded hover:bg-gray-100 transition-colors font-semibold">
                     Download
                 </a>
@@ -86,7 +85,7 @@
                 </button>
             </div>
         </div>
-        
+
         <div class="viewer-content">
             @if(isset($viewerType) && $viewerType === 'image')
                 <div class="image-viewer">

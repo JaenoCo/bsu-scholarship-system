@@ -95,22 +95,6 @@
                 </div>
             </div>
 
-            <!-- Documents Summary Section -->
-            <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                    <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Uploaded Documents</p>
-                    <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white" x-text="selectedApplicant?.documents_count ?? 0"></p>
-                </div>
-                <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                    <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Last Upload</p>
-                    <p class="mt-2 text-sm text-gray-900 dark:text-white" x-text="selectedApplicant?.last_uploaded ? new Date(selectedApplicant.last_uploaded).toLocaleDateString() : 'N/A'"></p>
-                </div>
-                <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                    <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Application Status</p>
-                    <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white" x-text="selectedApplicant?.application_status?.join(', ') || 'N/A'"></p>
-                </div>
-            </div>
-
             <!-- Scholarships Information Section -->
             <div class="mt-6">
                  <h4 class="text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold mb-4 border-b pb-2 dark:border-gray-700">Scholarship Applications</h4>

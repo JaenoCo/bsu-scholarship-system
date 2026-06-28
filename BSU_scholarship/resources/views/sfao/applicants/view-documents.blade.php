@@ -36,71 +36,40 @@
         @else
             <ul class="space-y-4">
                 @foreach($documents as $doc)
-                    <li class="border p-4 rounded-lg bg-gray-50 shadow-sm">
-                        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                            <div class="space-y-2">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="inline-flex px-2 py-1 rounded-full bg-gray-200 text-gray-800 text-xs font-semibold uppercase">
-                                        {{ $doc->getDocumentCategoryDisplayName() }}
-                                    </span>
-                                    @if($doc->is_mandatory)
-                                        <span class="inline-flex px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold uppercase">
-                                            Required
-                                        </span>
-                                    @else
-                                        <span class="inline-flex px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
-                                            Optional
-                                        </span>
-                                    @endif
-                                </div>
-
-                                <h3 class="text-lg font-semibold text-gray-900">{{ $doc->document_name }}</h3>
-                                <p class="text-sm text-gray-600">{{ $doc->description ?? 'No description available.' }}</p>
+                    <li class="flex flex-col gap-3 border p-4 rounded-lg bg-gray-50 shadow-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" name="document_{{ $doc->id }}_approved"
+                                    class="h-5 w-5 text-green-600 border-gray-300 rounded"
+                                    {{ $doc->evaluation_status === 'approved' ? 'checked' : '' }}>
+                                <span class="font-semibold text-gray-800">{{ $doc->document_name }}</span>
                             </div>
-
-                            <div class="space-y-2 text-sm text-gray-700 md:text-right">
-                                <div>
-                                    <p class="uppercase tracking-wider text-xs text-gray-500">Status</p>
-                                    <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold {{ $doc->getEvaluationStatusBadgeColor() }}">
-                                        {{ $doc->getEvaluationStatusDisplayName() }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <p class="uppercase tracking-wider text-xs text-gray-500">Uploaded</p>
-                                    <p class="font-medium text-gray-900">{{ $doc->created_at?->format('M j, Y H:i') ?? 'N/A' }}</p>
-                                </div>
-                            </div>
+                            <span class="text-sm px-2 py-1 rounded-full {{ $doc->evaluation_status === 'approved' ? 'bg-green-100 text-green-700' : ($doc->evaluation_status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700') }}">
+                                {{ ucfirst($doc->evaluation_status ?? 'pending') }}
+                            </span>
                         </div>
-
-                        <div class="mt-4 grid gap-4 md:grid-cols-2">
-                            <div>
-                                <p class="uppercase tracking-wider text-xs text-gray-500">File</p>
-                                <a href="{{ $doc->getViewUrl() }}" target="_blank" class="text-red-700 underline font-medium">
-                                    {{ $doc->original_filename ?? basename($doc->file_path) }}
-                                </a>
-                            </div>
-                            @if($doc->scholarship)
-                                <div>
-                                    <p class="uppercase tracking-wider text-xs text-gray-500">Scholarship</p>
-                                    <p class="font-medium text-gray-900">{{ $doc->scholarship->scholarship_name }}</p>
-                                </div>
-                            @endif
+                        <div>
+                            <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank" class="text-red-700 underline">
+                                {{ $doc->original_filename ?? basename($doc->file_path) }}
+                            </a>
                         </div>
-
+                        <div>
+                            <p class="text-sm text-gray-600">Uploaded: {{ $doc->created_at?->format('M j, Y H:i') ?? 'N/A' }}</p>
+                        </div>
                         @if($doc->evaluation_notes)
-                            <div class="mt-4 rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
-                                <strong>Evaluator Notes</strong>
-                                <p class="mt-2">{{ $doc->evaluation_notes }}</p>
+                            <div class="text-sm text-gray-700 bg-white border border-gray-200 rounded p-3">
+                                <strong>Notes:</strong> {{ $doc->evaluation_notes }}
                             </div>
                         @endif
                     </li>
                 @endforeach
             </ul>
 
+            <!-- Evaluate Button -->
             <div class="mt-6 text-center">
-                <a href="{{ url('/sfao') }}" class="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition">
-                    Back to Dashboard
-                </a>
+                <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg">
+                    Evaluate
+                </button>
             </div>
         @endif
     </main>

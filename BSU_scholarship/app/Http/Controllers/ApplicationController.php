@@ -184,11 +184,12 @@ class ApplicationController extends Controller
         }
         $campusIds = $user->campus->getAllCampusesUnder()->pluck('id');
 
-        $activeTab = $request->get('tab', 'applicants');
+        $activeTab = str_replace('_', '-', strtolower($request->get('tab', 'applicants')));
         $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'asc');
         $campusFilter = $request->get('campus_filter', 'all');
-        $statusFilter = $request->get('status_filter', 'all');
+        $statusFilter = str_replace('-', '_', strtolower($request->get('status_filter', 'all')));
+        $isModalRequest = $request->boolean('fetch_modal_data');
 
         // 3. Base Query
         $query = User::where('role', 'student')
@@ -241,19 +242,37 @@ class ApplicationController extends Controller
 
         if (str_starts_with($activeTab, 'applicants-')) {
             $effectiveStatus = str_replace('applicants-', '', $activeTab);
-        } elseif ($statusFilter !== 'all') {
-             $effectiveStatus = $statusFilter;
+        }
+
+        if ($effectiveStatus === 'all' && $isModalRequest && $statusFilter !== 'all') {
+            $effectiveStatus = $statusFilter;
         }
 
         if ($effectiveStatus === 'not_applied') {
             $query->doesntHave('applications');
         } elseif ($effectiveStatus === 'all' && $activeTab === 'applicants') {
-            $query->has('applications'); 
-        } elseif ($effectiveStatus !== 'all') {
+            $query->has('applications');
+        } elseif (in_array($effectiveStatus, ['in_progress', 'pending', 'approved', 'rejected'])) {
             $query->whereHas('applications', function($q) use ($effectiveStatus) {
                 $q->where('status', $effectiveStatus);
             });
         }
+
+        $resolveDisplayStatus = function($applications) {
+            $statuses = $applications->pluck('status')->filter()->values()->all();
+
+            if (empty($statuses)) {
+                return 'not_applied';
+            }
+
+            foreach (['approved', 'in_progress', 'pending', 'rejected'] as $status) {
+                if (in_array($status, $statuses, true)) {
+                    return $status;
+                }
+            }
+
+            return $statuses[0];
+        };
 
         // 6. Aggregates & Sorting (Optimized)
         $query->leftJoin('student_submitted_documents', function($join) {
@@ -296,7 +315,8 @@ class ApplicationController extends Controller
         $paginatedStudents = $query->paginate($perPage, ['*'], 'page_applicants');
 
         // 8. Post-Processing
-        $studentIds = $paginatedStudents->getCollection()->pluck('student_id');
+        $studentCollection = collect($paginatedStudents->items());
+        $studentIds = $studentCollection->pluck('student_id');
         
         $applicationsData = Application::with('scholarship')
             ->whereIn('user_id', $studentIds)
@@ -307,14 +327,16 @@ class ApplicationController extends Controller
             ->get()
             ->groupBy('user_id');
 
-        $paginatedStudents->getCollection()->transform(function($student) use ($applicationsData, $documentsData) {
+        $studentCollection = $studentCollection->map(function($student) use ($applicationsData, $documentsData, $resolveDisplayStatus, $effectiveStatus) {
             $studentApplications = $applicationsData->get($student->student_id, collect());
             $studentDocuments = $documentsData->get($student->student_id, collect());
+            $bucketStatus = $effectiveStatus !== 'all' ? $effectiveStatus : $resolveDisplayStatus($studentApplications);
             
             $student->applications = $studentApplications;
             $student->has_applications = $studentApplications->count() > 0;
             $student->has_documents = $student->documents_count > 0;
             $student->application_status = $studentApplications->pluck('status')->unique()->toArray();
+            $student->display_status = $bucketStatus;
             
             $student->applications_with_types = $studentApplications->map(function($app) {
                 return [
@@ -330,6 +352,19 @@ class ApplicationController extends Controller
             return $student;
         });
 
+        $paginatedStudents = new LengthAwarePaginator(
+            $studentCollection,
+            $paginatedStudents->total(),
+            $paginatedStudents->perPage(),
+            $paginatedStudents->currentPage(),
+            [
+                'path' => $request->url(),
+                'pageName' => 'page_applicants'
+            ]
+        );
+
+        $paginatedStudents->appends($request->query());
+
         // 9. Counts
         $counts = [
             'total' => (clone $countsQuery)->whereHas('applications')->count(),
@@ -341,13 +376,13 @@ class ApplicationController extends Controller
         ];        
 
         if ($request->get('fetch_modal_data')) {
-            $applicants = $paginatedStudents->getCollection()->map(function($student) {
+            $applicants = $studentCollection->map(function($student) {
                 return [
                     'id' => $student->student_id,
                     'name' => $student->name,
                     'email' => $student->email,
                     'application_id' => $student->applications->first()?->id,
-                    'status' => $student->applications->first()?->status,
+                    'status' => $student->display_status ?? $student->applications->first()?->status,
                 ];
             })->values();
             

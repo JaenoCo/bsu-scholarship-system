@@ -2129,7 +2129,6 @@ window.sfaoScholarshipsFilter = function (config) {
             sort_by: localStorage.getItem('sfaoScholarshipsSortBy') || 'name',
             sort_order: localStorage.getItem('sfaoScholarshipsSortOrder') || 'asc',
             type: localStorage.getItem('sfaoScholarshipsType') || 'all',
-            type: localStorage.getItem('sfaoScholarshipsType') || 'all',
             campus: localStorage.getItem('sfaoScholarshipsCampus') || 'all',
             search: localStorage.getItem('sfaoScholarshipsSearch') || ''
         },
@@ -2257,6 +2256,23 @@ window.sfaoScholarshipsFilter = function (config) {
 
 // SFAO Applicants Filter
 window.sfaoApplicantsFilter = function (config) {
+    config = config || {};
+
+    const normalizeApplicantsTab = (tab) => (tab || 'applicants').replace(/_/g, '-');
+    const applicantsStatusFromTab = (tab) => {
+        const normalizedTab = normalizeApplicantsTab(tab);
+
+        if (normalizedTab === 'applicants') {
+            return 'all';
+        }
+
+        if (normalizedTab.startsWith('applicants-')) {
+            return normalizedTab.replace('applicants-', '').replace(/-/g, '_');
+        }
+
+        return 'all';
+    };
+
     return {
         filters: {
             sort_by: localStorage.getItem('sfaoApplicantsSortBy') || 'name',
@@ -2267,7 +2283,7 @@ window.sfaoApplicantsFilter = function (config) {
             track: localStorage.getItem('sfaoApplicantsTrack') || 'all',
             academic_year: localStorage.getItem('sfaoApplicantsAcademicYear') || 'all',
             scholarship: localStorage.getItem('sfaoApplicantsScholarship') || 'all',
-            status: 'all'
+            status: applicantsStatusFromTab(config.activeTab)
         },
         counts: config.counts || {},
         campusOptions: config.campusOptions || [],
@@ -2279,7 +2295,7 @@ window.sfaoApplicantsFilter = function (config) {
         programTracks: config.programTracks || {},
         sfaoCampusName: config.sfaoCampusName || '',
         extensionCampuses: config.extensionCampuses || [],
-        currentTab: 'applicants',
+        currentTab: normalizeApplicantsTab(config.activeTab),
         showModal: false,
         selectedApplicant: null,
         loading: false,
@@ -2341,6 +2357,11 @@ window.sfaoApplicantsFilter = function (config) {
                     this.handleTabChange(event.detail);
                 }
             });
+
+            // Apply the initial active tab if it was passed from the server
+            if (this.currentTab.startsWith('applicants')) {
+                this.handleTabChange(this.currentTab);
+            }
 
             // Initial Sync if values present
             if (this.filters.campus !== 'all') this.updateColleges(false);
@@ -2503,6 +2524,7 @@ window.sfaoApplicantsFilter = function (config) {
             if (!this.currentTab || !this.currentTab.startsWith('applicants')) return;
 
             this.loading = true;
+            const statusFilter = applicantsStatusFromTab(this.currentTab);
             const params = new URLSearchParams({
                 tab: this.currentTab,
                 sort_by: this.filters.sort_by,
@@ -2513,7 +2535,7 @@ window.sfaoApplicantsFilter = function (config) {
                 track_filter: this.filters.track,
                 academic_year_filter: this.filters.academic_year,
                 scholarship_filter: this.filters.scholarship,
-                status_filter: this.filters.status,
+                status_filter: statusFilter,
                 page_applicants: page
             });
 
@@ -2607,14 +2629,10 @@ window.sfaoApplicantsFilter = function (config) {
         },
 
         handleTabChange(tab) {
-            const normalizedTab = tab.replace('applicants_', 'applicants-');
+            const normalizedTab = normalizeApplicantsTab(tab);
             this.currentTab = normalizedTab;
 
-            if (normalizedTab === 'applicants') {
-                this.filters.status = 'all';
-            } else if (normalizedTab.startsWith('applicants-')) {
-                this.filters.status = normalizedTab.replace('applicants-', '').replace(/-/g, '_');
-            }
+            this.filters.status = applicantsStatusFromTab(normalizedTab);
 
             this.fetchApplicants();
         }
@@ -2737,7 +2755,7 @@ window.sfaoScholarsFilter = function (config) {
                 page_scholarships: page
             });
 
-            fetch(`${config.routeUrl}?${params.toString()} `, {
+            fetch(`${config.routeUrl}?${params.toString()}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(response => response.json())
@@ -2934,7 +2952,7 @@ window.sfaoScholarsFilter = function (config) {
 
             try {
                 const url = action === 'claimed'
-                    ? config.routeUrl.replace('/sfao', `/ sfao / scholars / ${this.selectedScholarId}/mark-claimed`)
+                    ? config.routeUrl.replace('/sfao', `/sfao/scholars/${this.selectedScholarId}/mark-claimed`)
                     : config.routeUrl.replace('/sfao', `/sfao/scholars/${this.selectedScholarId}/mark-disqualified`);
 
                 const response = await fetch(url, {

@@ -48,33 +48,28 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                @if($student->has_applications)
-                                    <div class="flex flex-col space-y-2">
-                                        @foreach($student->application_status as $status)
-                                            <div class="flex items-center space-x-2">
-                                                @if($status === 'rejected')
-                                                    <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                                        Rejected
-                                                    </span>
-                                                @elseif($status === 'pending')
-                                                    <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                                        Pending
-                                                    </span>
-                                                @else
-                                                    <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                                                        {{ ucfirst($status) }}
-                                                    </span>
-                                                @endif
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <div class="flex items-center space-x-2">
-                                        <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                                            Not Applied
-                                        </span>
-                                    </div>
-                                @endif
+                                @php
+                                    $status = $student->display_status ?? 'not_applied';
+                                    $statusLabel = match ($status) {
+                                        'approved' => 'Approved',
+                                        'in_progress' => 'In Progress',
+                                        'pending' => 'Pending',
+                                        'rejected' => 'Rejected',
+                                        default => 'Not Applied',
+                                    };
+                                    $statusClasses = match ($status) {
+                                        'approved' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                                        'in_progress' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                        'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                                        'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                                        default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                    };
+                                @endphp
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full {{ $statusClasses }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($student->has_documents)

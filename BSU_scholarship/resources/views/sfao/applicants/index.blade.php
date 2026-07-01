@@ -5,6 +5,7 @@
      x-cloak 
      class="px-4 py-6"
      x-data='sfaoApplicantsFilter({
+        activeTab: @json($activeTab ?? 'applicants'),
         routeUrl: @json(route("sfao.applicants.list")),
         counts: {
              total: {{ $studentsAll->total() }},
@@ -24,7 +25,7 @@
         sfaoCampusName: @json($sfaoCampus->name),
         extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck("name"))
      })'
-     x-effect="handleTabChange(tab)">
+      x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
     
     <!-- Header removed -->
 
@@ -171,7 +172,7 @@
          </svg>
     </div>
     <div id="applicants-list-container" x-show="!loading" x-transition.opacity.duration.300ms>
-        @include('sfao.applicants.list', ['students' => $studentsAll])
+        @include('sfao.applicants.list', ['students' => $students])
     </div>
     
     <!-- Applicant Details Modal -->

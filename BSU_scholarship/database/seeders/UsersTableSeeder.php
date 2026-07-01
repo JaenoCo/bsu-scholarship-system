@@ -76,44 +76,7 @@ class UsersTableSeeder extends Seeder
             }
         }
 
-        // Create 5 SFAO Admins (one for each constituent campus)
-        $sfaoCampuses = ['Pablo Borbon', 'Alangilan', 'Lipa', 'ARASOF', 'JPLPC'];
-        foreach ($sfaoCampuses as $index => $campusName) {
-            $campus = \App\Models\Campus::where('name', $campusName)->first();
-            if ($campus) {
-                User::updateOrCreate(
-                    ['email' => "sfao-" . ($index + 1) . "@g.batstate-u.edu.ph"],
-                    [
-                        'name' => "SFAO Admin - {$campusName}",
-                        'first_name' => 'SFAO',
-                        'last_name' => 'Admin',
-                        'sex' => 'Male',
-                        'contact_number' => '09123456789',
-                        'sr_code' => 'SFAO-' . ($index + 1),
-                        'password' => Hash::make('password123'),
-                        'role' => 'sfao',
-                        'campus_id' => $campus->id,
-                        'email_verified_at' => now(),
-                    ]
-                );
-            }
-        }
-
-        // Create 1 Central Admin
-        User::updateOrCreate(
-            ['email' => 'central-admin@g.batstate-u.edu.ph'],
-            [
-                'name' => 'Central Admin',
-                'first_name' => 'Central',
-                'last_name' => 'Admin',
-                'sex' => 'Male',
-                'contact_number' => '09123456789',
-                'sr_code' => 'CENTRAL-ADMIN',
-                'password' => Hash::make('password123'),
-                'role' => 'central',
-                'campus_id' => 1, // Pablo Borbon campus
-                'email_verified_at' => now(),
-            ]
-        );
+        // Admin accounts are seeded separately by AdminSeeder to avoid duplicate role/email entries.
+        // This seeder focuses on students linked to campuses and applications linked to student users.
     }
 }

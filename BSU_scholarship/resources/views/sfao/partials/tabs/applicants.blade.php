@@ -3,9 +3,9 @@
      x-transition:enter-start="opacity-0 transform scale-95"
      x-transition:enter-end="opacity-100 transform scale-100"
      x-cloak 
-     class="px-4 py-6"
-     x-data="sfaoApplicantsFilter()"
-     x-init="$watch('tab', value => handleTabChange(value))">
+    class="px-4 py-6"
+    x-data='sfaoApplicantsFilter({ activeTab: @json(str_replace("_", "-", $activeTab ?? "applicants")) })'
+    x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
     
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -79,17 +79,21 @@
 
     <!-- Applicants List Container -->
     <div id="applicants-list-container">
-        @include('sfao.partials.tabs.applicants_list', ['students' => $studentsAll])
+        @include('sfao.partials.tabs.applicants_list', ['students' => $students])
     </div>
 
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('sfaoApplicantsFilter', () => ({
+                activeTab: @json(str_replace('_', '-', $activeTab ?? 'applicants')),
+                currentTab: @json(str_replace('_', '-', $activeTab ?? 'applicants')),
                 filters: {
                     sort_by: localStorage.getItem('sfaoApplicantsSortBy') || 'name',
                     sort_order: localStorage.getItem('sfaoApplicantsSortOrder') || 'asc',
                     campus: localStorage.getItem('sfaoApplicantsCampus') || 'all',
-                    status: localStorage.getItem('sfaoApplicantsStatus') || 'all'
+                    status: (@json(str_replace('_', '-', $activeTab ?? 'applicants')).startsWith('applicants-')
+                        ? @json(str_replace('_', '-', $activeTab ?? 'applicants')).replace('applicants-', '')
+                        : (localStorage.getItem('sfaoApplicantsStatus') || 'all'))
                 },
                 counts: {
                     total: {{ $studentsAll->total() }},
@@ -121,15 +125,12 @@
                     });
 
                     this.updatePaginationLinks();
-                    
-                    if (this.filters.status !== 'all' || this.filters.campus !== 'all') {
-                        this.fetchApplicants();
-                    }
+                    this.handleTabChange(this.activeTab);
                 },
 
                 fetchApplicants(page = 1) {
                     const params = new URLSearchParams({
-                        tab: 'applicants',
+                        tab: this.currentTab,
                         sort_by: this.filters.sort_by,
                         sort_order: this.filters.sort_order,
                         campus_filter: this.filters.campus,
@@ -137,7 +138,7 @@
                         page_applicants: page
                     });
 
-                    fetch(`{{ route('sfao.dashboard') }}?${params.toString()}`, {
+                    fetch(`{{ route('sfao.applicants.list') }}?${params.toString()}`, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     })
                     .then(response => response.json())
@@ -204,16 +205,21 @@
                 },
 
                 handleTabChange(tab) {
-                    if (tab === 'applicants') {
+                    const normalizedTab = tab.replace('applicants_', 'applicants-');
+                    this.currentTab = normalizedTab;
+
+                    if (normalizedTab === 'applicants') {
                         if (this.filters.status !== 'all') {
                             this.filters.status = 'all';
                         }
-                    } else if (tab.startsWith('applicants-')) {
-                        const status = tab.replace('applicants-', '');
+                    } else if (normalizedTab.startsWith('applicants-')) {
+                        const status = normalizedTab.replace('applicants-', '');
                         if (this.filters.status !== status) {
                             this.filters.status = status;
                         }
                     }
+
+                    localStorage.setItem('sfaoApplicantsStatus', this.filters.status);
                 }
             }));
         });

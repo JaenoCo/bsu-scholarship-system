@@ -11,7 +11,6 @@ use App\Models\Report;
 use App\Models\Scholar;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -127,7 +126,7 @@ class DashboardController extends Controller
         $reports = Report::where('sfao_user_id', session('user_id'))->latest()->paginate(5);
 
         // View Parameters
-        $activeTab = $request->get('tabs', $request->get('tab', 'analytics'));
+        $activeTab = str_replace('_', '-', strtolower($request->get('tabs', $request->get('tab', 'analytics'))));
         $campusOptions = $monitoredCampuses->map(function($c) { return ['id' => $c->id, 'name' => $c->name]; })->values();
 
         // Pass empty collections for the "Detailed Lists" that are handled by AJAX or specific tabs
@@ -637,6 +636,9 @@ class DashboardController extends Controller
 
     private function getApplicantData($request, $campusIds)
     {
+        $activeTab = str_replace('_', '-', strtolower($request->get('tabs', $request->get('tab', 'applicants'))));
+        $statusFilter = str_replace('-', '_', strtolower($request->get('status_filter', 'all')));
+
         // Base Query: Students in SFAO jurisdiction
         $baseQuery = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds)
@@ -647,8 +649,8 @@ class DashboardController extends Controller
             return $query->paginate(10, ['*'], $pageName)->withQueryString();
         };
 
-        // 1. All Students (Dictionary)
-        $studentsAll = clone $baseQuery;
+        // 1. All Applicants (students with at least one application)
+        $studentsAll = (clone $baseQuery)->has('applications');
 
         // 2. Not Applied
         $studentsNotApplied = (clone $baseQuery)->whereDoesntHave('applications');
@@ -672,19 +674,81 @@ class DashboardController extends Controller
         $studentsRejected = (clone $baseQuery)->whereHas('applications', function($q) {
             $q->where('status', 'rejected');
         });
+
+        if (str_starts_with($activeTab, 'applicants-')) {
+            $statusFilter = str_replace('applicants-', '', $activeTab);
+        }
+
+        switch ($statusFilter) {
+            case 'not_applied':
+                $students = $paginate($studentsNotApplied, 'page_applicants');
+                break;
+            case 'in_progress':
+                $students = $paginate($studentsInProgress, 'page_applicants');
+                break;
+            case 'pending':
+                $students = $paginate($studentsPending, 'page_applicants');
+                break;
+            case 'approved':
+                $students = $paginate($studentsApproved, 'page_applicants');
+                break;
+            case 'rejected':
+                $students = $paginate($studentsRejected, 'page_applicants');
+                break;
+            default:
+                $students = $paginate($studentsAll, 'page_applicants');
+                break;
+        }
+
+        $studentsAll = $paginate($studentsAll, 'page_applicants');
+        $studentsNotApplied = $paginate($studentsNotApplied, 'page_not_applied');
+        $studentsInProgress = $paginate($studentsInProgress, 'page_in_progress');
+        $studentsPending = $paginate($studentsPending, 'page_pending');
+        $studentsApproved = $paginate($studentsApproved, 'page_approved');
+        $studentsRejected = $paginate($studentsRejected, 'page_rejected');
+
+        $stampStatus = function($paginator, $status) {
+            $paginator->getCollection()->transform(function($student) use ($status) {
+                $student->display_status = $status;
+                return $student;
+            });
+
+            return $paginator;
+        };
+
+        $studentsAll = $stampStatus($studentsAll, 'all');
+        $studentsNotApplied = $stampStatus($studentsNotApplied, 'not_applied');
+        $studentsInProgress = $stampStatus($studentsInProgress, 'in_progress');
+        $studentsPending = $stampStatus($studentsPending, 'pending');
+        $studentsApproved = $stampStatus($studentsApproved, 'approved');
+        $studentsRejected = $stampStatus($studentsRejected, 'rejected');
+
+        if ($statusFilter === 'not_applied') {
+            $students = $studentsNotApplied;
+        } elseif ($statusFilter === 'in_progress') {
+            $students = $studentsInProgress;
+        } elseif ($statusFilter === 'pending') {
+            $students = $studentsPending;
+        } elseif ($statusFilter === 'approved') {
+            $students = $studentsApproved;
+        } elseif ($statusFilter === 'rejected') {
+            $students = $studentsRejected;
+        } else {
+            $students = $studentsAll;
+        }
         
         // Applications for counters/references if needed
         $applications = Application::whereIn('user_id', (clone $baseQuery)->select('id'))
             ->get();
 
         return [
-            'students' => $paginate(clone $baseQuery, 'page_applicants'), // Default list
-            'studentsAll' => $paginate($studentsAll, 'page_applicants'),
-            'studentsNotApplied' => $paginate($studentsNotApplied, 'page_not_applied'),
-            'studentsInProgress' => $paginate($studentsInProgress, 'page_in_progress'),
-            'studentsPending' => $paginate($studentsPending, 'page_pending'),
-            'studentsApproved' => $paginate($studentsApproved, 'page_approved'),
-            'studentsRejected' => $paginate($studentsRejected, 'page_rejected'),
+            'students' => $students,
+            'studentsAll' => $studentsAll,
+            'studentsNotApplied' => $studentsNotApplied,
+            'studentsInProgress' => $studentsInProgress,
+            'studentsPending' => $studentsPending,
+            'studentsApproved' => $studentsApproved,
+            'studentsRejected' => $studentsRejected,
             'applications' => $applications,
         ];
     }
@@ -735,10 +799,10 @@ class DashboardController extends Controller
         $campusColleges = \App\Models\CampusCollege::with(['college', 'programs.tracks'])->get()->values();
 
         // Get filtering parameters
-        $tab = $request->get('tabs', $request->get('tab', 'all_scholarships'));
-        $sortBy = $request->get('sort_by', 'created_at');
+        $tab = str_replace('_', '-', strtolower($request->get('tabs', $request->get('tab', 'all_scholarships'))));
+        $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'desc');
-        $statusFilter = $request->get('status_filter', 'all');
+        $statusFilter = str_replace('-', '_', strtolower($request->get('status_filter', 'all')));
         
         // Resolve campus filter
         // Check both 'campus_filter' (Applications/Scholars) and 'campus' (Statistics)
@@ -805,7 +869,6 @@ class DashboardController extends Controller
 
         // Build scholarships query
         $scholarshipsQuery = Scholarship::with(['conditions', 'requiredDocuments']);
-        
         // Apply sorting to base query
         $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'asc');
@@ -1145,9 +1208,9 @@ class DashboardController extends Controller
         $queryScholarsOld->where('type', 'old');
 
         // Paginate
-        $scholarsAll = $queryScholarsAll->paginate(10, ['*'], 'page_scholars_all')->withQueryString();
-        $scholarsNew = $queryScholarsNew->paginate(10, ['*'], 'page_scholars_new')->withQueryString();
-        $scholarsOld = $queryScholarsOld->paginate(10, ['*'], 'page_scholars_old')->withQueryString();
+        $scholarsAll = $queryScholarsAll->paginate(10, ['*'], 'page_scholars_all')->appends($request->query());
+        $scholarsNew = $queryScholarsNew->paginate(10, ['*'], 'page_scholars_new')->appends($request->query());
+        $scholarsOld = $queryScholarsOld->paginate(10, ['*'], 'page_scholars_old')->appends($request->query());
 
         $scholars = $scholarsAll;
 

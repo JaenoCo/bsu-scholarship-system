@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             ScholarshipsTableSeeder::class,
 
             // 4. Students (Depends on structure data)
-            StudentSeeder::class,
+            UsersTableSeeder::class,
 
             // 5. Applications
             ApplicationSeeder::class,

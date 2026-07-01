@@ -1346,7 +1346,8 @@ class UserController extends Controller
                 'scholarship_id' => $scholarship_id,
             ],
             [
-                'status' => 'in_progress',
+                // When a student completes submission, mark as 'pending' so SFAO can review.
+                'status' => 'pending',
             ]
         );
 

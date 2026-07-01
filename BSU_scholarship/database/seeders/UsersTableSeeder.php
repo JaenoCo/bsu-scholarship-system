@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Campus;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class UsersTableSeeder extends Seeder
 {
@@ -13,70 +15,56 @@ class UsersTableSeeder extends Seeder
      */
     public function run(): void
     {
-        $faker = \Faker\Factory::create();
-        
-        // Get all constituent campuses and their extensions
-        $constituentCampuses = \App\Models\Campus::constituent()->with(['extensionCampuses'])->get();
-        
-        // Create 20 student users for each constituent campus and its extensions
-        foreach ($constituentCampuses as $constituent) {
-            // Get all campuses under this constituent (constituent + extensions)
-            $allCampuses = $constituent->getAllCampusesUnder();
-            
-            // Calculate how many students per campus to get 20 total
-            $totalCampuses = $allCampuses->count();
-            $studentsPerCampus = $totalCampuses > 0 ? intval(20 / $totalCampuses) : 0;
-            $remainingStudents = 20 % $totalCampuses;
-            
-            $studentCount = 0;
-            foreach ($allCampuses as $index => $campus) {
-                // Calculate students for this campus
-                $studentsForThisCampus = $studentsPerCampus;
-                if ($index < $remainingStudents) {
-                    $studentsForThisCampus += 1; // Distribute remaining students
-                }
-                
-                // Create students for this campus
-                for ($i = 0; $i < $studentsForThisCampus; $i++) {
-                    $studentCount++;
-                    // Use 99-xxxxxx format to avoid conflicts with actual G Suite accounts
-                    $studentId = $faker->unique()->numberBetween(100000, 999999);
-                    $studentEmail = sprintf("99-%06d@g.batstate-u.edu.ph", $studentId);
-                    
-                    $firstName = $faker->firstName();
-                    $lastName = $faker->lastName();
-                    $middleName = $faker->lastName();
+        $campuses = Campus::query()->orderBy('name')->get();
 
-                    // Get valid departments for this campus
-                    $campusDepartments = $campus->departments;
-                    $randomDepartment = $campusDepartments->count() > 0 
-                        ? $campusDepartments->random()->short_name 
-                        : 'CICS'; // Fallback
-                    
-                    User::create([
-                        'name' => "$firstName $middleName $lastName",
-                        'first_name' => $firstName,
-                        'middle_name' => $middleName,
-                        'last_name' => $lastName,
-                        'sex' => $faker->randomElement(['Male', 'Female']),
-                        'birthdate' => $faker->date(),
-                        'contact_number' => $faker->phoneNumber(),
-                        'sr_code' => 'SR-' . $studentId,
-                        'education_level' => 'Undergraduate',
-                        'program' => 'BS Information Technology',
-                        'college' => $randomDepartment,
-                        'year_level' => '3rd Year',
-                        'email' => $studentEmail,
-                        'email_verified_at' => now(),
-                        'password' => Hash::make('password123'),
-                        'role' => 'student',
-                        'campus_id' => $campus->id,
-                    ]);
-                }
-            }
+        if ($campuses->isEmpty()) {
+            $this->command->warn('No campuses found. Skipping student user seeding.');
+            return;
         }
 
-        // Admin accounts are seeded separately by AdminSeeder to avoid duplicate role/email entries.
-        // This seeder focuses on students linked to campuses and applications linked to student users.
+        $password = Hash::make('password123');
+        $counter = 1;
+
+        foreach ($campuses as $campus) {
+            $srCode = sprintf('SR-%06d', 100000 + $counter);
+            while (User::where('sr_code', $srCode)->exists()) {
+                $counter++;
+                $srCode = sprintf('SR-%06d', 100000 + $counter);
+            }
+
+            $studentEmail = strtolower($srCode) . '@g.batstate-u.edu.ph';
+
+            $firstName = ['Ariel', 'Bea', 'Cris', 'Dana', 'Ethan', 'Faye'][$counter % 6];
+            $lastName = ['Aguilar', 'Bautista', 'Castro', 'Dela Cruz', 'Enriquez', 'Flores'][$counter % 6];
+            $middleName = ['M.', 'A.', 'N.', 'R.', 'L.', 'S.'][$counter % 6];
+
+            $departmentName = 'CICS';
+
+            User::updateOrCreate(
+                ['email' => $studentEmail],
+                [
+                    'name' => "$firstName $middleName $lastName",
+                    'first_name' => $firstName,
+                    'middle_name' => $middleName,
+                    'last_name' => $lastName,
+                    'sex' => $counter % 2 === 0 ? 'Female' : 'Male',
+                    'birthdate' => now()->subYears(19 + ($counter % 4))->toDateString(),
+                    'contact_number' => '09' . str_pad((string) (900000000 + $counter), 9, '0', STR_PAD_LEFT),
+                    'sr_code' => $srCode,
+                    'education_level' => 'Undergraduate',
+                    'program' => 'BS Information Technology',
+                    'college' => $departmentName,
+                    'year_level' => '3rd Year',
+                    'email_verified_at' => now(),
+                    'password' => $password,
+                    'role' => 'student',
+                    'campus_id' => $campus->id,
+                ]
+            );
+
+            $counter++;
+        }
+
+        $this->command->info('Created student accounts for each campus. No applications were seeded.');
     }
 }

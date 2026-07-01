@@ -25,10 +25,7 @@ class DatabaseSeeder extends Seeder
             // 4. Students (Depends on structure data)
             UsersTableSeeder::class,
 
-            // 5. Applications
-            ApplicationSeeder::class,
-
-            // 6. Notifications
+            // 5. Notifications
             NotificationSeeder::class,
         ]);
     }

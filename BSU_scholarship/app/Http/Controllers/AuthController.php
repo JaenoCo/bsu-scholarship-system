@@ -249,17 +249,11 @@ class AuthController extends Controller
             'form_status' => 'draft'
         ]);
 
-        $user->sendEmailVerificationNotification();
+        // Automatically mark student/applicant email as verified so they can log in immediately
+        $user->email_verified_at = now();
+        $user->save();
 
-        return redirect()->route('register.wait')->with('email', $request->email);
-    }
-
-    /**
-     * Show email verification notice
-     */
-    public function showVerificationNotice()
-    {
-        return view('auth.verify-email');
+        return redirect('/login')->with('success', 'Account created successfully. You may now log in.');
     }
 
     /**

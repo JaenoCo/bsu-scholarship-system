@@ -124,10 +124,18 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
                                     @if($status === 'pending')
-                                        <a href="{{ route('sfao.evaluation.show', $student->student_id) }}"
-                                           class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
-                                            Evaluate
-                                        </a>
+                                        @php $evalUserId = $student->student_id ?? $student->id ?? $student->user_id ?? null; @endphp
+                                        @if($evalUserId)
+                                            <a href="{{ route('sfao.evaluation.show', ['user_id' => $evalUserId]) }}"
+                                               class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                                                Evaluate
+                                            </a>
+                                        @else
+                                            <button type="button" disabled
+                                                    class="px-3 py-1.5 bg-blue-600 text-white rounded-lg opacity-60 cursor-not-allowed transition text-sm font-semibold">
+                                                Evaluate
+                                            </button>
+                                        @endif
 
                                         @php
                                             $pendingApplication = $student->applications->firstWhere('status', 'pending') ?? $student->applications->first();

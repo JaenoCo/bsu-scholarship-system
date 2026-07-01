@@ -72,7 +72,9 @@ window.sfaoStatisticsTab = function (config = {}) {
             title: '',
             rows: []
         },
+        isAnonymized: false,
         activeView: null,
+        nameHashCache: {},
 
         init() {
             try {
@@ -695,6 +697,7 @@ window.sfaoStatisticsTab = function (config = {}) {
         },
 
         async openStudentDetails(scope, type) {
+            this.isAnonymized = false;
             this.activeView = `${scope}:${type}`;
             this.studentDetails = {
                 open: true,
@@ -741,7 +744,10 @@ window.sfaoStatisticsTab = function (config = {}) {
                 .map((item, index) => this.formatStudentDetailRow(item, index))
                 .sort((a, b) => a.studentNumber.localeCompare(b.studentNumber));
 
-            return rows;
+            return Promise.all(rows.map(async row => ({
+                ...row,
+                name: this.isAnonymized ? await this.anonymizeName(row.name) : row.name
+            })));
         },
 
         isScholarRecord(item) {
@@ -791,6 +797,21 @@ window.sfaoStatisticsTab = function (config = {}) {
             };
 
             return `${labels[type] || 'Students'}: ${context}`;
+        },
+
+        async anonymizeName(name) {
+            const rawName = String(name || 'Unnamed student').trim();
+            if (this.nameHashCache[rawName]) return this.nameHashCache[rawName];
+
+            this.nameHashCache[rawName] = rawName.split(/\s+/)
+                .map(part => {
+                    if (!part) return '';
+                    return `${part[0]}${'*'.repeat(Math.max(part.length - 1, 3))}`;
+                })
+                .filter(Boolean)
+                .join(' ');
+
+            return this.nameHashCache[rawName];
         },
 
         isGranularAnalyticsView() {
@@ -845,10 +866,10 @@ window.sfaoStatisticsTab = function (config = {}) {
                     ['New Scholars', statusCounts.new_scholars, '#3B82F6']
                 ]
                 : [
-                    ['Approved', statusCounts.approved, '#15803D'],
-                    ['Rejected', statusCounts.rejected, '#B91C1C'],
-                    ['Pending Review', statusCounts.pending, '#CA8A04'],
-                    ['In Progress', statusCounts.in_progress, '#2563EB'],
+                    ['Approved', statusCounts.approved, this.getApplicantStatusColor('approved')],
+                    ['Rejected', statusCounts.rejected, this.getApplicantStatusColor('rejected')],
+                    ['Pending Review', statusCounts.pending, this.getApplicantStatusColor('pending')],
+                    ['In Progress', statusCounts.in_progress, this.getApplicantStatusColor('inProgress')],
                     ...(mode === 'comparison' ? [['Scholars', statusCounts.scholars, '#7C3AED']] : [])
                 ];
 
@@ -1420,8 +1441,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'Approved',
                         data: timeKeys.map(k => groupedData[k].approved),
-                        borderColor: '#7F1D1D', // Darkest Red
-                        backgroundColor: shouldFill ? 'rgba(127, 29, 29, 0.2)' : '#7F1D1D',
+                        borderColor: this.getApplicantStatusColor('approved'),
+                        backgroundColor: shouldFill ? 'rgba(16, 185, 129, 0.2)' : this.getApplicantStatusColor('approved'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.approved
@@ -1429,8 +1450,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'Rejected',
                         data: timeKeys.map(k => groupedData[k].rejected),
-                        borderColor: '#991B1B', // Darker Red
-                        backgroundColor: shouldFill ? 'rgba(153, 27, 27, 0.2)' : '#991B1B',
+                        borderColor: this.getApplicantStatusColor('rejected'),
+                        backgroundColor: shouldFill ? 'rgba(239, 68, 68, 0.2)' : this.getApplicantStatusColor('rejected'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.rejected
@@ -1438,8 +1459,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'Pending',
                         data: timeKeys.map(k => groupedData[k].pending),
-                        borderColor: '#B91C1C', // Dark Red
-                        backgroundColor: shouldFill ? 'rgba(185, 28, 28, 0.2)' : '#B91C1C',
+                        borderColor: this.getApplicantStatusColor('pending'),
+                        backgroundColor: shouldFill ? 'rgba(245, 158, 11, 0.2)' : this.getApplicantStatusColor('pending'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.pending
@@ -1447,8 +1468,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     {
                         label: 'In Progress',
                         data: timeKeys.map(k => groupedData[k].in_progress),
-                        borderColor: '#DC2626', // Red
-                        backgroundColor: shouldFill ? 'rgba(220, 38, 38, 0.2)' : '#DC2626',
+                        borderColor: this.getApplicantStatusColor('inProgress'),
+                        backgroundColor: shouldFill ? 'rgba(37, 99, 235, 0.2)' : this.getApplicantStatusColor('inProgress'),
                         fill: shouldFill ? 'origin' : false,
                         tension: 0.3,
                         hidden: !this.chartLegend.inProgress
@@ -1726,10 +1747,10 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                     datasets = [
                         // Stack: Applicants
-                        { label: 'Approved', data: d(true, stats.approved.size), backgroundColor: '#7F1D1D', stack: 'main' },
-                        { label: 'Rejected', data: d(true, stats.rejected.size), backgroundColor: '#991B1B', stack: 'main' },
-                        { label: 'Pending', data: d(true, stats.pending.size), backgroundColor: '#B91C1C', stack: 'main' },
-                        { label: 'In Progress', data: d(true, stats.inProgress.size), backgroundColor: '#DC2626', stack: 'main' },
+                        { label: 'Approved', data: d(true, stats.approved.size), backgroundColor: this.getApplicantStatusColor('approved'), stack: 'main' },
+                        { label: 'Rejected', data: d(true, stats.rejected.size), backgroundColor: this.getApplicantStatusColor('rejected'), stack: 'main' },
+                        { label: 'Pending', data: d(true, stats.pending.size), backgroundColor: this.getApplicantStatusColor('pending'), stack: 'main' },
+                        { label: 'In Progress', data: d(true, stats.inProgress.size), backgroundColor: this.getApplicantStatusColor('inProgress'), stack: 'main' },
 
                         // Stack: Scholars
                         { label: 'New Scholars', data: d(false, stats.newScholars.size), backgroundColor: '#EF4444', stack: 'main' },
@@ -1978,21 +1999,14 @@ window.sfaoDashboardState = function (config) {
 
             // Watch Tab Change
             this.$watch('tab', val => {
-                let normalizedTab = this.normalizeTab(val);
-                if (normalizedTab === 'account_settings') {
-                    normalizedTab = 'account';
+                if (val === 'account_settings') {
+                    this.tab = 'account';
+                    return; // Let the next watch trigger handle the rest
                 }
-
-                if (normalizedTab !== val) {
-                    this.tab = normalizedTab;
-                    return; // Re-run watcher with normalized value
-                }
-
-                localStorage.setItem('sfaoTab', normalizedTab);
-                this.updateUrl(normalizedTab);
-                this.syncDropdowns(normalizedTab);
-                this.$dispatch('tab-changed', normalizedTab);
-                window.dispatchEvent(new CustomEvent('sfao-filter-tab-selected', { detail: normalizedTab }));
+                localStorage.setItem('sfaoTab', val);
+                this.updateUrl(val);
+                this.syncDropdowns(val);
+                this.$dispatch('tab-changed', val);
             });
 
             // Listen for Sidebar Tab Switch Events
@@ -2023,14 +2037,12 @@ window.sfaoDashboardState = function (config) {
             } else {
                 // Fallback favoring Analytics ("Overview") if no specific tab
                 let savedTab = localStorage.getItem('sfaoTab');
-                // Normalize legacy tab strings
-                savedTab = this.normalizeTab(savedTab);
+                // Ensure valid tab
                 this.tab = savedTab || config.activeTab || 'analytics_scholarships';
 
                 // Cleanup legacy values
                 if (this.tab === 'statistics' || this.tab === 'dashboard') this.tab = 'analytics';
                 if (this.tab === 'account_settings') this.tab = 'account';
-                this.tab = this.normalizeTab(this.tab);
             }
 
             // Ensure correct dropdown is open
@@ -2042,16 +2054,17 @@ window.sfaoDashboardState = function (config) {
         },
 
         switchTab(nextTab) {
-            const normalizedTab = this.normalizeTab(nextTab);
-            const clickedCurrentTab = this.tab === normalizedTab;
+            const clickedCurrentTab = this.tab === nextTab;
 
-            this.tab = normalizedTab;
-            localStorage.setItem('sfaoTab', normalizedTab);
-            this.updateUrl(normalizedTab);
-            this.syncDropdowns(normalizedTab);
-            this.$dispatch('tab-changed', normalizedTab);
+            this.tab = nextTab;
 
-            return clickedCurrentTab;
+            if (clickedCurrentTab) {
+                localStorage.setItem('sfaoTab', nextTab);
+                this.updateUrl(nextTab);
+                this.syncDropdowns(nextTab);
+                this.$dispatch('tab-changed', nextTab);
+                window.dispatchEvent(new CustomEvent('sfao-filter-tab-selected', { detail: nextTab }));
+            }
         },
 
         updateUrl(currentTab) {
@@ -2078,14 +2091,6 @@ window.sfaoDashboardState = function (config) {
             }
         },
 
-        normalizeTab(tab) {
-            if (!tab || typeof tab !== 'string') return tab;
-            if (tab.startsWith('applicants_')) return tab.replace('applicants_', 'applicants-');
-            if (tab.startsWith('scholars_')) return tab.replace('scholars_', 'scholars-');
-            if (tab.startsWith('reports_')) return tab.replace('reports_', 'reports-');
-            return tab;
-        },
-
         syncDropdowns(currentTab) {
             if (currentTab === 'analytics' || currentTab.startsWith('analytics_')) this.openDropdowns.dashboard = true;
             else if (currentTab.startsWith('scholarships')) this.openDropdowns.scholarships = true;
@@ -2107,6 +2112,7 @@ window.sfaoScholarshipsFilter = function (config) {
         filters: {
             sort_by: localStorage.getItem('sfaoScholarshipsSortBy') || 'name',
             sort_order: localStorage.getItem('sfaoScholarshipsSortOrder') || 'asc',
+            type: localStorage.getItem('sfaoScholarshipsType') || 'all',
             type: localStorage.getItem('sfaoScholarshipsType') || 'all',
             campus: localStorage.getItem('sfaoScholarshipsCampus') || 'all',
             search: localStorage.getItem('sfaoScholarshipsSearch') || ''
@@ -2235,23 +2241,6 @@ window.sfaoScholarshipsFilter = function (config) {
 
 // SFAO Applicants Filter
 window.sfaoApplicantsFilter = function (config) {
-    config = config || {};
-
-    const normalizeApplicantsTab = (tab) => (tab || 'applicants').replace(/_/g, '-');
-    const applicantsStatusFromTab = (tab) => {
-        const normalizedTab = normalizeApplicantsTab(tab);
-
-        if (normalizedTab === 'applicants') {
-            return 'all';
-        }
-
-        if (normalizedTab.startsWith('applicants-')) {
-            return normalizedTab.replace('applicants-', '').replace(/-/g, '_');
-        }
-
-        return 'all';
-    };
-
     return {
         filters: {
             sort_by: localStorage.getItem('sfaoApplicantsSortBy') || 'name',
@@ -2262,7 +2251,7 @@ window.sfaoApplicantsFilter = function (config) {
             track: localStorage.getItem('sfaoApplicantsTrack') || 'all',
             academic_year: localStorage.getItem('sfaoApplicantsAcademicYear') || 'all',
             scholarship: localStorage.getItem('sfaoApplicantsScholarship') || 'all',
-            status: applicantsStatusFromTab(config.activeTab)
+            status: 'all'
         },
         counts: config.counts || {},
         campusOptions: config.campusOptions || [],
@@ -2274,7 +2263,7 @@ window.sfaoApplicantsFilter = function (config) {
         programTracks: config.programTracks || {},
         sfaoCampusName: config.sfaoCampusName || '',
         extensionCampuses: config.extensionCampuses || [],
-        currentTab: normalizeApplicantsTab(config.activeTab),
+        currentTab: 'applicants',
         showModal: false,
         selectedApplicant: null,
         loading: false,
@@ -2336,11 +2325,6 @@ window.sfaoApplicantsFilter = function (config) {
                     this.handleTabChange(event.detail);
                 }
             });
-
-            // Apply the initial active tab if it was passed from the server
-            if (this.currentTab.startsWith('applicants')) {
-                this.handleTabChange(this.currentTab);
-            }
 
             // Initial Sync if values present
             if (this.filters.campus !== 'all') this.updateColleges(false);
@@ -2503,7 +2487,6 @@ window.sfaoApplicantsFilter = function (config) {
             if (!this.currentTab || !this.currentTab.startsWith('applicants')) return;
 
             this.loading = true;
-            const statusFilter = applicantsStatusFromTab(this.currentTab);
             const params = new URLSearchParams({
                 tab: this.currentTab,
                 sort_by: this.filters.sort_by,
@@ -2514,7 +2497,7 @@ window.sfaoApplicantsFilter = function (config) {
                 track_filter: this.filters.track,
                 academic_year_filter: this.filters.academic_year,
                 scholarship_filter: this.filters.scholarship,
-                status_filter: statusFilter,
+                status_filter: this.filters.status,
                 page_applicants: page
             });
 
@@ -2608,10 +2591,13 @@ window.sfaoApplicantsFilter = function (config) {
         },
 
         handleTabChange(tab) {
-            const normalizedTab = normalizeApplicantsTab(tab);
-            this.currentTab = normalizedTab;
+            this.currentTab = tab;
 
-            this.filters.status = applicantsStatusFromTab(normalizedTab);
+            if (tab === 'applicants') {
+                this.filters.status = 'all';
+            } else if (tab.startsWith('applicants-')) {
+                this.filters.status = tab.replace('applicants-', '');
+            }
 
             this.fetchApplicants();
         }
@@ -2734,7 +2720,7 @@ window.sfaoScholarsFilter = function (config) {
                 page_scholarships: page
             });
 
-            fetch(`${config.routeUrl}?${params.toString()}`, {
+            fetch(`${config.routeUrl}?${params.toString()} `, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(response => response.json())
@@ -2931,7 +2917,7 @@ window.sfaoScholarsFilter = function (config) {
 
             try {
                 const url = action === 'claimed'
-                    ? config.routeUrl.replace('/sfao', `/sfao/scholars/${this.selectedScholarId}/mark-claimed`)
+                    ? config.routeUrl.replace('/sfao', `/ sfao / scholars / ${this.selectedScholarId}/mark-claimed`)
                     : config.routeUrl.replace('/sfao', `/sfao/scholars/${this.selectedScholarId}/mark-disqualified`);
 
                 const response = await fetch(url, {

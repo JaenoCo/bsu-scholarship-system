@@ -250,8 +250,8 @@ class ApplicationController extends Controller
 
         if ($effectiveStatus === 'not_applied') {
             $query->doesntHave('applications');
-        } elseif ($effectiveStatus === 'all' && $activeTab === 'applicants') {
-            $query->has('applications');
+        } elseif ($effectiveStatus === 'all') {
+            // No status filter - include all students regardless of application presence
         } elseif (in_array($effectiveStatus, ['in_progress', 'pending', 'approved', 'rejected'])) {
             $query->whereHas('applications', function($q) use ($effectiveStatus) {
                 $q->where('status', $effectiveStatus);
@@ -367,13 +367,14 @@ class ApplicationController extends Controller
 
         // 9. Counts
         $counts = [
-            'total' => (clone $countsQuery)->whereHas('applications')->count(),
+            // 'total' now reflects all students under this SFAO admin (not only students with applications)
+            'total' => (clone $countsQuery)->count(),
             'not_applied' => (clone $countsQuery)->doesntHave('applications')->count(),
             'in_progress' => (clone $countsQuery)->whereHas('applications', fn($q) => $q->where('status', 'in_progress'))->count(),
             'pending' => (clone $countsQuery)->whereHas('applications', fn($q) => $q->where('status', 'pending'))->count(),
             'approved' => (clone $countsQuery)->whereHas('applications', fn($q) => $q->where('status', 'approved'))->count(),
             'rejected' => (clone $countsQuery)->whereHas('applications', fn($q) => $q->where('status', 'rejected'))->count(),
-        ];        
+        ];
 
         if ($request->get('fetch_modal_data')) {
             $applicants = $studentCollection->map(function($student) {

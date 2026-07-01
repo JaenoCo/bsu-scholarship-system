@@ -125,10 +125,19 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
                                     @if($status === 'pending')
-                                        <a href="{{ route('sfao.evaluation.show', $student->student_id) }}"
-                                           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg inline-block">
-                                            Evaluate
-                                        </a>
+                                        @php $evalUserId = $student->student_id ?? $student->id ?? $student->user_id ?? null; @endphp
+                                        @if($evalUserId)
+                                            <a href="{{ route('sfao.evaluation.show', ['user_id' => $evalUserId]) }}"
+                                               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg inline-block">
+                                                Evaluate
+                                            </a>
+                                        @else
+                                            <button type="button" disabled
+                                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg opacity-60 cursor-not-allowed text-sm font-semibold shadow-md inline-block"
+                                                    title="No student id available for evaluation">
+                                                Evaluate
+                                            </button>
+                                        @endif
 
                                         @php
                                             $pendingApplication = $student->applications->firstWhere('status', 'pending') ?? $student->applications->first();

@@ -206,14 +206,14 @@
 
                 handleTabChange(tab) {
                     const normalizedTab = tab.replace('applicants_', 'applicants-');
-                    this.currentTab = normalizedTab;
+                    this.currentTab = normalizedTab === 'applicants-not_applied' ? 'applicants' : normalizedTab;
 
-                    if (normalizedTab === 'applicants') {
+                    if (this.currentTab === 'applicants') {
                         if (this.filters.status !== 'all') {
                             this.filters.status = 'all';
                         }
-                    } else if (normalizedTab.startsWith('applicants-')) {
-                        const status = normalizedTab.replace('applicants-', '');
+                    } else if (this.currentTab.startsWith('applicants-')) {
+                        const status = this.currentTab.replace('applicants-', '');
                         if (this.filters.status !== status) {
                             this.filters.status = status;
                         }

@@ -34,7 +34,7 @@
 
 @section('content')
 <div x-data="{
-    tab: 'scholarships',
+    tab: 'announcements',
     subTab: 'all',
     unreadCount: {{ $unreadCount ?? 0 }},
     unreadCountScholarships: {{ $unreadCountScholarships ?? 0 }},
@@ -48,6 +48,7 @@
         'my_scholarships': { tab: 'scholarships', subTab: 'my_scholarships' },
         'sfao_form': { tab: 'scholarships', subTab: 'form' },
         'tdp_form': { tab: 'scholarships', subTab: 'gvsreap_form' },
+        'announcements': { tab: 'announcements', subTab: 'all' },
         'applied_scholarships': { tab: 'applied-scholarships', subTab: 'all' },
         'application_tracking': { tab: 'applied-scholarships', subTab: 'tracking' },
         'all_notifications': { tab: 'notifications', subTab: 'all' },
@@ -157,6 +158,11 @@
     <!-- Notifications Tab -->
     <div x-show="tab === 'notifications'" x-transition>
       @include('student.notifications.index')
+    </div>
+
+    <!-- Announcements Tab -->
+    <div x-show="tab === 'announcements'" x-transition>
+      @include('student.announcements.index')
     </div>
 
     <!-- Application Forms Tab -->

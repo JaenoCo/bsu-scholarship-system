@@ -1721,6 +1721,18 @@ class DashboardController extends Controller
         $scholarshipIds = \App\Models\Scholar::where('user_id', $user->id)->pluck('scholarship_id');
         $myScholarships = \App\Models\Scholarship::whereIn('id', $scholarshipIds)->get();
 
+        // 10. Scholarship Announcements
+        $announcements = $this->scopeScholarshipCampusAvailability(
+            \App\Models\Scholarship::where('is_active', true)
+                ->whereNotNull('announcement_title')
+                ->where('announcement_title', '<>', '')
+                ->whereNotNull('announcement_message')
+                ->where('announcement_message', '<>', ''),
+            collect([$user->campus_id])
+        )
+        ->orderBy('updated_at', 'desc')
+        ->get();
+
         return view('student.index', compact(
             'forms', 
             'user', 
@@ -1728,6 +1740,7 @@ class DashboardController extends Controller
             'applications',
             'notifications',
             'myScholarships',
+            'announcements',
             'hasPendingApplication', 
             'unreadCount', 
             'unreadCountScholarships', 

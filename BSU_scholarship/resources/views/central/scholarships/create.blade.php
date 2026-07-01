@@ -118,6 +118,23 @@
                                       class="w-full rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-bsu-red dark:focus:border-red-500 focus:ring-2 focus:ring-bsu-red/20 dark:focus:ring-red-500/20 transition-all duration-200 px-4 py-3">{{ old('description', $scholarship->description ?? '') }}</textarea>
                         </div>
 
+                        {{-- Announcement Title --}}
+                        <div>
+                            <label for="announcement_title" class="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Announcement Title</label>
+                            <input type="text" id="announcement_title" name="announcement_title"
+                                   value="{{ old('announcement_title', $scholarship->announcement_title ?? '') }}"
+                                   placeholder="e.g. New scholarship program now open"
+                                   class="w-full rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-bsu-red dark:focus:border-red-500 focus:ring-2 focus:ring-bsu-red/20 dark:focus:ring-red-500/20 transition-all duration-200 px-4 py-3">
+                        </div>
+
+                        {{-- Announcement Message --}}
+                        <div>
+                            <label for="announcement_message" class="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">Announcement Message</label>
+                            <textarea id="announcement_message" name="announcement_message" rows="3"
+                                      placeholder="Write the announcement summary or student-facing message here..."
+                                      class="w-full rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-bsu-red dark:focus:border-red-500 focus:ring-2 focus:ring-bsu-red/20 dark:focus:ring-red-500/20 transition-all duration-200 px-4 py-3">{{ old('announcement_message', $scholarship->announcement_message ?? '') }}</textarea>
+                        </div>
+
                         {{-- Type Selection --}}
                         <div x-data="{ type: '{{ old('scholarship_type', $scholarship->scholarship_type ?? 'private') }}' }">
                             <label class="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">Scholarship Type *</label>

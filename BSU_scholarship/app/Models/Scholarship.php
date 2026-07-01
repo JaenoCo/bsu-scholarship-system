@@ -22,6 +22,8 @@ class Scholarship extends Model
         'is_active',
         'eligibility_notes',
         'background_image',
+        'announcement_title',
+        'announcement_message',
         'created_by',
         'allow_existing_scholarship',
     ];
@@ -51,6 +53,15 @@ class Scholarship extends Model
     public function campuses()
     {
         return $this->belongsToMany(Campus::class, 'campus_scholarship');
+    }
+
+    public function scopeAvailableForCampuses($query, $campusIds)
+    {
+        return $query->where(function ($scope) use ($campusIds) {
+            $scope->whereHas('campuses', function ($campusQuery) use ($campusIds) {
+                $campusQuery->whereIn('campus_id', $campusIds);
+            })->orDoesntHave('campuses');
+        });
     }
 
     // Conditions only (e.g. gwa, disability, income, year_level)

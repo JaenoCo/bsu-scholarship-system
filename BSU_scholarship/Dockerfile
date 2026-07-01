@@ -45,8 +45,13 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Render automatically maps its traffic here; EXPOSE is optional but good practice
 EXPOSE 8080
 
+ENV PURGE_STUDENTS_ON_START=false
+
 # This fixes your migration and startup logic cleanly
-CMD php artisan config:clear \
- && php artisan cache:clear \
- && php artisan migrate --force \
- && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisor.conf
+CMD if [ "$PURGE_STUDENTS_ON_START" = "true" ]; then \
+        php artisan students:purge --force; \
+    fi \
+    && php artisan config:clear \
+    && php artisan cache:clear \
+    && php artisan migrate --force \
+    && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisor.conf

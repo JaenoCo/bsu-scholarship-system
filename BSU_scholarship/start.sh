@@ -5,6 +5,11 @@ echo "Starting Laravel..."
 # Run migrations safely
 php artisan migrate --force
 
+# Optional: purge student data automatically when enabled
+if [ "$PURGE_STUDENTS_ON_START" = "true" ]; then
+    php artisan students:purge --force
+fi
+
 # OPTIONAL: seed ONLY if needed (comment after first deploy)
 # php artisan db:seed --force
 

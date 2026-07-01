@@ -2727,7 +2727,7 @@ class ApplicationController extends Controller
         // Create notification for student
         NotificationService::notifyApplicationStatusChange($application, 'rejected');
 
-        return redirect()->route('central.dashboard', ['tab' => 'endorsed_applicants'])
+        return redirect()->route('central.dashboard', ['tab' => 'rejected_applicants'])
             ->with('success', 'Application has been rejected. The student will not be able to apply to this scholarship again.');
     }
 

@@ -72,9 +72,7 @@ window.sfaoStatisticsTab = function (config = {}) {
             title: '',
             rows: []
         },
-        isAnonymized: false,
         activeView: null,
-        nameHashCache: {},
 
         init() {
             try {
@@ -697,7 +695,6 @@ window.sfaoStatisticsTab = function (config = {}) {
         },
 
         async openStudentDetails(scope, type) {
-            this.isAnonymized = true;
             this.activeView = `${scope}:${type}`;
             this.studentDetails = {
                 open: true,
@@ -744,10 +741,7 @@ window.sfaoStatisticsTab = function (config = {}) {
                 .map((item, index) => this.formatStudentDetailRow(item, index))
                 .sort((a, b) => a.studentNumber.localeCompare(b.studentNumber));
 
-            return Promise.all(rows.map(async row => ({
-                ...row,
-                name: this.isAnonymized ? await this.anonymizeName(row.name) : row.name
-            })));
+            return rows;
         },
 
         isScholarRecord(item) {
@@ -797,21 +791,6 @@ window.sfaoStatisticsTab = function (config = {}) {
             };
 
             return `${labels[type] || 'Students'}: ${context}`;
-        },
-
-        async anonymizeName(name) {
-            const rawName = String(name || 'Unnamed student').trim();
-            if (this.nameHashCache[rawName]) return this.nameHashCache[rawName];
-
-            this.nameHashCache[rawName] = rawName.split(/\s+/)
-                .map(part => {
-                    if (!part) return '';
-                    return `${part[0]}${'*'.repeat(Math.max(part.length - 1, 3))}`;
-                })
-                .filter(Boolean)
-                .join(' ');
-
-            return this.nameHashCache[rawName];
         },
 
         isGranularAnalyticsView() {

@@ -38,7 +38,9 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => base_path('../public_html/storage'),
+            // Use the framework storage path for public files. This maps to
+            // `storage/app/public` and works with `php artisan storage:link`.
+            'root' => storage_path('app/public'),
             'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
             'throw' => false,

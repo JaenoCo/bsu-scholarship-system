@@ -124,11 +124,25 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
-                                    @if($student->has_documents)
+                                    @if($status === 'pending')
                                         <a href="{{ route('sfao.evaluation.show', $student->student_id) }}"
                                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg inline-block">
                                             Evaluate
                                         </a>
+
+                                        @php
+                                            $pendingApplication = $student->applications->firstWhere('status', 'pending') ?? $student->applications->first();
+                                        @endphp
+
+                                        @if($pendingApplication)
+                                            <form method="POST" action="{{ url('/applications/' . $pendingApplication->id . '/reject') }}" onsubmit="return confirm('Reject this application?');">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg inline-block">
+                                                    Reject
+                                                </button>
+                                            </form>
+                                        @endif
                                     @endif
                                 </div>
                             </td>

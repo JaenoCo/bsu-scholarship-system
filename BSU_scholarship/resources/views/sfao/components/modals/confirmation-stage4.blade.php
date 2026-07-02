@@ -64,15 +64,15 @@ function showConfirmationModal() {
     if (autoDecision === 'approve') {
         // Approve styling
         modalIcon.innerHTML = `
-            <svg class="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-12 w-12 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
         `;
-        modalIcon.className = 'flex items-center justify-center h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/30';
-        modalTitle.textContent = 'Confirm Application Approval';
-        modalMessage.textContent = 'Accept the system\'s decision to approve this application? All documents have been approved. The student will be notified.';
-        confirmButton.textContent = 'Accept & Approve';
-        confirmButton.className = 'px-6 py-3 rounded-xl text-base font-semibold text-white transition-colors shadow-lg hover:shadow-xl bg-green-600 hover:bg-green-700';
+        modalIcon.className = 'flex items-center justify-center h-20 w-20 rounded-full bg-indigo-100 dark:bg-indigo-900/30';
+        modalTitle.textContent = 'Confirm Application In Progress';
+        modalMessage.textContent = 'Accept the system\'s decision to mark this application as In Progress. All documents are approved and the application will now await admin approval.';
+        confirmButton.textContent = 'Accept & Continue';
+        confirmButton.className = 'px-6 py-3 rounded-xl text-base font-semibold text-white transition-colors shadow-lg hover:shadow-xl bg-indigo-600 hover:bg-indigo-700';
     } else if (autoDecision === 'reject') {
         // Reject styling
         modalIcon.innerHTML = `

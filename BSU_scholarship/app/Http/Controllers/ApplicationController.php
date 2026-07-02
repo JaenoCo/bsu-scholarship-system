@@ -555,11 +555,27 @@ class ApplicationController extends Controller
                 $studentApplications = $applicationsData->get($student->student_id, collect());
                 $studentDocuments = $documentsData->get($student->student_id, collect());
                 
-                $student->applications = $studentApplications;
-                $student->has_applications = $studentApplications->count() > 0;
-                $student->has_documents = $student->documents_count > 0;
-                $student->application_status = $studentApplications->pluck('status')->unique()->toArray();
-                $student->applied_scholarships = $studentApplications->pluck('scholarship.scholarship_name')->toArray();
+                    $student->applications = $studentApplications;
+                    $student->has_applications = $studentApplications->count() > 0;
+                    $student->has_documents = $student->documents_count > 0;
+                    $student->application_status = $studentApplications->pluck('status')->unique()->toArray();
+                    $student->applied_scholarships = $studentApplications->pluck('scholarship.scholarship_name')->toArray();
+
+                    // Compute display_status for the dashboard views so blades can render correctly
+                    $statuses = $studentApplications->pluck('status')->filter()->values()->all();
+                    if (empty($statuses)) {
+                        $student->display_status = 'not_applied';
+                    } else {
+                        foreach (['approved', 'in_progress', 'pending', 'rejected'] as $s) {
+                            if (in_array($s, $statuses, true)) {
+                                $student->display_status = $s;
+                                break;
+                            }
+                        }
+                        if (!isset($student->display_status)) {
+                            $student->display_status = $statuses[0];
+                        }
+                    }
                 
                 // Check if student has approved documents
                 $student->has_approved_documents = $studentDocuments->where('evaluation_status', 'approved')->count() > 0;
@@ -1120,7 +1136,9 @@ class ApplicationController extends Controller
      */
     public function sfaoApproveApplication($id)
     {
-        return $this->updateApplicationStatus($id, 'approved', 'sfao');
+        // SFAO evaluation should move the application to 'in_progress'.
+        // Central/admin will mark it as 'approved'.
+        return $this->updateApplicationStatus($id, 'in_progress', 'sfao');
     }
 
     /**
@@ -2447,6 +2465,19 @@ class ApplicationController extends Controller
     }
 
     /**
+     * Map the SFAO review action to the application status shown in the workflow.
+     * SFAO moves an application to in progress; only the admin can mark it approved.
+     */
+    private function resolveSfaoApplicationStatus(string $action, ?string $fallbackStatus = null): string
+    {
+        return match ($action) {
+            'reject' => 'rejected',
+            'approve', 'pending' => 'in_progress',
+            default => $fallbackStatus ?? 'in_progress',
+        };
+    }
+
+    /**
      * Show final review - Stage 4
      */
     public function finalEvaluation($userId, $scholarshipId)
@@ -2526,13 +2557,9 @@ class ApplicationController extends Controller
         // Automatically determine the decision
         $action = $this->determineAutoDecision($documents);
 
-        // Update application with remarks and status (including pending)
-        $newStatus = match($action) {
-            'approve' => 'approved',
-            'reject' => 'rejected',
-            'pending' => 'pending',
-            default => $application->status,
-        };
+        // Update application with remarks and status.
+        // SFAO moves the application to in progress after review; only the admin can approve it.
+        $newStatus = $this->resolveSfaoApplicationStatus($action, $application->status);
 
         $application->update([
             'status' => $newStatus,
@@ -2551,16 +2578,14 @@ class ApplicationController extends Controller
 
         // Create notification for student
         $notificationTitle = match($action) {
-            'approve' => 'Application Approved',
-            'reject' => 'Application Rejected', 
-            'pending' => 'Application Status Updated',
+            'reject' => 'Application Rejected',
+            'approve', 'pending' => 'Application In Progress',
             default => 'Application Status Updated'
         };
 
         $notificationMessage = match($action) {
-            'approve' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been approved based on document evaluation.',
             'reject' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been rejected based on document evaluation.',
-            'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been set to pending for further review based on document evaluation.',
+            'approve', 'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' is now in progress after SFAO evaluation.',
             default => 'Your application status has been updated.'
         };
 
@@ -2594,9 +2619,8 @@ class ApplicationController extends Controller
         ]);
 
         $message = match($action) {
-            'approve' => 'Application approved successfully based on document evaluation.',
             'reject' => 'Application rejected successfully based on document evaluation.',
-            'pending' => 'Application set to pending successfully based on document evaluation.',
+            'approve', 'pending' => 'Application moved to in progress successfully after SFAO evaluation.',
             default => 'Application status updated successfully.'
         };
 

@@ -3,7 +3,11 @@
 
 Your application for **{{ $application->scholarship->scholarship_name ?? 'Scholarship' }}** has been updated.
 
-**New Status:** {{ ucfirst($status) }}
+@php
+	$statusLabel = ucwords(str_replace('_', ' ', $status));
+@endphp
+
+**New Status:** {{ $statusLabel }}
 
 @if($customMessage)
 **Message:**

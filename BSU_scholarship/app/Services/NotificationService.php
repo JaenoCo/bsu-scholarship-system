@@ -148,6 +148,7 @@ class NotificationService
             'approved' => 'Congratulations! Your application has been approved.',
             'rejected' => 'Your application has been reviewed and unfortunately not approved.',
             'pending' => 'Your application is being reviewed.',
+            'in_progress' => 'Your application is now in progress after SFAO evaluation.',
             'under_review' => 'Your application is currently under review.'
         ];
 

@@ -2550,6 +2550,19 @@ class ApplicationController extends Controller
     }
 
     /**
+     * Map the SFAO review action to the application status shown in the workflow.
+     * SFAO moves an application to in progress; only the admin can mark it approved.
+     */
+    private function resolveSfaoApplicationStatus(string $action, ?string $fallbackStatus = null): string
+    {
+        return match ($action) {
+            'reject' => 'rejected',
+            'approve', 'pending' => 'in_progress',
+            default => $fallbackStatus ?? 'in_progress',
+        };
+    }
+
+    /**
      * Show final review - Stage 4
      */
     public function finalEvaluation($userId, $scholarshipId)
@@ -2663,7 +2676,7 @@ class ApplicationController extends Controller
         $notificationMessage = match ($action) {
             'approve' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been approved by SFAO. It is now forwarded to Central Administration for final review.',
             'reject' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been rejected based on document evaluation.',
-            'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been set to pending for further review based on document evaluation.',
+            'approve', 'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' is now in progress after SFAO evaluation.',
             default => 'Your application status has been updated.'
         };
 
@@ -2699,7 +2712,7 @@ class ApplicationController extends Controller
         $message = match ($action) {
             'approve' => 'Application approved and forwarded to Central Administration for final review.',
             'reject' => 'Application rejected successfully based on document evaluation.',
-            'pending' => 'Application set to pending successfully based on document evaluation.',
+            'approve', 'pending' => 'Application moved to in progress successfully after SFAO evaluation.',
             default => 'Application status updated successfully.'
         };
 

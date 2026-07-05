@@ -2,7 +2,7 @@
     <div class="px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
             <div class="flex items-center space-x-3">
-                <a href="#home" class="flex items-center space-x-2">
+                <a href="{{ url('/central/login') }}" onclick="window.location.href='{{ url('/central/login') }}'; return false;" class="flex items-center space-x-2">
                     <!-- Increased logo size -->
                     <img src="{{ asset('images/lugo.png') }}" alt="Logo" class="h-10 md:h-14 lg:h-16 w-auto">
                     <div class="text-gray-800">

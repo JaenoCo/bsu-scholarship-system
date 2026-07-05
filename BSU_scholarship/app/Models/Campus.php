@@ -86,11 +86,6 @@ class Campus extends Model
         return $this->belongsToMany(College::class, 'campus_college');
     }
 
-    public function departments()
-    {
-        return $this->belongsToMany(Department::class, 'campus_department');
-    }
-
     public function scholars()
     {
         return $this->hasManyThrough(Scholar::class, User::class);
@@ -99,5 +94,10 @@ class Campus extends Model
     public function scholarships()
     {
         return $this->belongsToMany(Scholarship::class, 'campus_scholarship');
+    }
+
+    public function getDisplayNameAttribute()
+    {
+        return $this->name === 'ARASOF' ? 'ARASOF-Nasugbu' : $this->name;
     }
 }

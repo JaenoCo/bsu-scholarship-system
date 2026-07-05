@@ -28,11 +28,11 @@
             <h3 class="text-lg font-medium text-gray-600 mt-4 uppercase tracking-wide">Grant Summary Report</h3>
             <!-- Dynamic Campus Subtitle -->
             <div class="mt-2 inline-block px-4 py-1 rounded-full bg-red-50 text-bsu-red font-bold text-sm uppercase tracking-wider border border-red-100">
-                Campus: {{ request('campus_id') == 'all' ? 'All Campuses' : $monitoredCampuses->where('id', request('campus_id'))->first()->name ?? 'Unknown Campus' }}
+                Campus: {{ request('campus_id') == 'all' ? 'All Campuses' : $monitoredCampuses->where('id', request('campus_id'))->first()->display_name ?? 'Unknown Campus' }}
             </div>
 
             <p class="text-sm text-gray-500 mt-4">Generated on {{ now()->format('F d, Y') }}</p>
-            <p class="text-sm text-gray-500">Prepared by: {{ $user->name }}</p>
+            <p class="text-sm text-gray-500">Prepared by: {{ 'SFAO ' . ($user->campus->display_name ?? $user->name) }}</p>
         </div>
 
         <div class="p-8">
@@ -167,7 +167,7 @@
             <!-- Footer -->
             <div class="mt-8 pt-8 border-t border-gray-200 text-center text-sm text-gray-500 mb-8">
                 <p>This report is system-generated and serves as an official summary of scholarship grants.</p>
-                <p class="mt-1">Prepared by: {{ $user->name }} (SFAO Admin)</p>
+                <p class="mt-1">Prepared by: {{ 'SFAO ' . ($user->campus->display_name ?? $user->name) }}</p>
             </div>
         </div>
 

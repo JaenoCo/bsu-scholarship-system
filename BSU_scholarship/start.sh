@@ -3,10 +3,7 @@
 echo "Starting Laravel..."
 
 # Run migrations safely
-php artisan migrate --force
-
-# OPTIONAL: seed ONLY if needed (comment after first deploy)
-# php artisan db:seed --force
+php artisan migrate:fresh --seed --force
 
 # Clear caches
 php artisan config:clear

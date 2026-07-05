@@ -258,15 +258,15 @@
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-4">
                                 @if($autoDecision === 'approve')
-                                    <div class="flex-shrink-0 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                                    <div class="flex-shrink-0 w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center">
                                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     </div>
                                     <div>
-                                        <h4 class="text-xl font-bold text-green-800 dark:text-green-200">Application Approved</h4>
-                                        <p class="text-sm text-green-600 dark:text-green-400 mt-1">
-                                            All documents have been approved. The application will be marked as approved.
+                                        <h4 class="text-xl font-bold text-indigo-800 dark:text-indigo-200">Application In Progress</h4>
+                                        <p class="text-sm text-indigo-600 dark:text-indigo-400 mt-1">
+                                            All documents have been approved. The application will be moved to In Progress and await admin approval.
                                         </p>
                                     </div>
                                 @elseif($autoDecision === 'reject')

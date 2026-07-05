@@ -151,14 +151,6 @@
           </svg>
           All Applicants
         </button>
-        <button @click="tab = 'applicants-not_applied'"
-                class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'applicants-not_applied' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
-          </svg>
-          Not Applied
-        </button>
         <button @click="tab = 'applicants-in_progress'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
                 :class="tab === 'applicants-in_progress' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">

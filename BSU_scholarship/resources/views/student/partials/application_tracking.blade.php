@@ -280,9 +280,12 @@
                                                     @elseif($application->status === 'rejected')
                                                         <p class="font-medium">Not Selected</p>
                                                         <p class="mt-1 text-xs">Final decision made on {{ $application->updated_at?->format('M d, Y \a\t h:i A') }}</p>
-                                                    @elseif($application->status === 'approved')
+                                                    @elseif($application->status === 'in_progress')
                                                         <p class="font-medium">SFAO Approved - Awaiting Central Review</p>
                                                         <p class="mt-1 text-xs">SFAO approved on {{ $application->updated_at?->format('M d, Y \a\t h:i A') }}. Central is reviewing for final selection.</p>
+                                                    @elseif($application->status === 'approved')
+                                                        <p class="font-medium">Central Approved - Eligible to Claim Grant</p>
+                                                        <p class="mt-1 text-xs">Approved on {{ $application->updated_at?->format('M d, Y \a\t h:i A') }}. You are now eligible to claim your grant.</p>
                                                     @else
                                                         <p class="font-medium">Under SFAO Review</p>
                                                         <p class="mt-1 text-xs">SFAO is currently evaluating your application and documents.</p>

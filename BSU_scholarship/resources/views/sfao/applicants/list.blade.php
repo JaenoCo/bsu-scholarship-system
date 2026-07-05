@@ -48,7 +48,8 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @php
-                                    $status = $student->display_status ?? ($student->applications->first()?->status ?? 'not_applied');
+                                    // Use pre-computed display_status from controller
+                                    $status = $student->display_status ?? 'not_applied';
                                     $statusLabel = match ($status) {
                                         'approved' => 'Approved',
                                         'in_progress' => 'In Progress',
@@ -125,10 +126,19 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
                                     @if($status === 'pending')
-                                        <a href="{{ route('sfao.evaluation.show', $student->student_id) }}"
-                                           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg inline-block">
-                                            Evaluate
-                                        </a>
+                                        @php
+                                            $userId = $student->student_id ?? $student->id;
+                                        @endphp
+                                        @if($userId)
+                                            <a href="{{ route('sfao.evaluation.show', $userId) }}"
+                                               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg inline-block">
+                                                Evaluate
+                                            </a>
+                                        @else
+                                            <span class="px-4 py-2 bg-gray-400 text-white rounded-lg text-sm font-semibold cursor-not-allowed inline-block" title="Student ID not available">
+                                                Evaluate
+                                            </span>
+                                        @endif
 
                                         @php
                                             $pendingApplication = $student->applications->firstWhere('status', 'pending') ?? $student->applications->first();

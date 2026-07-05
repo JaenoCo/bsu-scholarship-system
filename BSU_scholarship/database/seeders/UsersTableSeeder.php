@@ -9,74 +9,58 @@ use Illuminate\Support\Facades\Hash;
 class UsersTableSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Create only student user accounts for campuses.
+     * This seeder intentionally does not create applications, scholars, or related records.
      */
     public function run(): void
     {
         $faker = \Faker\Factory::create();
-        
-        // Get all constituent campuses and their extensions
-        $constituentCampuses = \App\Models\Campus::constituent()->with(['extensionCampuses'])->get();
-        
-        // Create 20 student users for each constituent campus and its extensions
-        foreach ($constituentCampuses as $constituent) {
-            // Get all campuses under this constituent (constituent + extensions)
-            $allCampuses = $constituent->getAllCampusesUnder();
-            
-            // Calculate how many students per campus to get 20 total
-            $totalCampuses = $allCampuses->count();
-            $studentsPerCampus = $totalCampuses > 0 ? intval(20 / $totalCampuses) : 0;
-            $remainingStudents = 20 % $totalCampuses;
-            
-            $studentCount = 0;
-            foreach ($allCampuses as $index => $campus) {
-                // Calculate students for this campus
-                $studentsForThisCampus = $studentsPerCampus;
-                if ($index < $remainingStudents) {
-                    $studentsForThisCampus += 1; // Distribute remaining students
-                }
-                
-                // Create students for this campus
-                for ($i = 0; $i < $studentsForThisCampus; $i++) {
-                    $studentCount++;
-                    // Use 99-xxxxxx format to avoid conflicts with actual G Suite accounts
-                    $studentId = $faker->unique()->numberBetween(100000, 999999);
-                    $studentEmail = sprintf("99-%06d@g.batstate-u.edu.ph", $studentId);
-                    
-                    $firstName = $faker->firstName();
-                    $lastName = $faker->lastName();
-                    $middleName = $faker->lastName();
+        $targetStudentCount = 10;
 
-                    // Get valid departments for this campus
-                    $campusDepartments = $campus->departments;
-                    $randomDepartment = $campusDepartments->count() > 0 
-                        ? $campusDepartments->random()->short_name 
-                        : 'CICS'; // Fallback
-                    
-                    User::create([
-                        'name' => "$firstName $middleName $lastName",
-                        'first_name' => $firstName,
-                        'middle_name' => $middleName,
-                        'last_name' => $lastName,
-                        'sex' => $faker->randomElement(['Male', 'Female']),
-                        'birthdate' => $faker->date(),
-                        'contact_number' => $faker->phoneNumber(),
-                        'sr_code' => 'SR-' . $studentId,
-                        'education_level' => 'Undergraduate',
-                        'program' => 'BS Information Technology',
-                        'college' => $randomDepartment,
-                        'year_level' => '3rd Year',
-                        'email' => $studentEmail,
-                        'email_verified_at' => now(),
-                        'password' => Hash::make('password123'),
-                        'role' => 'student',
-                        'campus_id' => $campus->id,
-                    ]);
-                }
-            }
+        // Keep the dataset focused on exactly 10 student users for this seeding run.
+        User::where('role', 'student')->delete();
+
+        // Use the first available campus for the generated users.
+        $campus = \App\Models\Campus::query()->first();
+        if (!$campus) {
+            return;
+        }
+
+        for ($i = 0; $i < $targetStudentCount; $i++) {
+            $studentId = $faker->unique()->numberBetween(100000, 999999);
+            $studentEmail = sprintf("99-%06d@g.batstate-u.edu.ph", $studentId);
+
+            $firstName = $faker->firstName();
+            $lastName = $faker->lastName();
+            $middleName = $faker->lastName();
+
+            $campusDepartments = $campus->departments;
+            $randomDepartment = $campusDepartments->count() > 0
+                ? $campusDepartments->random()->short_name
+                : 'CICS';
+
+            User::create([
+                'name' => "$firstName $middleName $lastName",
+                'first_name' => $firstName,
+                'middle_name' => $middleName,
+                'last_name' => $lastName,
+                'sex' => $faker->randomElement(['Male', 'Female']),
+                'birthdate' => $faker->date(),
+                'contact_number' => $faker->phoneNumber(),
+                'sr_code' => 'SR-' . $studentId,
+                'education_level' => 'Undergraduate',
+                'program' => 'BS Information Technology',
+                'college' => $randomDepartment,
+                'year_level' => '3rd Year',
+                'email' => $studentEmail,
+                'email_verified_at' => now(),
+                'password' => Hash::make('password123'),
+                'role' => 'student',
+                'campus_id' => $campus->id,
+            ]);
         }
 
         // Admin accounts are seeded separately by AdminSeeder to avoid duplicate role/email entries.
-        // This seeder focuses on students linked to campuses and applications linked to student users.
+        // This seeder focuses only on creating student users linked to campuses.
     }
 }

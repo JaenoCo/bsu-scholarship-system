@@ -71,35 +71,48 @@ class Application extends Model
 
 
     /**
-     * Check if the student has previously claimed a grant for this scholarship
+     * Check if the student has previously claimed a grant for this scholarship.
+     *
+     * This intentionally treats rows with an existing grant count as already-granted,
+     * which protects against legacy data and partially updated records.
      */
     public static function hasClaimedGrant($userId, $scholarshipId)
     {
         return self::where('user_id', $userId)
                    ->where('scholarship_id', $scholarshipId)
-                   ->where('status', 'claimed')
+                   ->where(function ($query) {
+                       $query->where('status', 'claimed')
+                             ->orWhere('grant_count', '>', 0);
+                   })
                    ->exists();
     }
 
-
     /**
-     * Get the total grant count for a student in a specific scholarship
+     * Get the total grant count for a student in a specific scholarship.
+     *
+     * We use the highest grant number seen for the student/scholarship rather than
+     * summing values across rows, because each application record should represent a
+     * single grant sequence number (1st, 2nd, 3rd, ...), not a cumulative amount.
      */
     public static function getTotalGrantCount($userId, $scholarshipId)
     {
-        return self::where('user_id', $userId)
+        return (int) self::where('user_id', $userId)
                    ->where('scholarship_id', $scholarshipId)
-                   ->where('status', 'claimed')
-                   ->sum('grant_count');
+                   ->where(function ($query) {
+                       $query->where('status', 'claimed')
+                             ->orWhere('grant_count', '>', 0);
+                   })
+                   ->max('grant_count');
     }
 
     /**
-     * Get the next grant count for a student in a specific scholarship
+     * Get the next grant count for a student in a specific scholarship.
      */
     public static function getNextGrantCount($userId, $scholarshipId)
     {
         $totalGrantCount = self::getTotalGrantCount($userId, $scholarshipId);
-        return $totalGrantCount + 1; // Next grant will be this number
+
+        return $totalGrantCount + 1;
     }
 
     /**

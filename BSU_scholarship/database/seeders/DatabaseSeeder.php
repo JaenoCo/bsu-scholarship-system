@@ -16,20 +16,10 @@ class DatabaseSeeder extends Seeder
             ProgramSeeder::class,
             ProgramTrackSeeder::class,
 
-            // 2. Admins
+            // 2. Seed core records without applications or scholars
             AdminSeeder::class,
-
-            // 3. Scholarships (Depends on Admin)
-            ScholarshipsTableSeeder::class,
-
-            // 4. Students (Depends on structure data)
             UsersTableSeeder::class,
-
-            // 5. Applications
-            ApplicationSeeder::class,
-
-            // 6. Notifications
-            NotificationSeeder::class,
+            ScholarshipsTableSeeder::class,
         ]);
     }
 }

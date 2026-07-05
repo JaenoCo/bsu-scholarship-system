@@ -1257,7 +1257,7 @@ class DashboardController extends Controller
 
         // Get endorsed applicants (approved by SFAO and ready for scholar selection)
         $endorsedApplicantsQuery = Application::with(['user', 'scholarship', 'user.campus'])
-            ->where('status', 'approved')
+            ->where('status', 'in_progress')
             ->whereDoesntHave('user.scholars');
 
         if ($campusFilter !== 'all') {

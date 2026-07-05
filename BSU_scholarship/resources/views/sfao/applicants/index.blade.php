@@ -9,11 +9,10 @@
         routeUrl: @json(route("sfao.applicants.list")),
         counts: {
              total: {{ $studentsAll->total() }},
-             in_progress: {{ $studentsInProgress ? $studentsInProgress->total() : 0 }},
+             in_progress: {{ $studentsInProgress->total()}},
              pending: {{ $studentsPending->total() }},
              approved: {{ $studentsApproved->total() }},
-             rejected: {{ $studentsRejected->total() }},
-             not_applied: {{ $studentsNotApplied->total() }}
+             rejected: {{ $studentsRejected->total() }}
         },
         campusOptions: @json($campusOptions),
         colleges: @json($colleges),

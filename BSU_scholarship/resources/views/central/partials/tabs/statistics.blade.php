@@ -435,6 +435,7 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('statisticsTab', (config = {}) => {
+            const analyticsRoute = '{{ route('central.analytics.filtered') }}';
             // Private Chart Instances (Non-Reactive)
             const chartInstances = {
                 college: null,
@@ -454,6 +455,7 @@
                     college_stats: [],
                     scholarshipStats: {}
                 },
+                serverCounts: null,
                 studentDetails: {
                     open: false,
                     title: '',
@@ -700,6 +702,9 @@
 
                 getStudentDetailRows(type) {
                     const validStatuses = ['pending', 'approved', 'rejected', 'in_progress'];
+                    // Statuses that count as "active" for a scholar record (used by the Pending/In Progress card)
+                    const scholarActiveStatuses = ['in_progress', 'pending', 'active'];
+
                     const rows = (this.filteredData.all_applications_data || [])
                         .filter(item => {
                             const isScholar = this.isScholarRecord(item);
@@ -713,7 +718,7 @@
                                 const scholarStatus = item.scholar_status || 'active';
                                 if (type === 'approved' || type === 'approvalRate') return ['active', 'completed'].includes(scholarStatus);
                                 if (type === 'rejected') return ['inactive', 'suspended'].includes(scholarStatus);
-                                if (type === 'active') return scholarStatus === 'active';
+                                if (type === 'active') return scholarActiveStatuses.includes(scholarStatus);
                                 return true;
                             }
 
@@ -1146,22 +1151,24 @@
                         allApplications = allApplications.filter(item => item.track === this.localFilters.track);
                     }
 
-                    allApplications.forEach(app => {
+                    // Filter by chart legend (respects visibility toggles)
+                    allApplications = allApplications.filter(app => {
                         const isScholar = this.isScholarRecord(app);
-                        if (this.viewMode === 'scholars' && !isScholar) return;
-                        if (this.viewMode === 'applicants' && isScholar) return;
+                        if (this.viewMode === 'scholars' && !isScholar) return false;
+                        if (this.viewMode === 'applicants' && isScholar) return false;
 
                         if (this.viewMode === 'applicants') {
-                            if (!['pending', 'approved', 'rejected', 'in_progress'].includes(app.status)) return;
-                            if (app.status === 'pending' && !this.chartLegend.pending) return;
-                            if (app.status === 'approved' && !this.chartLegend.approved) return;
-                            if (app.status === 'rejected' && !this.chartLegend.rejected) return;
-                            if (app.status === 'in_progress' && !this.chartLegend.inProgress) return;
+                            if (!['pending', 'approved', 'rejected', 'in_progress'].includes(app.status)) return false;
+                            if (app.status === 'pending' && !this.chartLegend.pending) return false;
+                            if (app.status === 'approved' && !this.chartLegend.approved) return false;
+                            if (app.status === 'rejected' && !this.chartLegend.rejected) return false;
+                            if (app.status === 'in_progress' && !this.chartLegend.inProgress) return false;
                         } else {
                             const isNew = app.scholar_type === 'new';
-                            if (isNew && !this.chartLegend.newScholars) return;
-                            if (!isNew && !this.chartLegend.oldScholars) return;
+                            if (isNew && !this.chartLegend.newScholars) return false;
+                            if (!isNew && !this.chartLegend.oldScholars) return false;
                         }
+                        return true;
                     });
 
                     const scholarshipStats = {};
@@ -1195,14 +1202,28 @@
                     data.scholarshipStats = finalScholarshipStats;
                     data.all_applications_data = allApplications;
 
-                    const summaryCounts = {
-                        total: 0,
-                        approved: 0,
-                        rejected: 0,
-                        approvalRate: 0,
-                        inProgress: 0,
-                        pending: 0
-                    };
+                    const summaryCounts = this.serverCounts && this.viewMode === 'applicants'
+                        ? {
+                            total: Number(this.serverCounts.total || 0),
+                            approved: Number(this.serverCounts.approved || 0),
+                            rejected: Number(this.serverCounts.rejected || 0),
+                            active: Number(this.serverCounts.active || 0),
+                            approvalRate: this.serverCounts.approvalRate || '0.0',
+                            inProgress: 0,
+                            pending: 0
+                        }
+                        : {
+                            total: 0,
+                            approved: 0,
+                            rejected: 0,
+                            approvalRate: 0,
+                            inProgress: 0,
+                            pending: 0
+                        };
+
+                    // Statuses that count as "active" for a scholar record (used by the Pending/In Progress card).
+                    // Mirrors getStudentDetailRows() so the count and the drill-down list always agree.
+                    const scholarActiveStatuses = ['in_progress', 'pending', 'active'];
 
                     allApplications.forEach(app => {
                         const isScholar = this.isScholarRecord(app);
@@ -1216,7 +1237,7 @@
                             const scholarStatus = app.scholar_status || 'active';
                             if (['active', 'completed'].includes(scholarStatus)) summaryCounts.approved++;
                             if (['inactive', 'suspended'].includes(scholarStatus)) summaryCounts.rejected++;
-                            if (scholarStatus === 'active') summaryCounts.pending++;
+                            if (scholarActiveStatuses.includes(scholarStatus)) summaryCounts.pending++;
                         } else {
                             if (app.status === 'approved') summaryCounts.approved++;
                             if (app.status === 'rejected') summaryCounts.rejected++;
@@ -1225,11 +1246,20 @@
                         }
                     });
 
-                    summaryCounts.active = summaryCounts.total - summaryCounts.approved - summaryCounts.rejected;
-                    if (summaryCounts.total > 0) {
-                        summaryCounts.approvalRate = ((summaryCounts.approved / summaryCounts.total) * 100).toFixed(1);
-                    } else {
-                        summaryCounts.approvalRate = '0.0';
+                    if (!this.serverCounts || this.viewMode !== 'applicants') {
+                        // Active = Pending + In Progress (explicitly calculated, not as remainder)
+                        if (this.viewMode === 'applicants') {
+                            summaryCounts.active = summaryCounts.pending + summaryCounts.inProgress;
+                        } else {
+                            // For scholars, summaryCounts.pending already covers in_progress/pending/active statuses above
+                            summaryCounts.active = summaryCounts.pending;
+                        }
+                        
+                        if (summaryCounts.total > 0) {
+                            summaryCounts.approvalRate = ((summaryCounts.approved / summaryCounts.total) * 100).toFixed(1);
+                        } else {
+                            summaryCounts.approvalRate = '0.0';
+                        }
                     }
 
                     data.counts = summaryCounts;
@@ -1239,6 +1269,45 @@
                 applyFilters() {
                     this.updateFilteredData();
                     this.updateCharts();
+                    this.fetchFilteredAnalyticsCounts();
+                },
+
+                async fetchFilteredAnalyticsCounts() {
+                    try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                        const response = await fetch(analyticsRoute, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': csrfToken
+                            },
+                            body: JSON.stringify({
+                                filters: {
+                                    campus: this.filters.campus,
+                                    college: this.localFilters.college,
+                                    program: this.localFilters.program,
+                                    track: this.localFilters.track,
+                                    scholarship: this.filters.scholarship,
+                                    timePeriod: this.filters.timePeriod
+                                }
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Unable to load analytics counts');
+                        }
+
+                        const payload = await response.json();
+                        const counts = payload?.counts || payload?.analytics?.counts || null;
+                        if (counts) {
+                            this.serverCounts = counts;
+                            this.updateFilteredData();
+                        }
+                    } catch (error) {
+                        console.error('Failed to load filtered analytics counts:', error);
+                    }
                 },
 
                 getChartTitle() {

@@ -99,7 +99,7 @@
                                     <!-- Show evaluation status -->
                                     <div class="text-center">
                                         <div class="mb-2">
-                                            @if($application->status === 'approved')
+                                            @if($application->status === 'in_progress' || $application->status === 'approved')
                                                 <div class="inline-flex items-center px-3 py-2 rounded-lg bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>

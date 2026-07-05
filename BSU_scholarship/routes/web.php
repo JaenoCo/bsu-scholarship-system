@@ -11,6 +11,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\StudentApplicationController;
 use App\Http\Controllers\CentralApplicationController;
+use App\Http\Controllers\AnnouncementController;
 use Illuminate\Http\Request;
 
 // =================================================================
@@ -163,6 +164,9 @@ Route::get('/document/view/{id}', [UserController::class, 'viewDocument'])->name
 // --------------------------------------------------
 // STUDENT ROUTES
 // --------------------------------------------------
+
+// Announcements (public listing)
+Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
 
 Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')->name('student.')->group(function () {
     

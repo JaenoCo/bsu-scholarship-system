@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             UsersTableSeeder::class,
             ScholarshipsTableSeeder::class,
+            AnnouncementSeeder::class,
         ]);
     }
 }

@@ -24,6 +24,7 @@
         this.activeTab = this.normalizeTab(params.get('tab') || localStorage.getItem('studentActiveTab') || 'announcements');
         this.markActiveNav();
         this.$watch('activeTab', () => this.markActiveNav());
+        this.$nextTick(() => this.$dispatch('sidebar-accordion-open', this.sectionForTab(this.activeTab)));
     },
 
     normalizeTab(tab) {
@@ -36,9 +37,19 @@
         return map[tab] || tab || 'announcements';
     },
 
+    sectionForTab(tab) {
+        const normalized = this.normalizeTab(tab);
+        if (['all_scholarships', 'private_scholarships', 'government_scholarships'].includes(normalized)) return 'scholarships';
+        if (['sfao_form', 'all-app-forms'].includes(normalized)) return 'application_forms';
+        if (['applied_scholarships', 'application_tracking', 'announcements'].includes(normalized)) return 'applications';
+        if (['all_notifications', 'scholarship_notifications', 'status_updates', 'comments'].includes(normalized)) return 'notifications';
+        return null;
+    },
+
     // Helper to dispatch
     switchTab(tab) {
         this.activeTab = this.normalizeTab(tab);
+        this.$dispatch('sidebar-accordion-open', this.sectionForTab(tab));
         $dispatch('switch-tab', tab);
     },
 
@@ -62,7 +73,7 @@
         });
     }
 }"
-x-on:switch-tab.window="activeTab = normalizeTab($event.detail)"
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))"
 @notification-changed.window="
     const status = $event.detail.status;
     const type = $event.detail.type;
@@ -87,8 +98,10 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail)"
 ">
 
 <!-- Scholarships Dropdown -->
-<div class="space-y-1" x-data="{ open: true }"> <!-- Default open for primary -->
-    <button @click="open = !open" 
+<div class="space-y-1"
+     x-data="{ section: 'scholarships', open: false, toggle() { this.open = !this.open; if (this.open) this.$dispatch('sidebar-accordion-open', this.section); } }"
+     x-on:sidebar-accordion-open.window="open = $event.detail === section">
+    <button @click="toggle()" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -132,8 +145,10 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail)"
 </div>
 
 <!-- Application Forms Dropdown -->
-<div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+<div class="space-y-1"
+     x-data="{ section: 'application_forms', open: false, toggle() { this.open = !this.open; if (this.open) this.$dispatch('sidebar-accordion-open', this.section); } }"
+     x-on:sidebar-accordion-open.window="open = $event.detail === section">
+    <button @click="toggle()" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -167,8 +182,10 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail)"
 </div>
 
 <!-- Applications Dropdown -->
-<div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+<div class="space-y-1"
+     x-data="{ section: 'applications', open: false, toggle() { this.open = !this.open; if (this.open) this.$dispatch('sidebar-accordion-open', this.section); } }"
+     x-on:sidebar-accordion-open.window="open = $event.detail === section">
+    <button @click="toggle()" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -212,8 +229,10 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail)"
 </div>
 
 <!-- Notifications Dropdown -->
-<div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+<div class="space-y-1"
+     x-data="{ section: 'notifications', open: false, toggle() { this.open = !this.open; if (this.open) this.$dispatch('sidebar-accordion-open', this.section); } }"
+     x-on:sidebar-accordion-open.window="open = $event.detail === section">
+    <button @click="toggle()" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -18,6 +18,7 @@
         this.activeTab = this.normalizeTab(params.get('tab') || params.get('tabs') || localStorage.getItem('activeTab') || 'all_scholarships');
         this.markActiveNav();
         this.$watch('activeTab', () => this.markActiveNav());
+        this.$nextTick(() => this.$dispatch('sidebar-accordion-open', this.sectionForTab(this.activeTab)));
     },
     normalizeTab(tab) {
         const map = {
@@ -35,8 +36,19 @@
         };
         return map[tab] || tab || 'all_scholarships';
     },
+    sectionForTab(tab) {
+        const normalized = this.normalizeTab(tab);
+        if (normalized.endsWith('_statistics') || normalized === 'all_statistics') return 'analytics';
+        if (['all_scholarships', 'private_scholarships', 'government_scholarships'].includes(normalized)) return 'scholarships';
+        if (['all_scholars', 'new_scholars', 'old_scholars'].includes(normalized)) return 'scholars';
+        if (['endorsed_applicants', 'rejected_applicants'].includes(normalized)) return 'applicants';
+        if (normalized === 'sfao-reports') return 'reports';
+        if (normalized === 'staff') return 'users';
+        return null;
+    },
     switchTab(tab) {
         this.activeTab = this.normalizeTab(tab);
+        this.$dispatch('sidebar-accordion-open', this.sectionForTab(tab));
         $dispatch('switch-tab', tab); 
     },
     markActiveNav() {
@@ -59,7 +71,7 @@
         });
     }
 }"
-x-on:switch-tab.window="activeTab = normalizeTab($event.detail)">
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))">
 
     <!-- Analytics Dropdown -->
     <div class="space-y-1" x-data="{ open: false }">

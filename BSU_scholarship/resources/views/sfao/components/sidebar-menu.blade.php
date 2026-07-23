@@ -19,6 +19,7 @@
         this.activeTab = this.normalizeTab(params.get('tabs') || localStorage.getItem('sfaoTab') || 'analytics_scholarships');
         this.markActiveNav();
         this.$watch('activeTab', () => this.markActiveNav());
+        this.$nextTick(() => this.$dispatch('sidebar-accordion-open', this.sectionForTab(this.activeTab)));
     },
     normalizeTab(tab) {
         const map = {
@@ -39,8 +40,20 @@
         };
         return map[tab] || tab || 'analytics_scholarships';
     },
+    sectionForTab(tab) {
+        const normalized = this.normalizeTab(tab);
+        if (normalized.startsWith('analytics')) return 'analytics';
+        if (normalized.startsWith('scholarships')) return 'scholarships';
+        if (normalized.startsWith('applicants')) return 'applicants';
+        if (normalized.startsWith('scholars')) return 'scholars';
+        if (normalized === 'all-app-forms' || normalized === 'up-app-form' || normalized === 'import-scholarships') return 'application_forms';
+        if (normalized.startsWith('reports')) return 'reports';
+        if (normalized.startsWith('account')) return 'settings';
+        return null;
+    },
     switchTab(tab) {
         this.activeTab = this.normalizeTab(tab);
+        this.$dispatch('sidebar-accordion-open', this.sectionForTab(tab));
         $dispatch('switch-tab', tab); 
     },
     markActiveNav() {
@@ -63,7 +76,7 @@
         });
     }
 }"
-x-on:switch-tab.window="activeTab = normalizeTab($event.detail)">
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))">
   
   <!-- Analytics Dropdown -->
   <div class="space-y-1" x-data="{ open: false }">

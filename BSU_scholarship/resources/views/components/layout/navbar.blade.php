@@ -1,7 +1,7 @@
 @props(['title', 'subtitle', 'user', 'settings' => false, 'logout' => false, 'profile' => false, 'sidebar' => true, 'backUrl' => null, 'backText' => null, 'settingsClick' => null, 'settingsUrl' => null, 'onclick' => null, 'actionText' => null, 'actionClick' => null, 'actionUrl' => null, 'actionTitle' => null])
 
 <!-- Main Header -->
-<header class="flex items-center justify-between px-8 py-4 bg-[#2f2f2f] dark:bg-gray-800 shadow-sm sticky top-0 z-30 border-b border-gray-700 transition-all duration-300 print:hidden"
+<header class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-8 bg-[#2f2f2f] dark:bg-gray-800 shadow-sm sticky top-0 z-30 border-b border-gray-700 transition-all duration-300 print:hidden"
         :class="{ 'md:ml-64': sidebarOpen }">
   <!-- Branding -->
   <div class="flex items-center space-x-2 md:space-x-3">
@@ -35,6 +35,12 @@
           <div class="text-xs font-light hidden md:block">{{ $title ?? 'The National Engineering University' }}</div>
       </div>
   </div>
+
+  @if(session()->has('user_id'))
+    <div class="order-3 w-full min-w-0 md:order-none md:flex-1 md:px-4">
+        @include('components.global-search')
+    </div>
+  @endif
 
   <!-- Dark Mode Toggle & User Profile -->
   <div class="flex items-center gap-2">

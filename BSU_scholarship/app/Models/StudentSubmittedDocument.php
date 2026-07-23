@@ -123,6 +123,8 @@ class StudentSubmittedDocument extends Model
             'jpg', 'jpeg' => 'JPEG Image',
             'png' => 'PNG Image',
             'gif' => 'GIF Image',
+            'webp' => 'WebP Image',
+            'doc' => 'Word Document',
             'docx' => 'Word Document',
             default => strtoupper($this->file_type) . ' File'
         };

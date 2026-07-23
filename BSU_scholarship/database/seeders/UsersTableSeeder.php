@@ -37,7 +37,7 @@ class UsersTableSeeder extends Seeder
             $middleName = $faker->lastName();
 
             $campusDepartments = $campus->departments;
-            $randomDepartment = $campusDepartments->count() > 0
+            $randomDepartment = ($campusDepartments && $campusDepartments->count() > 0)
                 ? $campusDepartments->random()->short_name
                 : 'CICS';
 

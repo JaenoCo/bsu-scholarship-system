@@ -13,11 +13,57 @@
   </div>
 
 <nav class="mt-6 px-4 pb-4 overflow-y-auto flex-1 space-y-4 custom-scrollbar" x-data="{
-    // Helper to dispatch event to the main content
+    activeTab: 'analytics_scholarships',
+    init() {
+        const params = new URLSearchParams(window.location.search);
+        this.activeTab = this.normalizeTab(params.get('tabs') || localStorage.getItem('sfaoTab') || 'analytics_scholarships');
+        this.markActiveNav();
+        this.$watch('activeTab', () => this.markActiveNav());
+    },
+    normalizeTab(tab) {
+        const map = {
+            overview: 'analytics',
+            all_scholarships: 'scholarships',
+            private_scholarships: 'scholarships-private',
+            government_scholarships: 'scholarships-government',
+            all_applicants: 'applicants',
+            applicants_in_progress: 'applicants-in_progress',
+            applicants_pending: 'applicants-pending',
+            applicants_approved: 'applicants-approved',
+            all_scholars: 'scholars',
+            new_scholars: 'scholars-new',
+            old_scholars: 'scholars-old',
+            reports_student_summary: 'reports-student_summary',
+            reports_grant_summary: 'reports-grant_summary',
+            account_settings: 'account-info'
+        };
+        return map[tab] || tab || 'analytics_scholarships';
+    },
     switchTab(tab) {
+        this.activeTab = this.normalizeTab(tab);
         $dispatch('switch-tab', tab); 
+    },
+    markActiveNav() {
+        this.$nextTick(() => {
+            this.$root.querySelectorAll('button').forEach((button) => {
+                const click = button.getAttribute('@click') || button.getAttribute('x-on:click') || '';
+                const match = click.match(/switch-tab'\s*,\s*'([^']+)'/);
+                const active = match && this.normalizeTab(match[1]) === this.activeTab;
+                button.classList.toggle('sidebar-tab-active', !!active);
+                if (active) button.setAttribute('aria-current', 'page');
+                else button.removeAttribute('aria-current');
+            });
+
+            this.$root.querySelectorAll('.space-y-1').forEach((section) => {
+                const trigger = section.querySelector(':scope > button');
+                if (!trigger) return;
+                const hasActiveChild = !!section.querySelector('.sidebar-tab-active');
+                trigger.classList.toggle('sidebar-section-active', hasActiveChild && !trigger.classList.contains('sidebar-tab-active'));
+            });
+        });
     }
-}">
+}"
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail)">
   
   <!-- Analytics Dropdown -->
   <div class="space-y-1" x-data="{ open: false }">

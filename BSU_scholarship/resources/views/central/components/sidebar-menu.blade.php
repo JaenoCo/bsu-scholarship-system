@@ -12,11 +12,54 @@
 </div>
 
 <nav class="mt-6 px-4 pb-4 overflow-y-auto flex-1 space-y-4 custom-scrollbar" x-data="{
-    // Helper to dispatch event to the main content
+    activeTab: 'all_scholarships',
+    init() {
+        const params = new URLSearchParams(window.location.search);
+        this.activeTab = this.normalizeTab(params.get('tab') || params.get('tabs') || localStorage.getItem('activeTab') || 'all_scholarships');
+        this.markActiveNav();
+        this.$watch('activeTab', () => this.markActiveNav());
+    },
+    normalizeTab(tab) {
+        const map = {
+            scholarships: 'all_scholarships',
+            'scholarships-private': 'private_scholarships',
+            'scholarships-government': 'government_scholarships',
+            scholars: 'all_scholars',
+            'scholars-new': 'new_scholars',
+            'scholars-old': 'old_scholars',
+            'endorsed-applicants': 'endorsed_applicants',
+            'rejected-applicants': 'rejected_applicants',
+            reports: 'sfao-reports',
+            statistics: 'all_statistics',
+            settings: 'account_settings'
+        };
+        return map[tab] || tab || 'all_scholarships';
+    },
     switchTab(tab) {
+        this.activeTab = this.normalizeTab(tab);
         $dispatch('switch-tab', tab); 
+    },
+    markActiveNav() {
+        this.$nextTick(() => {
+            this.$root.querySelectorAll('button').forEach((button) => {
+                const click = button.getAttribute('@click') || button.getAttribute('x-on:click') || '';
+                const match = click.match(/switch-tab'\s*,\s*'([^']+)'/);
+                const active = match && this.normalizeTab(match[1]) === this.activeTab;
+                button.classList.toggle('sidebar-tab-active', !!active);
+                if (active) button.setAttribute('aria-current', 'page');
+                else button.removeAttribute('aria-current');
+            });
+
+            this.$root.querySelectorAll('.space-y-1').forEach((section) => {
+                const trigger = section.querySelector(':scope > button');
+                if (!trigger) return;
+                const hasActiveChild = !!section.querySelector('.sidebar-tab-active');
+                trigger.classList.toggle('sidebar-section-active', hasActiveChild && !trigger.classList.contains('sidebar-tab-active'));
+            });
+        });
     }
-}">
+}"
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail)">
 
     <!-- Analytics Dropdown -->
     <div class="space-y-1" x-data="{ open: false }">

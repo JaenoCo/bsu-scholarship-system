@@ -98,6 +98,37 @@
             url.searchParams.delete('type'); // Clean up deprecated param
             window.history.pushState({}, '', url);
         }
+    },
+
+    pageTitle() {
+      const titles = {
+        'scholarships': {
+          'all': 'All Scholarships',
+          'private': 'Private Scholarships',
+          'government': 'Government Scholarships',
+          'my_scholarships': 'My Scholarships',
+          'form': 'SFAO Form',
+          'gvsreap_form': 'TDP Form'
+        },
+        'applied-scholarships': {
+          'all': 'Applied Scholarships',
+          'tracking': 'Application Tracking'
+        },
+        'notifications': {
+          'all': 'All Notifications',
+          'scholarship_created': 'Scholarship Notifications',
+          'application_status': 'Status Updates',
+          'sfao_comment': 'Comments'
+        },
+        'account': {
+          'all': 'Account Settings'
+        }
+      };
+      
+      if (titles[this.tab] && titles[this.tab][this.subTab]) {
+        return titles[this.tab][this.subTab];
+      }
+      return 'Student Dashboard';
     }
   }"
   x-init="init()"
@@ -242,6 +273,13 @@
         </button>
     </div>
   </header>
+
+  <!-- Page Title Bar -->
+  <div class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-3 sticky top-16 z-20"
+       :class="{ 'md:ml-64': sidebarOpen, 'md:mr-64': rightSidebarOpen }"
+       :style="isDesktop && rightSidebarOpen ? 'margin-right: 16rem;' : ''">
+    <h2 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide" x-text="pageTitle()"></h2>
+  </div>
 
   <!-- Right Sidebar -->
   <aside class="fixed inset-y-0 right-0 w-64 bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 z-50 flex flex-col"

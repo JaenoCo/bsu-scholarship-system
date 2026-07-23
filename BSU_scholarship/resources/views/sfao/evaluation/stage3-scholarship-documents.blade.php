@@ -111,13 +111,25 @@
                                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Evaluation Status
                                         </label>
-                                        <select name="evaluations[{{ $document->id }}][status]" 
-                                                class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-bsu-red focus:border-bsu-red" required>
-                                            <option value="">Select Status</option>
-                                            <option value="approved" {{ $document->evaluation_status === 'approved' ? 'selected' : '' }}>Approved</option>
-                                            <option value="pending" {{ $document->evaluation_status === 'pending' ? 'selected' : '' }}>Pending</option>
-                                            <option value="rejected" {{ $document->evaluation_status === 'rejected' ? 'selected' : '' }}>Rejected</option>
-                                        </select>
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                            @foreach([
+                                                'approved' => ['label' => 'Approved', 'class' => 'peer-checked:border-green-600 peer-checked:bg-green-50 peer-checked:text-green-800 dark:peer-checked:bg-green-900 dark:peer-checked:text-green-100'],
+                                                'pending' => ['label' => 'Pending', 'class' => 'peer-checked:border-yellow-600 peer-checked:bg-yellow-50 peer-checked:text-yellow-800 dark:peer-checked:bg-yellow-900 dark:peer-checked:text-yellow-100'],
+                                                'rejected' => ['label' => 'Declined', 'class' => 'peer-checked:border-red-600 peer-checked:bg-red-50 peer-checked:text-red-800 dark:peer-checked:bg-red-900 dark:peer-checked:text-red-100'],
+                                            ] as $value => $option)
+                                                <label class="cursor-pointer">
+                                                    <input type="radio"
+                                                           name="evaluations[{{ $document->id }}][status]"
+                                                           value="{{ $value }}"
+                                                           class="peer sr-only"
+                                                           {{ $document->evaluation_status === $value ? 'checked' : '' }}
+                                                           required>
+                                                    <span class="block rounded-md border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 transition hover:bg-gray-50 peer-focus:ring-2 peer-focus:ring-bsu-red dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 {{ $option['class'] }}">
+                                                        {{ $option['label'] }}
+                                                    </span>
+                                                </label>
+                                            @endforeach
+                                        </div>
                                         <input type="hidden" name="evaluations[{{ $document->id }}][document_id]" value="{{ $document->id }}">
                                     </div>
                                 </div>

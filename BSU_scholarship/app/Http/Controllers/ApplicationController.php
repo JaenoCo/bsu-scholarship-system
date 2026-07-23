@@ -203,10 +203,12 @@ class ApplicationController extends Controller
         $programFilter = $request->get('program_filter', 'all');
         $trackFilter = $request->get('track_filter', 'all');
         $academicYearFilter = $request->get('academic_year_filter', 'all');
+        $statusFilter = $request->get('status_filter', 'all');
 
-        // 3. Base Query - CLEAN: No joins, just relationships
+        // 3. Base Query - only students who have submitted applications belong in Applicants.
         $query = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds)
+            ->whereHas('applications')
             ->with(['applications.scholarship', 'documents', 'form', 'campus']);
 
         // 4. Apply Filters (BEFORE any grouping/joins)
@@ -246,7 +248,11 @@ class ApplicationController extends Controller
 
         // 5. Tab-Based Filtering - Filter database query BEFORE pagination
         // Note: Frontend sends 'tab' with dashes (applicants-in_progress), not underscores
-        if ($tab === 'applicants-in-progress') {
+        if (in_array($statusFilter, ['in_progress', 'pending', 'approved', 'rejected'], true)) {
+            $query->whereHas('applications', function ($q) use ($statusFilter) {
+                $q->where('status', $statusFilter);
+            });
+        } elseif (in_array($tab, ['applicants-in-progress', 'applicants-in_progress'], true)) {
             // Strictly filter: only students with pending or in_progress applications
             $query->whereHas('applications', function ($q) {
                 $q->whereIn('status', ['in_progress']);
@@ -267,7 +273,6 @@ class ApplicationController extends Controller
                 $q->where('status', 'rejected');
             });
         }
-        // For 'applicants' (all_applicants) or default: no relation filter applied, show all students
 
         // 6. Apply Sorting
         $orderCol = match ($sortBy) {
@@ -2564,6 +2569,15 @@ class ApplicationController extends Controller
         return 'approve';
     }
 
+    private function resolveSfaoApplicationStatus(string $action): string
+    {
+        return match ($action) {
+            'approve', 'pending' => 'in_progress',
+            'reject' => 'rejected',
+            default => 'pending',
+        };
+    }
+
     /**
      * Show final review - Stage 4
      */
@@ -2645,12 +2659,7 @@ class ApplicationController extends Controller
         $action = $this->determineAutoDecision($documents);
 
         // Update application with remarks and status (SFAO approval sets to in_progress for Central review)
-        $newStatus = match ($action) {
-            'approve' => 'in_progress',
-            'reject' => 'rejected',
-            'pending' => 'pending',
-            default => $application->status,
-        };
+        $newStatus = $this->resolveSfaoApplicationStatus($action);
 
         $application->update([
             'status' => $newStatus,

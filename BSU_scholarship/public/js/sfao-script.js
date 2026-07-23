@@ -2251,7 +2251,7 @@ window.sfaoApplicantsFilter = function (config) {
             track: localStorage.getItem('sfaoApplicantsTrack') || 'all',
             academic_year: localStorage.getItem('sfaoApplicantsAcademicYear') || 'all',
             scholarship: localStorage.getItem('sfaoApplicantsScholarship') || 'all',
-            status: 'all'
+            status: localStorage.getItem('sfaoApplicantsStatus') || 'all'
         },
         counts: config.counts || {},
         campusOptions: config.campusOptions || [],
@@ -2311,6 +2311,7 @@ window.sfaoApplicantsFilter = function (config) {
                 this.fetchApplicants();
             });
             this.$watch('filters.status', (value) => {
+                localStorage.setItem('sfaoApplicantsStatus', value);
                 this.fetchApplicants();
             });
 

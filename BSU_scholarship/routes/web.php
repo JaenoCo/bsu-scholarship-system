@@ -12,6 +12,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\StudentApplicationController;
 use App\Http\Controllers\CentralApplicationController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Http\Request;
 
 // =================================================================
@@ -158,8 +159,13 @@ Route::get('/ping', function() {
 Route::post('/upload-profile-picture/{role}', [UserController::class, 'uploadProfilePicture'])
     ->whereIn('role', ['student', 'sfao', 'central']);
 
+// Global Search / Auto-suggest
+Route::get('/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
+Route::get('/search/{type}/{id}', [SearchController::class, 'redirectToRecord'])->name('search.redirect');
+
 // Document Viewer (for DOCX files)
 Route::get('/document/view/{id}', [UserController::class, 'viewDocument'])->name('document.view');
+Route::get('/document/file/{id}', [UserController::class, 'serveDocumentFile'])->name('document.file');
 
 // --------------------------------------------------
 // STUDENT ROUTES
@@ -275,6 +281,7 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::get('/scholar-summary', function() {
         return redirect()->route('sfao.reports.student-summary', ['student_type' => 'scholars']);
     })->name('reports.scholar-summary');
+    Route::get('/applicant-summary', [ReportController::class, 'applicantSummary'])->name('reports.applicant-summary');
     Route::get('/grant-summary', [ReportController::class, 'grantSummary'])->name('reports.grant-summary');
     
     
@@ -338,11 +345,11 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
             Route::get('/', [App\Http\Controllers\ScholarController::class, 'index'])->name('index');
             Route::get('/create', [App\Http\Controllers\ScholarController::class, 'create'])->name('create');
             Route::post('/', [App\Http\Controllers\ScholarController::class, 'store'])->name('store');
+            Route::get('/statistics', [App\Http\Controllers\ScholarController::class, 'statistics'])->name('statistics');
             Route::get('/{scholar}', [App\Http\Controllers\ScholarController::class, 'show'])->name('show');
             Route::get('/{scholar}/edit', [App\Http\Controllers\ScholarController::class, 'edit'])->name('edit');
             Route::put('/{scholar}', [App\Http\Controllers\ScholarController::class, 'update'])->name('update');
             Route::delete('/{scholar}', [App\Http\Controllers\ScholarController::class, 'destroy'])->name('destroy');
-            Route::get('/statistics', [App\Http\Controllers\ScholarController::class, 'statistics'])->name('statistics');
             Route::post('/{scholar}/add-grant', [App\Http\Controllers\ScholarController::class, 'addGrant'])->name('add-grant');
         });
 

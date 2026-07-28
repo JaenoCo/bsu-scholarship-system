@@ -31,7 +31,7 @@ class AuthController extends Controller
             }
             return redirect(match (session('role')) {
                 'student' => route('student.dashboard'),
-                'sfao'    => '/sfao?tabs=overview',
+                'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
                 default   => '/'
             });
         }
@@ -75,7 +75,7 @@ class AuthController extends Controller
 
         return redirect(match ($user->role) {
             'student' => route('student.dashboard', ['tab' => 'announcements']),
-            'sfao'    => '/sfao?tabs=overview',
+            'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
             default   => '/'
         });
     }
@@ -109,7 +109,7 @@ class AuthController extends Controller
             }
             return redirect(match (session('role')) {
                 'student' => route('student.dashboard'),
-                'sfao'    => '/sfao?tabs=overview',
+                'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
                 default   => '/'
             });
         }

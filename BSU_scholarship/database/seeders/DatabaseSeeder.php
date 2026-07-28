@@ -20,6 +20,11 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             UsersTableSeeder::class,
             ScholarshipsTableSeeder::class,
+
+            // 3. Seed students and applications
+            StudentSeeder::class,
+            ApplicationSeeder::class,
+           // CentralAdminDemoDataSeeder::class,
         ]);
     }
 }

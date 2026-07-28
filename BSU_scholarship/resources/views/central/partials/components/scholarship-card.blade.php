@@ -357,16 +357,16 @@
                 <div class="p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
                     
                     @if($role === 'central')
-                        <form action="{{ route('central.scholarships.destroy', $scholarship->id) }}" 
+                        <form action="{{ route('central.scholarships.archive', $scholarship->id) }}" 
                               method="POST" 
-                              onsubmit="return confirmDelete('{{ $scholarship->scholarship_name }}');">
+                              onsubmit="return confirmArchive('{{ $scholarship->scholarship_name }}');">
                             @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-gray-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                            @method('PATCH')
+                            <button type="submit" class="text-gray-400 hover:text-amber-600 text-sm font-medium transition-colors flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20" @disabled(!$scholarship->is_active)>
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7H4m2 0v12h12V7M9 11h6M8 7l1-3h6l1 3"></path>
                                 </svg>
-                                Delete Scholarship
+                                {{ $scholarship->is_active ? 'Archive Scholarship' : 'Archived' }}
                             </button>
                         </form>
 

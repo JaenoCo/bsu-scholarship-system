@@ -17,7 +17,7 @@ class UsersTableSeeder extends Seeder
     public function run(): void
     {
         $faker = \Faker\Factory::create();
-        $targetStudentCount = 10;
+        $targetStudentCount = 550;
 
         // Keep the dataset focused on exactly 10 student users for this seeding run.
         User::where('role', 'student')->delete();

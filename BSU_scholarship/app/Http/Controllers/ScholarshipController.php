@@ -46,7 +46,7 @@ class ScholarshipController extends Controller
             return redirect('/login')->with('session_expired', true);
         }
 
-        return redirect()->route('central.dashboard', ['tab' => 'scholarships']);
+        return redirect()->route('central.dashboard', ['tabs' => 'all_scholarships']);
     }
 
     /**
@@ -60,7 +60,7 @@ class ScholarshipController extends Controller
 
         $colleges = \App\Models\College::orderBy('short_name')->pluck('short_name');
         $campuses = \App\Models\Campus::orderBy('name')->get();
-        return view('central.scholarships.create', compact('colleges', 'campuses'));
+        return view('central.scholarships.create', compact('scholarship', 'colleges', 'campuses'));
     }
 
     /**
@@ -300,6 +300,29 @@ class ScholarshipController extends Controller
         return redirect()
             ->route('central.dashboard')
             ->with('success', 'Scholarship updated successfully.');
+    }
+
+    /**
+     * Archive scholarship (Central)
+     */
+    public function archive($id)
+    {
+        if (!session()->has('user_id') || session('role') !== 'central') {
+            return redirect('/login')->with('session_expired', true);
+        }
+
+        $scholarship = Scholarship::findOrFail($id);
+        $scholarship->update(['is_active' => false]);
+
+        Log::info('Scholarship archived:', [
+            'id' => $scholarship->id,
+            'name' => $scholarship->scholarship_name,
+            'archived_by' => session('user_id'),
+        ]);
+
+        return redirect()
+            ->route('central.dashboard', ['tabs' => 'archived_scholarships'])
+            ->with('success', 'Scholarship "' . $scholarship->scholarship_name . '" archived successfully.');
     }
 
     /**
@@ -658,7 +681,7 @@ class ScholarshipController extends Controller
         $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'asc');
         
-        return redirect()->route('sfao.dashboard', ['tab' => 'scholarships']);
+        return redirect()->route('sfao.dashboard', ['tabs' => 'all_scholarships']);
     }
 
     /**

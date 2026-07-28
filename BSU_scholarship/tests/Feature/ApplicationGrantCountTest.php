@@ -124,7 +124,7 @@ class ApplicationGrantCountTest extends TestCase
 
         $response = $this->post(route('central.endorsed.accept', $application->id));
 
-        $response->assertRedirectToRoute('central.dashboard', ['tab' => 'endorsed_applicants']);
+        $response->assertRedirectToRoute('central.dashboard', ['tabs' => 'endorsed_applicants']);
         $this->assertSame('approved', $application->fresh()->status);
         $this->assertDatabaseHas('scholars', [
             'application_id' => $application->id,

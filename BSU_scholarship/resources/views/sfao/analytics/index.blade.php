@@ -113,53 +113,6 @@
 
             </div>
             
-              <!-- Row 2: Search Filter -->
-            <div class="flex gap-4 items-end w-full mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 relative">
-                <div class="flex-1 relative">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Search Scholarship</label>
-                    <div class="relative">
-                        <input type="text" 
-                               x-model="filters.search" 
-                               @input="handleSearchInput()"
-                               @keydown.enter="performSearch()"
-                               placeholder="Search Scholarship..." 
-                               class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center">
-                    </div>
-
-                    <!-- Autocomplete Dropdown -->
-                    <div x-show="showSearchResults && searchResults.length > 0" 
-                         @click.away="showSearchResults = false"
-                         class="absolute z-50 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto"
-                         style="display: none;">
-                        <template x-for="result in searchResults" :key="result.id">
-                            <div @click="selectSearchResult(result.scholarship_name)" 
-                                 class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 transition-colors">
-                                <span x-text="result.scholarship_name"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Search Button -->
-                <div class="w-auto flex flex-col items-center">
-                       <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Search</label>
-                       <button type="button" @click="performSearch()" class="bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-red-500 dark:border-red-500 p-2 rounded-full hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-bsu-red shadow-sm h-[38px] w-[38px] flex items-center justify-center" title="Search">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                      </button>
-                </div>
-
-                 <!-- Clear Button -->
-                 <div class="w-auto flex flex-col items-center">
-                       <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Clear</label>
-                       <button type="button" @click="filters.search = ''; handleSearchInput(); performSearch()" class="bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-red-500 dark:border-red-500 p-2 rounded-full hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-bsu-red shadow-sm h-[38px] w-[38px] flex items-center justify-center" title="Clear Search">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                      </button>
-                  </div>
-            </div>
             
             <!-- Global Legend Buttons (Row 2) -->
             <div class="mt-4 flex flex-wrap justify-between gap-4 w-full">

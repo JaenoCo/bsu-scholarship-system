@@ -18,63 +18,51 @@ class StudentSeeder extends Seeder
         $faker = Faker::create('en_PH');
         $password = Hash::make('password123');
         $now = now();
-
-        $constituentCampuses = Campus::where('type', 'constituent')->get();
+        $perCampusStudents = 50;
         $studentCounter = 1;
 
-        foreach ($constituentCampuses as $constituent) {
-            // Get constituent + extensions
-            $groupCampuses = Campus::where('id', $constituent->id)
-                                    ->orWhere('parent_campus_id', $constituent->id)
-                                    ->get();
-            
-            $totalInGroup = 60; // Target number of students per constituent group
-            $campusCount = $groupCampuses->count();
-            
-            // Distribute students across these campuses
-            $baseCount = intval($totalInGroup / $campusCount);
-            $remainder = $totalInGroup % $campusCount;
+        $campuses = Campus::all();
 
-            foreach ($groupCampuses as $index => $campus) {
-                $countForThisCampus = $baseCount + ($index < $remainder ? 1 : 0);
-                
-                // Get valid colleges for this campus
-                $validColleges = $campus->colleges;
+        foreach ($campuses as $campus) {
+            $validColleges = $campus->colleges;
 
-                if ($validColleges->isEmpty()) {
-                   $this->command->warn("No colleges found for campus {$campus->name}. Skipping student generation for this campus.");
-                   continue;
+            if ($validColleges->isEmpty()) {
+                $this->command->warn("No colleges found for campus {$campus->name}. Skipping student generation for this campus.");
+                continue;
+            }
+
+            $collegeCount = $validColleges->count();
+            $basePerCollege = intdiv($perCampusStudents, $collegeCount);
+            $remainder = $perCampusStudents % $collegeCount;
+
+            foreach ($validColleges as $index => $college) {
+                $countForThisCollege = $basePerCollege + ($index < $remainder ? 1 : 0);
+                $campusCollege = \App\Models\CampusCollege::where('campus_id', $campus->id)
+                    ->where('college_id', $college->id)
+                    ->first();
+
+                $availablePrograms = [];
+                if ($campusCollege) {
+                    $availablePrograms = $campusCollege->programs->pluck('name')->toArray();
                 }
 
-                for ($i = 0; $i < $countForThisCampus; $i++) {
-                    
-                    // ACADEMIC YEAR LOGIC
+                if (empty($availablePrograms)) {
+                    $availablePrograms = ["Bachelor of {$college->short_name}"];
+                }
+
+                for ($i = 0; $i < $countForThisCollege; $i++) {
                     $ayYearStart = $faker->randomElement([2023, 2024]);
                     $ayYearEnd = $ayYearStart + 1;
-                    
+
                     $startDate = Carbon::create($ayYearStart, 8, 1, 0, 0, 0);
                     $endDate = Carbon::create($ayYearEnd, 5, 31, 23, 59, 59);
-                    
                     $createdAt = Carbon::createFromTimestamp(mt_rand($startDate->timestamp, $endDate->timestamp));
-                    $updatedAt = $createdAt->copy(); 
+                    $updatedAt = $createdAt->copy();
 
-                    // Format: SR-00001
-                    // Generate a unique SR Code for this run. 
-                    // Note: If seeding on top of existing data, this counter resets and might conflict. 
-                    // Ideally we should check max SR code or just rely on random strings, but format requires SR-XXXXX
-                    // We will just use the counter + a large offset or check existence if we wanted to be perfectly safe, 
-                    // but standard seeding usually assumes a fresh DB or handles truncation. 
-                    // For now, I'll stick to the counter but formatted nicely.
-                    
-                    // To avoid duplicates if re-running without fresh, let's append a random suffix or checks.
-                    // But simpler: just generate.
-                    $srCode = sprintf("SR-%05d", (User::where('role', 'student')->count() + $studentCounter)); 
+                    $srCode = sprintf('SR-%05d', User::where('role', 'student')->count() + $studentCounter);
                     $email = "{$srCode}@g.batstate-u.edu.ph";
-                    
-                    // Increment local counter
                     $studentCounter++;
 
-                    // Skip if exists
                     if (User::where('email', $email)->exists()) {
                         continue;
                     }
@@ -82,41 +70,25 @@ class StudentSeeder extends Seeder
                     $firstName = $faker->firstName;
                     $lastName = $faker->lastName;
                     $gender = $faker->randomElement(['Male', 'Female']);
-
-                    // Select Random College from Valid List
-                    $randomCollege = $validColleges->random();
-                    $collegeShortName = $randomCollege->short_name;
-                    
-                    // Find the Pivot ID
-                    $campusCollege = \App\Models\CampusCollege::where('campus_id', $campus->id)
-                                        ->where('college_id', $randomCollege->id)
-                                        ->first();
-
-                    $availablePrograms = [];
-                    if ($campusCollege) {
-                        $availablePrograms = \App\Models\Program::where('campus_college_id', $campusCollege->id)->pluck('name')->toArray();
-                    }
-                    
-                    if (empty($availablePrograms)) {
-                         $availablePrograms = ["Bachelor of {$collegeShortName}"];
-                    }
+                    $collegeShortName = $college->short_name;
                     $program = $faker->randomElement($availablePrograms);
-
-                    // Assign Track/Major if available
                     $track = null;
+
                     if ($campusCollege) {
-                         $progModel = \App\Models\Program::where('campus_college_id', $campusCollege->id)
-                                        ->where('name', $program)
-                                        ->first();
-                         if ($progModel) {
-                             $tracks = \Illuminate\Support\Facades\DB::table('program_tracks')
-                                        ->where('program_id', $progModel->id)
-                                        ->pluck('name')
-                                        ->toArray();
-                             if (!empty($tracks)) {
-                                 $track = $faker->randomElement($tracks);
-                             }
-                         }
+                        $progModel = \App\Models\Program::where('campus_college_id', $campusCollege->id)
+                            ->where('name', $program)
+                            ->first();
+
+                        if ($progModel) {
+                            $tracks = \Illuminate\Support\Facades\DB::table('program_tracks')
+                                ->where('program_id', $progModel->id)
+                                ->pluck('name')
+                                ->toArray();
+
+                            if (!empty($tracks)) {
+                                $track = $faker->randomElement($tracks);
+                            }
+                        }
                     }
 
                     $student = User::create([
@@ -141,7 +113,6 @@ class StudentSeeder extends Seeder
                         'updated_at' => $updatedAt,
                     ]);
 
-                    // Create Student Profile
                     StudentProfile::create([
                         'user_id' => $student->id,
                         'street' => $faker->streetAddress,
@@ -160,7 +131,6 @@ class StudentSeeder extends Seeder
                         'updated_at' => $updatedAt,
                     ]);
 
-                    // Create Form (Required for Reports)
                     Form::create([
                         'user_id' => $student->id,
                         'units_enrolled' => 21,

@@ -24,7 +24,7 @@
         sfaoCampusName: @json($sfaoCampus->name),
         extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck("name"))
      })'
-      x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
+      x-init="handleTabChange(currentTab); $watch('tab', value => handleTabChange(value)); $watch('currentTab', value => handleTabChange(value))">
     
     <!-- Header removed -->
 
@@ -130,24 +130,7 @@
                 </div>
             </div>
 
-            <!-- Status -->
-            <fieldset class="flex-[2] min-w-[280px]">
-                <legend class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Status</legend>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-lg border border-red-500 p-1 dark:border-red-500">
-                    <template x-for="option in [
-                        { value: 'all', label: 'All' },
-                        { value: 'pending', label: 'Pending' },
-                        { value: 'approved', label: 'Approved' },
-                        { value: 'rejected', label: 'Declined' }
-                    ]" :key="option.value">
-                        <label class="flex cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
-                               :class="filters.status === option.value ? 'bg-bsu-red text-white shadow-sm' : 'text-gray-700 hover:bg-red-50 dark:text-gray-200 dark:hover:bg-gray-700'">
-                            <input type="radio" class="sr-only" name="sfao_applicant_status" :value="option.value" x-model="filters.status">
-                            <span x-text="option.label"></span>
-                        </label>
-                    </template>
-                </div>
-            </fieldset>
+           
 
             <!-- Sort By -->
             <div class="flex-1 min-w-[140px]">

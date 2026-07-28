@@ -14,11 +14,13 @@
 
 <nav class="mt-6 px-4 pb-4 overflow-y-auto flex-1 space-y-4 custom-scrollbar" x-data="{
     activeTab: 'analytics_scholarships',
+    openSection: null,
     init() {
         const params = new URLSearchParams(window.location.search);
-        this.activeTab = this.normalizeTab(params.get('tabs') || localStorage.getItem('sfaoTab') || 'analytics_scholarships');
+        this.activeTab = this.normalizeTab(params.get('tabs') || params.get('tab') || localStorage.getItem('sfaoTab') || 'analytics_scholarships');
         this.markActiveNav();
         this.$watch('activeTab', () => this.markActiveNav());
+        this.openSection = this.sectionForTab(this.activeTab);
         this.$nextTick(() => this.$dispatch('sidebar-accordion-open', this.sectionForTab(this.activeTab)));
     },
     normalizeTab(tab) {
@@ -31,12 +33,19 @@
             applicants_in_progress: 'applicants-in_progress',
             applicants_pending: 'applicants-pending',
             applicants_approved: 'applicants-approved',
+            applicants_rejected: 'applicants-rejected',
             all_scholars: 'scholars',
             new_scholars: 'scholars-new',
             old_scholars: 'scholars-old',
+            reports_applicant_summary: 'reports-applicant_summary',
+            reports_scholar_summary: 'reports-scholar_summary',
             reports_student_summary: 'reports-student_summary',
             reports_grant_summary: 'reports-grant_summary',
-            account_settings: 'account-info'
+            all_app_forms: 'all-app-forms',
+            up_app_form: 'up-app-form',
+            import_scholarships: 'import-scholarships',
+            account_settings: 'account-info',
+            account: 'account-info'
         };
         return map[tab] || tab || 'analytics_scholarships';
     },
@@ -76,11 +85,12 @@
         });
     }
 }"
-x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))">
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))"
+x-on:sidebar-accordion-open.window="openSection = $event.detail">
   
   <!-- Analytics Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+  <div class="space-y-1" x-data="{ section: 'analytics' }">
+    <button @click="openSection = (openSection === section ? null : section)" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,12 +98,12 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
         </svg>
         <span>Analytics</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openSection === section ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
     
-    <div x-show="open" 
+    <div x-show="openSection === section" 
          x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-2"
@@ -128,8 +138,8 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
   </div>
 
    <!-- Scholarships Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+  <div class="space-y-1" x-data="{ section: 'scholarships' }">
+    <button @click="openSection = (openSection === section ? null : section)" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,11 +149,15 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
         </svg>
         <span>Scholarships</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openSection === section ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
-    <div x-show="open" x-cloak class="space-y-1">
+    <div x-show="openSection === section" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="space-y-1">
         <button @click="$dispatch('switch-tab', 'scholarships')"
                 class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -168,8 +182,8 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
   </div>
   
   <!-- Applicants Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-     <button @click="open = !open" 
+  <div class="space-y-1" x-data="{ section: 'applicants' }">
+     <button @click="openSection = (openSection === section ? null : section)" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
        <div class="flex items-center gap-2">
          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -177,11 +191,15 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
          </svg>
          <span>Applicants</span>
        </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openSection === section ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
        </svg>
      </button>
-     <div x-show="open" x-cloak class="space-y-1">
+     <div x-show="openSection === section" x-cloak
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 -translate-y-2"
+          x-transition:enter-end="opacity-100 translate-y-0"
+          class="space-y-1">
           <button @click="$dispatch('switch-tab', 'applicants')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -210,8 +228,8 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
    </div>
  
     <!-- Scholars Dropdown -->
-   <div class="space-y-1" x-data="{ open: false }">
-     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
+   <div class="space-y-1" x-data="{ section: 'scholars' }">
+     <button @click="openSection = (openSection === section ? null : section)" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
        <div class="flex items-center gap-2">
          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
            <path d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -220,9 +238,13 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
          </svg>
          <span>Scholars</span>
        </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openSection === section ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
      </button>
-     <div x-show="open" x-cloak class="space-y-1">
+     <div x-show="openSection === section" x-cloak
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 -translate-y-2"
+          x-transition:enter-end="opacity-100 translate-y-0"
+          class="space-y-1">
          <button @click="$dispatch('switch-tab', 'scholars')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -247,8 +269,8 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
    </div>
  
    <!-- Application Forms Dropdown -->
-   <div class="space-y-1" x-data="{ open: false }">
-     <button @click="open = !open" 
+   <div class="space-y-1" x-data="{ section: 'application_forms' }">
+     <button @click="openSection = (openSection === section ? null : section)" 
              class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
        <div class="flex items-center gap-2">
          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -256,11 +278,15 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
          </svg>
          <span class="whitespace-nowrap">App Forms</span>
        </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openSection === section ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
        </svg>
      </button>
-     <div x-show="open" x-cloak class="space-y-1">
+     <div x-show="openSection === section" x-cloak
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 -translate-y-2"
+          x-transition:enter-end="opacity-100 translate-y-0"
+          class="space-y-1">
          <button @click="$dispatch('switch-tab', 'all-app-forms')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -277,17 +303,21 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
    </div>
 
   <!-- Reports Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
+  <div class="space-y-1" x-data="{ section: 'reports' }">
+    <button @click="openSection = (openSection === section ? null : section)" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <span>Reports</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openSection === section ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
     </button>
-    <div x-show="open" x-cloak class="space-y-1">
+    <div x-show="openSection === section" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="space-y-1">
          <button @click="$dispatch('switch-tab', 'reports-student_summary')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -304,8 +334,8 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
   </div>
 
   <!-- Settings Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
+  <div class="space-y-1" x-data="{ section: 'settings' }">
+    <button @click="openSection = (openSection === section ? null : section)" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -313,9 +343,13 @@ x-on:switch-tab.window="activeTab = normalizeTab($event.detail); $dispatch('side
         </svg>
         <span>Settings</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openSection === section ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
     </button>
-    <div x-show="open" x-cloak class="space-y-1">
+    <div x-show="openSection === section" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="space-y-1">
          <button @click="$dispatch('switch-tab', 'account-info')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

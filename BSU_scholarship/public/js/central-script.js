@@ -4,7 +4,7 @@
 
 window.centralDashboard = function (config = {}) {
     return {
-        tab: config.initialTab || new URLSearchParams(window.location.search).get('tabs') || new URLSearchParams(window.location.search).get('tab') || localStorage.getItem('activeTab') || 'all_scholarships',
+        tab: config.initialTab || new URLSearchParams(window.location.search).get('tabs') || new URLSearchParams(window.location.search).get('tab') || localStorage.getItem('activeTab') || 'all_statistics',
         currentStatsCampus: 'all',
         campusList: config.campusList || [],
         showLogoutModal: false,
@@ -12,7 +12,7 @@ window.centralDashboard = function (config = {}) {
         initialParams: new URLSearchParams(window.location.search),
 
         getTabGroup(tab) {
-            if (tab === 'all_scholarships' || tab === 'private_scholarships' || tab === 'government_scholarships') return 'scholarships';
+            if (tab === 'all_scholarships' || tab === 'private_scholarships' || tab === 'government_scholarships' || tab === 'archived_scholarships') return 'scholarships';
             if (tab === 'sfao-reports' || tab === 'sfao_reports') return 'reports';
             if (tab === 'all_statistics' || (tab.endsWith('_statistics') && tab !== 'all_statistics')) return 'statistics';
             if (tab === 'all_scholars' || tab === 'new_scholars' || tab === 'old_scholars') return 'scholars';
@@ -26,13 +26,18 @@ window.centralDashboard = function (config = {}) {
                 'scholarships': 'all_scholarships',
                 'scholarships-private': 'private_scholarships',
                 'scholarships-government': 'government_scholarships',
+                'scholarships-archived': 'archived_scholarships',
+                'archived': 'archived_scholarships',
                 'scholars': 'all_scholars',
                 'scholars-new': 'new_scholars',
                 'scholars-old': 'old_scholars',
                 'endorsed-applicants': 'endorsed_applicants',
                 'rejected-applicants': 'rejected_applicants',
-                'reports': 'sfao-reports',
-                'sfao_reports': 'sfao-reports', // Normalized to dash
+                'dashboard': 'all_statistics',
+                'overview': 'all_statistics',
+                'reports': 'sfao_reports',
+                'sfao-reports': 'sfao_reports',
+                'sfao_reports': 'sfao_reports',
                 'statistics': 'all_statistics',
                 'settings': 'account_settings'
             };

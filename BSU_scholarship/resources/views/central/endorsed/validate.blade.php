@@ -31,7 +31,7 @@
     :sidebar="false" 
     :logout="true"
     :settings="true"
-    :back-url="route('central.dashboard', ['tab' => 'endorsed-applicants'])"
+    :back-url="route('central.dashboard', ['tabs' => 'endorsed_applicants'])"
     back-text="Back to Dashboard"
   />
 

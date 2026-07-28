@@ -62,8 +62,8 @@ class ApplicationsAndScholarsSeeder extends Seeder
         // 25% scholars (approved applications)
         // 50% applicants (mixed statuses: in_progress, pending, rejected)
         // 25% not_applied (no applications yet)
-        $scholarCount = intval($totalStudents * 0.25);
-        $applicantCount = intval($totalStudents * 0.5);
+        $scholarCount = intval($totalStudents * 0.0);
+        $applicantCount = intval($totalStudents * 0.0);
         $notAppliedCount = $totalStudents - $scholarCount - $applicantCount;
         
         // Split students
@@ -124,7 +124,7 @@ class ApplicationsAndScholarsSeeder extends Seeder
     {
         // Balanced status distribution for applicants (no approved here, they go to scholars)
         $applicationStatuses = ['in_progress', 'pending', 'rejected'];
-        $statusWeights = [0.4, 0.4, 0.2]; // 40% in_progress, 40% pending, 20% rejected
+        $statusWeights = [0.0, 1, 0.0]; // 40% in_progress, 40% pending, 20% rejected
         
         foreach ($students as $student) {
             $scholarship = $scholarships->random();

@@ -653,7 +653,7 @@ class SearchController extends Controller
                 'application' => 'endorsed_applicants',
                 'scholar' => 'all_scholars',
                 'scholarship' => 'all_scholarships',
-                'report' => 'sfao-reports',
+                'report' => 'sfao_reports',
                 'staff' => 'staff',
                 'campus' => 'all_statistics',
                 'college' => 'all_statistics',
@@ -694,7 +694,7 @@ class SearchController extends Controller
         $tab = $roleTabs[$type] ?? null;
 
         return match ($user->role) {
-            'central' => route('central.dashboard', $tab ? ['tab' => $tab] : []),
+            'central' => route('central.dashboard', $tab ? ['tabs' => $tab] : []),
             'sfao' => route('sfao.dashboard', $tab ? ['tabs' => $tab] : []),
             'student' => route('student.dashboard', $tab ? ['tab' => $tab] : []),
             default => route('login'),

@@ -101,8 +101,8 @@ Route::get('/', function () {
     if (session()->has('user_id')) {
         return redirect(match (session('role')) {
             'student' => route('student.dashboard'),
-            'sfao'    => route('sfao.dashboard') . '?tabs=overview',
-            'central' => route('central.dashboard', ['tabs' => 'overview']),
+            'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
+            'central' => route('central.dashboard', ['tabs' => 'dashboard']),
             default   => '/'
         });
     }
@@ -318,6 +318,7 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
             Route::get('/create', [ScholarshipController::class, 'create'])->name('create');
             Route::post('/store', [ScholarshipController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [ScholarshipController::class, 'edit'])->name('edit');
+            Route::patch('/{id}/archive', [ScholarshipController::class, 'archive'])->name('archive');
             Route::put('/{id}', [ScholarshipController::class, 'update'])->name('update');
             Route::delete('/{id}', [ScholarshipController::class, 'destroy'])->name('destroy');
         });

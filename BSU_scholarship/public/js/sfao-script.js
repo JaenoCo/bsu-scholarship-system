@@ -168,11 +168,11 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                 // Detect SubTab from URL on Init
                 const params = new URLSearchParams(window.location.search);
-                const currentTab = params.get('tabs');
+                const currentTab = params.get('tabs') || params.get('tab');
                 if (currentTab === 'analytics_scholarships') {
                     this.subTab = 'scholarships';
                     this.viewMode = 'comparison';
-                } else if (currentTab === 'analytics_applicants') {
+                } else if (currentTab === 'analytics_applications' || currentTab === 'analytics_applicants') {
                     this.subTab = 'applicants';
                     this.viewMode = 'applicants';
                 } else if (currentTab === 'analytics_scholars') {
@@ -2021,7 +2021,7 @@ window.sfaoDashboardState = function (config) {
 
             // Initialize from URL or LocalStorage
             const urlParams = new URLSearchParams(window.location.search);
-            const urlTab = urlParams.get('tabs');
+            const urlTab = urlParams.get('tabs') || urlParams.get('tab');
 
             // Check if URL tab matches a campus slug
             let matchedCampus = null;
@@ -2054,6 +2054,7 @@ window.sfaoDashboardState = function (config) {
         },
 
         switchTab(nextTab) {
+            nextTab = this.urlMapping[nextTab] || nextTab;
             const clickedCurrentTab = this.tab === nextTab;
 
             this.tab = nextTab;

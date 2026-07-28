@@ -203,12 +203,10 @@ class ApplicationController extends Controller
         $programFilter = $request->get('program_filter', 'all');
         $trackFilter = $request->get('track_filter', 'all');
         $academicYearFilter = $request->get('academic_year_filter', 'all');
-        $statusFilter = $request->get('status_filter', 'all');
 
-        // 3. Base Query - only students who have submitted applications belong in Applicants.
+        // 3. Base Query - CLEAN: No joins, just relationships
         $query = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds)
-            ->whereHas('applications')
             ->with(['applications.scholarship', 'documents', 'form', 'campus']);
 
         // 4. Apply Filters (BEFORE any grouping/joins)
@@ -248,11 +246,7 @@ class ApplicationController extends Controller
 
         // 5. Tab-Based Filtering - Filter database query BEFORE pagination
         // Note: Frontend sends 'tab' with dashes (applicants-in_progress), not underscores
-        if (in_array($statusFilter, ['in_progress', 'pending', 'approved', 'rejected'], true)) {
-            $query->whereHas('applications', function ($q) use ($statusFilter) {
-                $q->where('status', $statusFilter);
-            });
-        } elseif (in_array($tab, ['applicants-in-progress', 'applicants-in_progress'], true)) {
+        if ($tab === 'applicants-in-progress') {
             // Strictly filter: only students with pending or in_progress applications
             $query->whereHas('applications', function ($q) {
                 $q->whereIn('status', ['in_progress']);
@@ -273,6 +267,7 @@ class ApplicationController extends Controller
                 $q->where('status', 'rejected');
             });
         }
+        // For 'applicants' (all_applicants) or default: no relation filter applied, show all students
 
         // 6. Apply Sorting
         $orderCol = match ($sortBy) {
@@ -1675,7 +1670,6 @@ class ApplicationController extends Controller
         $scholarQuery = Scholar::query();
 
         // Apply time period filter
-        $dateCondition = null;
         if ($timePeriod !== 'all') {
             $dateCondition = $this->getDateCondition($timePeriod);
             if ($dateCondition) {
@@ -1932,7 +1926,7 @@ class ApplicationController extends Controller
 
         $campusNames = $campuses->pluck('name')->toArray();
         $campusReports = $campuses->pluck('reports_count')->toArray();
-        $campusStudentsCountList = $campuses->pluck('users_count')->toArray();
+        $campusStudents = $campuses->pluck('users_count')->toArray();
 
         // Get campus application statistics
         $campusApplicationStats = [];
@@ -1949,7 +1943,7 @@ class ApplicationController extends Controller
             $campusOldScholars = (clone $campusScholarsQuery)->where('type', 'old')->count();
 
             // Get total students for this campus
-            $campusStudentsTotal = User::where('role', 'student')
+            $campusStudents = User::where('role', 'student')
                 ->where('campus_id', $campus->id)
                 ->count();
 
@@ -2048,14 +2042,14 @@ class ApplicationController extends Controller
             $campusApplicationStats[] = [
                 'campus_id' => $campus->id,
                 'campus_name' => $campus->name,
-                'total_students' => $campusStudentsTotal,
+                'total_students' => $campusStudents,
                 'total_applications' => $campusApplications->count(),
                 'approved_applications' => $campusApplications->where('status', 'approved')->count(),
                 'rejected_applications' => $campusApplications->where('status', 'rejected')->count(),
                 'pending_applications' => $campusApplications->where('status', 'pending')->count(),
                 'claimed_applications' => $campusApplications->where('status', 'claimed')->count(),
                 'students_with_applications' => $campusStudentsWithApplications,
-                'students_without_applications' => $campusStudentsTotal - $campusStudentsWithApplications,
+                'students_without_applications' => $campusStudents - $campusStudentsWithApplications,
                 'approval_rate' => $campusApplications->count() > 0 ?
                     round(($campusApplications->where('status', 'approved')->count() / $campusApplications->count()) * 100, 2) : 0,
                 // Scholar Stats
@@ -2147,14 +2141,9 @@ class ApplicationController extends Controller
             'approvalRate' => $approvalRateDisplay,
         ];
 
-        // >>> ADDED: raw row-level + option data the Alpine "statisticsTab"
-        // component reads from `analyticsData.*` (all_applications_data,
-        // all_students_data, available_scholarships, all_colleges,
-        // campus_colleges, campus_college_programs, program_tracks).
-        // These keys were never being returned by this method, so every
-        // dropdown, chart, and client-side fallback count on the frontend
-        // was operating on an empty array — the root cause of the
-        // "Scholarship Status" metric cards showing 0 across the board.
+        // Data required by the Alpine.js frontend for dropdowns, charts, and
+// client-side fallback counting. Previously missing — this is why the
+// Statistics tab's filters and metric cards had nothing to work with.
         $rawStudentQuery = User::where('role', 'student');
         if ($campusId !== 'all') {
             $rawStudentQuery->where('campus_id', $campusId);
@@ -2172,7 +2161,6 @@ class ApplicationController extends Controller
             })
             ->when($campusId !== 'all', fn($q) => $q->where('users.campus_id', $campusId))
             ->select(
-                'applications.id as application_id',
                 'users.id as user_id',
                 'users.campus_id',
                 'users.college',
@@ -2182,7 +2170,6 @@ class ApplicationController extends Controller
                 'users.middle_name',
                 'users.last_name',
                 'users.sr_code',
-                'scholarships.id as scholarship_id',
                 'scholarships.scholarship_type',
                 'scholarships.scholarship_name',
                 'applications.status',
@@ -2194,10 +2181,6 @@ class ApplicationController extends Controller
             ->get();
 
         $availableScholarships = Scholarship::select('id', 'scholarship_name')->get();
-
-        // NOTE: adjust the model/table below if colleges live somewhere other
-        // than App\Models\Department in your schema (matches the pattern
-        // already used in sfaoDashboard()).
         $allColleges = \App\Models\Department::select('id', 'short_name')->get();
 
         $campusColleges = [];
@@ -2228,10 +2211,9 @@ class ApplicationController extends Controller
         ) {
             $programTracks[$row->program][] = $row->track;
         }
-        foreach ($programTracks as $prog => $tracks) {
-            $programTracks[$prog] = array_values(array_unique($tracks));
+        foreach ($programTracks as $program => $tracks) {
+            $programTracks[$program] = array_values(array_unique($tracks));
         }
-        // <<< END ADDED
 
         return [
             // Report Statistics
@@ -2319,7 +2301,7 @@ class ApplicationController extends Controller
             // Campus Data
             'campus_names' => $campusNames,
             'campus_reports' => $campusReports,
-            'campus_students' => $campusStudentsCountList,
+            'campus_students' => $campusStudents,
             'campus_application_stats' => $campusApplicationStats,
 
             // Scholarship Data
@@ -2334,7 +2316,6 @@ class ApplicationController extends Controller
             // Summary counts for the stats cards
             'counts' => $counts,
 
-            // >>> ADDED: frontend-required raw/reference data (see block above)
             'all_applications_data' => $allApplicationsData,
             'all_students_data' => $allStudentsData,
             'available_scholarships' => $availableScholarships,
@@ -2342,7 +2323,6 @@ class ApplicationController extends Controller
             'campus_colleges' => $campusColleges,
             'campus_college_programs' => $campusCollegePrograms,
             'program_tracks' => $programTracks,
-            // <<< END ADDED
         ];
     }
 
@@ -2569,12 +2549,16 @@ class ApplicationController extends Controller
         return 'approve';
     }
 
-    private function resolveSfaoApplicationStatus(string $action): string
+    /**
+     * Map the SFAO review action to the application status shown in the workflow.
+     * SFAO moves an application to in progress; only the admin can mark it approved.
+     */
+    private function resolveSfaoApplicationStatus(string $action, ?string $fallbackStatus = null): string
     {
         return match ($action) {
-            'approve', 'pending' => 'in_progress',
             'reject' => 'rejected',
-            default => 'pending',
+            'approve', 'pending' => 'in_progress',
+            default => $fallbackStatus ?? 'in_progress',
         };
     }
 
@@ -2659,7 +2643,12 @@ class ApplicationController extends Controller
         $action = $this->determineAutoDecision($documents);
 
         // Update application with remarks and status (SFAO approval sets to in_progress for Central review)
-        $newStatus = $this->resolveSfaoApplicationStatus($action);
+        $newStatus = match ($action) {
+            'approve' => 'in_progress',
+            'reject' => 'rejected',
+            'pending' => 'pending',
+            default => $application->status,
+        };
 
         $application->update([
             'status' => $newStatus,
@@ -2687,7 +2676,7 @@ class ApplicationController extends Controller
         $notificationMessage = match ($action) {
             'approve' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been approved by SFAO. It is now forwarded to Central Administration for final review.',
             'reject' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been rejected based on document evaluation.',
-            'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been set to pending for further review based on document evaluation.',
+            'approve', 'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' is now in progress after SFAO evaluation.',
             default => 'Your application status has been updated.'
         };
 
@@ -2723,7 +2712,7 @@ class ApplicationController extends Controller
         $message = match ($action) {
             'approve' => 'Application approved and forwarded to Central Administration for final review.',
             'reject' => 'Application rejected successfully based on document evaluation.',
-            'pending' => 'Application set to pending successfully based on document evaluation.',
+            'approve', 'pending' => 'Application moved to in progress successfully after SFAO evaluation.',
             default => 'Application status updated successfully.'
         };
 

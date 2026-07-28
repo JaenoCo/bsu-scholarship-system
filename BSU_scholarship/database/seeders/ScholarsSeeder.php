@@ -2,11 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Application;
 use App\Models\Scholar;
-use Carbon\Carbon;
 
 class ScholarsSeeder extends Seeder
 {
@@ -17,8 +15,15 @@ class ScholarsSeeder extends Seeder
      */
     public function run()
     {
-        // Get all approved applications
+        // Get only approved applications for seeded student users.
         $approvedApplications = Application::where('status', 'approved')
+            ->whereHas('user', function ($query) {
+                $query->where('role', 'student')
+                    ->where(function ($studentQuery) {
+                        $studentQuery->where('sr_code', 'like', 'SR-%')
+                            ->orWhere('email', 'like', '99-%@g.batstate-u.edu.ph');
+                    });
+            })
             ->with(['user', 'scholarship'])
             ->get();
 

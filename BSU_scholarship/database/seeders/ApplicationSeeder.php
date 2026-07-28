@@ -6,26 +6,20 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Scholarship;
 use App\Models\Application;
-use App\Models\Scholar;
-use App\Models\RejectedApplicant;
-use Faker\Factory as Faker;
-use Carbon\Carbon;
 
 class ApplicationSeeder extends Seeder
 {
     public function run()
     {
-        $faker = Faker::create('en_PH');
-        
         $scholarships = Scholarship::all();
         if ($scholarships->isEmpty()) {
             $this->command->warn('No scholarships found. Skipping application generation.');
             return;
         }
 
-        $students = User::where('role', 'student')->get();
+        $students = $this->getSeededStudents();
         if ($students->isEmpty()) {
-            $this->command->warn('No students found. Skipping application generation.');
+            $this->command->warn('No seeded students found. Skipping application generation.');
             return;
         }
 
@@ -46,5 +40,16 @@ class ApplicationSeeder extends Seeder
                 'updated_at' => $createdAt,
             ]);
         }
+    }
+
+    private function getSeededStudents()
+    {
+        return User::query()
+            ->where('role', 'student')
+            ->where(function ($query) {
+                $query->where('sr_code', 'like', 'SR-%')
+                    ->orWhere('email', 'like', '99-%@g.batstate-u.edu.ph');
+            })
+            ->get();
     }
 }

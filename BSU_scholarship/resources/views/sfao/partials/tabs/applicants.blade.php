@@ -4,9 +4,26 @@
      x-transition:enter-end="opacity-100 transform scale-100"
      x-cloak 
     class="px-4 py-6"
-    x-data='sfaoApplicantsFilter({ activeTab: @json(str_replace("_", "-", $activeTab ?? "applicants")) })'
-    x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
-    
+     x-data='sfaoApplicantsFilter({
+        activeTab: @json(str_replace("_", "-", $activeTab ?? "applicants")),
+        routeUrl: @json(route("sfao.applicants.list")),
+        counts: {
+            total: {{ $studentsAll->total() }},
+            in_progress: {{ $studentsInProgress->total() }},
+            pending: {{ $studentsPending->total() }},
+            approved: {{ $studentsApproved->total() }},
+            rejected: {{ $studentsRejected->total() }}
+        },
+        campusOptions: @json($campusOptions),
+        colleges: @json($colleges),
+        programs: @json($programs),
+        tracks: @json($tracks),
+        academicYears: @json($academicYears),
+        campusCollegePrograms: @json($analytics['campus_college_programs'] ?? []),
+        programTracks: @json($analytics['program_tracks'] ?? []),
+        sfaoCampusName: @json($sfaoCampus->name),
+        extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck('name'))
+     })'>
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             <span x-text="getHeaderTitle()" class="flex items-center gap-2"></span>
@@ -54,9 +71,76 @@
             <div class="flex-1 min-w-[140px]">
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Campus</label>
                 <div class="relative">
-                    <select x-model="filters.campus" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
-                        @foreach($campusOptions as $campus)
+                    <select x-model="filters.campus" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">                        <option value="all">All Campuses</option>                        @foreach($campusOptions as $campus)
                             <option value="{{ $campus['id'] }}">{{ $campus['name'] }}</option>
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- College -->
+            <div class="flex-1 min-w-[180px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">College</label>
+                <div class="relative">
+                    <select x-model="filters.college" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                        <option value="all">All Colleges</option>
+                        @foreach($colleges ?? [] as $college)
+                            <option value="{{ $college['value'] }}">{{ $college['name'] }}</option>
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Program -->
+            <div class="flex-1 min-w-[180px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Program</label>
+                <div class="relative">
+                    <select x-model="filters.program" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                        <option value="all">All Programs</option>
+                        @foreach($programs ?? [] as $program)
+                            @if(!empty($program))
+                                <option value="{{ $program }}">{{ $program }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Track -->
+            <div class="flex-1 min-w-[140px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Track</label>
+                <div class="relative">
+                    <select x-model="filters.track" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                        <option value="all">All Tracks</option>
+                        @foreach($tracks ?? [] as $track)
+                            @if(!empty($track))
+                                <option value="{{ $track }}">{{ $track }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Academic Year -->
+            <div class="flex-1 min-w-[150px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Academic Year</label>
+                <div class="relative">
+                    <select x-model="filters.academic_year" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                        <option value="all">All Years</option>
+                        @foreach($academicYears ?? [] as $year)
+                            <option value="{{ $year }}">{{ $year }}</option>
                         @endforeach
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
@@ -110,6 +194,10 @@
                     sort_by: localStorage.getItem('sfaoApplicantsSortBy') || 'name',
                     sort_order: localStorage.getItem('sfaoApplicantsSortOrder') || 'asc',
                     campus: localStorage.getItem('sfaoApplicantsCampus') || 'all',
+                    college: localStorage.getItem('sfaoApplicantsCollege') || 'all',
+                    program: localStorage.getItem('sfaoApplicantsProgram') || 'all',
+                    track: localStorage.getItem('sfaoApplicantsTrack') || 'all',
+                    academic_year: localStorage.getItem('sfaoApplicantsAcademicYear') || 'all',
                     status: (@json(str_replace('_', '-', $activeTab ?? 'applicants')).startsWith('applicants-')
                         ? @json(str_replace('_', '-', $activeTab ?? 'applicants')).replace('applicants-', '')
                         : (localStorage.getItem('sfaoApplicantsStatus') || 'all'))
@@ -142,6 +230,22 @@
                         localStorage.setItem('sfaoApplicantsStatus', value);
                         this.fetchApplicants();
                     });
+                    this.$watch('filters.college', (value) => {
+                        localStorage.setItem('sfaoApplicantsCollege', value);
+                        this.fetchApplicants();
+                    });
+                    this.$watch('filters.program', (value) => {
+                        localStorage.setItem('sfaoApplicantsProgram', value);
+                        this.fetchApplicants();
+                    });
+                    this.$watch('filters.track', (value) => {
+                        localStorage.setItem('sfaoApplicantsTrack', value);
+                        this.fetchApplicants();
+                    });
+                    this.$watch('filters.academic_year', (value) => {
+                        localStorage.setItem('sfaoApplicantsAcademicYear', value);
+                        this.fetchApplicants();
+                    });
 
                     this.updatePaginationLinks();
                     this.handleTabChange(this.activeTab);
@@ -153,6 +257,10 @@
                         sort_by: this.filters.sort_by,
                         sort_order: this.filters.sort_order,
                         campus_filter: this.filters.campus,
+                        college_filter: this.filters.college,
+                        program_filter: this.filters.program,
+                        track_filter: this.filters.track,
+                        academic_year_filter: this.filters.academic_year,
                         status_filter: this.filters.status,
                         page_applicants: page
                     });
@@ -186,6 +294,10 @@
                     this.filters.sort_by = 'name';
                     this.filters.sort_order = 'asc';
                     this.filters.campus = 'all';
+                    this.filters.college = 'all';
+                    this.filters.program = 'all';
+                    this.filters.track = 'all';
+                    this.filters.academic_year = 'all';
                     this.filters.status = 'all';
                 },
 

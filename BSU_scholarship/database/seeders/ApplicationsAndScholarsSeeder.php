@@ -17,8 +17,8 @@ class ApplicationsAndScholarsSeeder extends Seeder
      */
     public function run()
     {
-        // Get all students and scholarships
-        $students = User::where('role', 'student')->get();
+        // Get only students created by the seeders and scholarships.
+        $students = $this->getSeededStudents();
         $scholarships = Scholarship::all();
         
         if ($students->isEmpty() || $scholarships->isEmpty()) {
@@ -53,6 +53,17 @@ class ApplicationsAndScholarsSeeder extends Seeder
         $this->command->info('✅ Applications and scholars created successfully!');
     }
     
+    private function getSeededStudents()
+    {
+        return User::query()
+            ->where('role', 'student')
+            ->where(function ($query) {
+                $query->where('sr_code', 'like', 'SR-%')
+                    ->orWhere('email', 'like', '99-%@g.batstate-u.edu.ph');
+            })
+            ->get();
+    }
+
     private function balanceCampusGroup($students, $scholarships, $campusName)
     {
         $totalStudents = $students->count();
@@ -85,6 +96,10 @@ class ApplicationsAndScholarsSeeder extends Seeder
     private function createScholars($students, $scholarships)
     {
         foreach ($students as $student) {
+            if ($student->applications()->exists()) {
+                continue;
+            }
+
             // Create approved application
             $scholarship = $scholarships->random();
             $grantCount = rand(0, 3); // 0-3 grants (0 = new scholar, 1+ = old scholar)
@@ -127,6 +142,10 @@ class ApplicationsAndScholarsSeeder extends Seeder
         $statusWeights = [0.0, 1, 0.0]; // 40% in_progress, 40% pending, 20% rejected
         
         foreach ($students as $student) {
+            if ($student->applications()->exists()) {
+                continue;
+            }
+
             $scholarship = $scholarships->random();
             $status = $this->weightedRandom($applicationStatuses, $statusWeights);
             

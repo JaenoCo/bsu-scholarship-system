@@ -180,169 +180,166 @@ class ApplicationController extends Controller
      * Handles fetching and filtering of applicant data for SFAO Dashboard
      */
     public function sfaoApplicantsList(Request $request)
-    {
-        // 1. Authorization
-        if (!session()->has('user_id') || session('role') !== 'sfao') {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
+{
+    // 1. Authorization
+    if (!session()->has('user_id') || session('role') !== 'sfao') {
+        return response()->json(['error' => 'Unauthorized'], 401);
+    }
 
-        // 2. Setup Context
-        $user = User::with('campus')->find(session('user_id'));
-        if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
-        }
-        $campusIds = $user->campus->getAllCampusesUnder()->pluck('id');
+    // 2. Setup Context
+    $user = User::with('campus')->find(session('user_id'));
+    if (!$user) {
+        return response()->json(['error' => 'User not found'], 404);
+    }
+    $campusIds = $user->campus->getAllCampusesUnder()->pluck('id');
 
-        // Get tab parameter - use simple naming (matches frontend 'tab' parameter which sends dash-separated names)
-        $tab = $request->get('tab', 'applicants');
-        $sortBy = $request->get('sort_by', 'name');
-        $sortOrder = $request->get('sort_order', 'asc');
-        $campusFilter = $request->get('campus_filter', 'all');
-        $scholarshipFilter = $request->get('scholarship_filter', 'all');
-        $collegeFilter = $request->get('college_filter', 'all');
-        $programFilter = $request->get('program_filter', 'all');
-        $trackFilter = $request->get('track_filter', 'all');
-        $academicYearFilter = $request->get('academic_year_filter', 'all');
+    $tab = $request->get('tab', 'applicants');
+    $sortBy = $request->get('sort_by', 'name');
+    $sortOrder = $request->get('sort_order', 'asc');
+    $campusFilter = $request->get('campus_filter', 'all');
+    $scholarshipFilter = $request->get('scholarship_filter', 'all');
+    $collegeFilter = $request->get('college_filter', 'all');
+    $programFilter = $request->get('program_filter', 'all');
+    $trackFilter = $request->get('track_filter', 'all');
+    $academicYearFilter = $request->get('academic_year_filter', 'all');
+    $statusFilter = $request->get('status_filter', 'all');
 
-        // 3. Base Query - CLEAN: No joins, just relationships
-        $query = User::where('role', 'student')
-            ->whereIn('campus_id', $campusIds)
-            ->with(['applications.scholarship', 'documents', 'form', 'campus']);
+    // 3. Base Query - flat string columns (college/program/track live on users, no join tables)
+    $query = User::where('role', 'student')
+        ->whereIn('campus_id', $campusIds)
+        ->with(['applications.scholarship', 'documents', 'form', 'campus']);
 
-        // 4. Apply Filters (BEFORE any grouping/joins)
-        if ($campusFilter !== 'all') {
-            $query->where('campus_id', $campusFilter);
-        }
+    // 4. Apply Filters
+    if ($campusFilter !== 'all') {
+        $query->where('campus_id', $campusFilter);
+    }
 
-        if ($scholarshipFilter !== 'all') {
-            $query->whereHas('applications', function ($q) use ($scholarshipFilter) {
-                $q->where('scholarship_id', $scholarshipFilter);
+    if ($scholarshipFilter !== 'all') {
+        $query->whereHas('applications', function ($q) use ($scholarshipFilter) {
+            $q->where('scholarship_id', $scholarshipFilter);
+        });
+    }
+
+    if ($statusFilter !== 'all') {
+        $query->whereHas('applications', function ($q) use ($statusFilter) {
+            $q->where('status', $statusFilter);
+        });
+    }
+
+    if ($collegeFilter !== 'all') {
+        $variations = explode('|', $collegeFilter);
+        $query->whereIn('college', $variations);
+    }
+
+    if ($programFilter !== 'all') {
+        $query->where('program', $programFilter);
+    }
+
+    if ($trackFilter !== 'all') {
+        $query->where('track', $trackFilter);
+    }
+
+    if ($academicYearFilter !== 'all') {
+        $parts = explode('-', $academicYearFilter);
+        if (count($parts) === 2) {
+            $startDate = $parts[0] . "-08-01";
+            $endDate = $parts[1] . "-07-31";
+            $query->whereHas('applications', function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('created_at', [$startDate, $endDate]);
             });
         }
+    }
 
-        if ($collegeFilter !== 'all') {
-            $variations = explode('|', $collegeFilter);
-            $query->whereIn('college', $variations);
-        }
+    // 5. Tab-Based Filtering
+    if ($tab === 'applicants-in-progress') {
+        $query->whereHas('applications', fn($q) => $q->whereIn('status', ['in_progress']));
+    } elseif ($tab === 'applicants-pending') {
+        $query->whereHas('applications', fn($q) => $q->where('status', 'pending'));
+    } elseif ($tab === 'applicants-approved') {
+        $query->whereHas('applications', fn($q) => $q->where('status', 'approved'));
+    } elseif ($tab === 'applicants-rejected') {
+        $query->whereHas('applications', fn($q) => $q->where('status', 'rejected'));
+    }
 
-        if ($programFilter !== 'all') {
-            $query->where('program', $programFilter);
-        }
+    // 6. Sorting
+    $orderCol = match ($sortBy) {
+        'email' => 'email',
+        'date_joined' => 'created_at',
+        default => 'name',
+    };
+    $query->orderBy($orderCol, $sortOrder);
 
-        if ($trackFilter !== 'all') {
-            $query->where('track', $trackFilter);
-        }
+    // 7. Paginate
+    $paginatedStudents = $query->paginate(10, ['*'], 'page_applicants');
 
-        if ($academicYearFilter !== 'all') {
-            $parts = explode('-', $academicYearFilter);
-            if (count($parts) === 2) {
-                $startDate = $parts[0] . "-08-01";
-                $endDate = $parts[1] . "-07-31";
-                $query->whereHas('applications', function ($q) use ($startDate, $endDate) {
-                    $q->whereBetween('created_at', [$startDate, $endDate]);
-                });
-            }
-        }
+    // 8. Post-process for Blade template
+    $paginatedStudents->getCollection()->transform(function ($student) {
+        $statuses = $student->applications->pluck('status')->filter()->unique()->toArray();
 
-        // 5. Tab-Based Filtering - Filter database query BEFORE pagination
-        // Note: Frontend sends 'tab' with dashes (applicants-in_progress), not underscores
-        if ($tab === 'applicants-in-progress') {
-            // Strictly filter: only students with pending or in_progress applications
-            $query->whereHas('applications', function ($q) {
-                $q->whereIn('status', ['in_progress']);
-            });
-        } elseif ($tab === 'applicants-pending') {
-            // Strictly filter: only students with pending applications
-            $query->whereHas('applications', function ($q) {
-                $q->where('status', 'pending');
-            });
-        } elseif ($tab === 'applicants-approved') {
-            // Strictly filter: only students with approved applications
-            $query->whereHas('applications', function ($q) {
-                $q->where('status', 'approved');
-            });
-        } elseif ($tab === 'applicants-rejected') {
-            // Strictly filter: only students with rejected applications
-            $query->whereHas('applications', function ($q) {
-                $q->where('status', 'rejected');
-            });
-        }
-        // For 'applicants' (all_applicants) or default: no relation filter applied, show all students
-
-        // 6. Apply Sorting
-        $orderCol = match ($sortBy) {
-            'email' => 'email',
-            'date_joined' => 'created_at',
-            default => 'name',
-        };
-        $query->orderBy($orderCol, $sortOrder);
-
-        // 7. Paginate - Relationships are fully loaded here
-        $paginatedStudents = $query->paginate(10, ['*'], 'page_applicants');
-
-        // 8. Post-Process: Add computed fields for Blade template
-        $paginatedStudents->getCollection()->transform(function ($student) {
-            // Compute display status from applications
-            $statuses = $student->applications->pluck('status')->filter()->unique()->toArray();
-
-            if (empty($statuses)) {
-                $student->display_status = 'not_applied';
-            } else {
-                // Priority order for display
-                foreach (['approved', 'in_progress', 'pending', 'rejected'] as $status) {
-                    if (in_array($status, $statuses)) {
-                        $student->display_status = $status;
-                        break;
-                    }
+        if (empty($statuses)) {
+            $student->display_status = 'not_applied';
+        } else {
+            foreach (['approved', 'in_progress', 'pending', 'rejected'] as $status) {
+                if (in_array($status, $statuses)) {
+                    $student->display_status = $status;
+                    break;
                 }
             }
+        }
 
-            // Helper flags
-            $student->has_applications = $student->applications->count() > 0;
-            $student->has_documents = $student->documents->count() > 0;
-            $student->documents_count = $student->documents->count();
+        $student->has_applications = $student->applications->count() > 0;
+        $student->has_documents = $student->documents->count() > 0;
+        $student->documents_count = $student->documents->count();
 
-            // Structure for modal display
-            $student->applications_with_types = $student->applications->map(function ($app) {
-                return [
-                    'id' => $app->id,
-                    'scholarship_name' => $app->scholarship?->scholarship_name ?? 'Unknown',
-                    'status' => $app->status,
-                    'grant_count' => $app->grant_count,
-                    'grant_count_display' => method_exists($app, 'getGrantCountDisplay') ? $app->getGrantCountDisplay() : $app->grant_count,
-                    'grant_count_badge_color' => method_exists($app, 'getGrantCountBadgeColor') ? $app->getGrantCountBadgeColor() : 'gray'
-                ];
-            });
-
-            return $student;
+        $student->applications_with_types = $student->applications->map(function ($app) {
+            return [
+                'id' => $app->id,
+                'scholarship_name' => $app->scholarship?->scholarship_name ?? 'Unknown',
+                'status' => $app->status,
+                'grant_count' => $app->grant_count,
+                'grant_count_display' => method_exists($app, 'getGrantCountDisplay') ? $app->getGrantCountDisplay() : $app->grant_count,
+                'grant_count_badge_color' => method_exists($app, 'getGrantCountBadgeColor') ? $app->getGrantCountBadgeColor() : 'gray'
+            ];
         });
 
-        // 9. Generate counts
-        $countsBase = User::where('role', 'student')->whereIn('campus_id', $campusIds);
+        return $student;
+    });
 
-        // Apply the same non-tab filters to counts
-        if ($campusFilter !== 'all')
-            $countsBase->where('campus_id', $campusFilter);
-        if ($collegeFilter !== 'all')
-            $countsBase->whereIn('college', explode('|', $collegeFilter));
-        if ($programFilter !== 'all')
-            $countsBase->where('program', $programFilter);
-        if ($trackFilter !== 'all')
-            $countsBase->where('track', $trackFilter);
+    // 9. Counts - apply the SAME non-tab filters used for the list
+    $countsBase = User::where('role', 'student')->whereIn('campus_id', $campusIds);
 
-        $counts = [
-            'total' => (clone $countsBase)->whereHas('applications')->count(),
-            'in_progress' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'in_progress'))->count(),
-            'pending' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'pending'))->count(),
-            'approved' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'approved'))->count(),
-            'rejected' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'rejected'))->count(),
-        ];
-
-        return response()->json([
-            'html' => view('sfao.applicants.list', ['students' => $paginatedStudents])->render(),
-            'counts' => $counts
-        ]);
+    if ($campusFilter !== 'all')
+        $countsBase->where('campus_id', $campusFilter);
+    if ($scholarshipFilter !== 'all')
+        $countsBase->whereHas('applications', fn($q) => $q->where('scholarship_id', $scholarshipFilter));
+    if ($collegeFilter !== 'all')
+        $countsBase->whereIn('college', explode('|', $collegeFilter));
+    if ($programFilter !== 'all')
+        $countsBase->where('program', $programFilter);
+    if ($trackFilter !== 'all')
+        $countsBase->where('track', $trackFilter);
+    if ($academicYearFilter !== 'all') {
+        $parts = explode('-', $academicYearFilter);
+        if (count($parts) === 2) {
+            $startDate = $parts[0] . "-08-01";
+            $endDate = $parts[1] . "-07-31";
+            $countsBase->whereHas('applications', fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]));
+        }
     }
+
+    $counts = [
+        'total' => (clone $countsBase)->whereHas('applications')->count(),
+        'in_progress' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'in_progress'))->count(),
+        'pending' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'pending'))->count(),
+        'approved' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'approved'))->count(),
+        'rejected' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'rejected'))->count(),
+    ];
+
+    return response()->json([
+        'html' => view('sfao.partials.tabs.applicants_list', ['students' => $paginatedStudents])->render(),
+        'counts' => $counts
+    ]);
+}
 
     /**
      * SFAO Dashboard - Only shows applicants (students with applications), not scholars

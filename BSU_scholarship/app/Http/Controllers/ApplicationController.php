@@ -290,6 +290,7 @@ class ApplicationController extends Controller
         $student->has_applications = $student->applications->count() > 0;
         $student->has_documents = $student->documents->count() > 0;
         $student->documents_count = $student->documents->count();
+        $student->applied_scholarships = $student->applications->pluck('scholarship.scholarship_name')->filter()->unique()->values()->toArray();
 
         $student->applications_with_types = $student->applications->map(function ($app) {
             return [
@@ -308,16 +309,21 @@ class ApplicationController extends Controller
     // 9. Counts - apply the SAME non-tab filters used for the list
     $countsBase = User::where('role', 'student')->whereIn('campus_id', $campusIds);
 
-    if ($campusFilter !== 'all')
+    if ($campusFilter !== 'all') {
         $countsBase->where('campus_id', $campusFilter);
-    if ($scholarshipFilter !== 'all')
+    }
+    if ($scholarshipFilter !== 'all') {
         $countsBase->whereHas('applications', fn($q) => $q->where('scholarship_id', $scholarshipFilter));
-    if ($collegeFilter !== 'all')
+    }
+    if ($collegeFilter !== 'all') {
         $countsBase->whereIn('college', explode('|', $collegeFilter));
-    if ($programFilter !== 'all')
+    }
+    if ($programFilter !== 'all') {
         $countsBase->where('program', $programFilter);
-    if ($trackFilter !== 'all')
+    }
+    if ($trackFilter !== 'all') {
         $countsBase->where('track', $trackFilter);
+    }
     if ($academicYearFilter !== 'all') {
         $parts = explode('-', $academicYearFilter);
         if (count($parts) === 2) {
@@ -2800,7 +2806,7 @@ class ApplicationController extends Controller
         // Create notification for student
         NotificationService::notifyApplicationStatusChange($application, 'approved');
 
-        return redirect()->route('central.dashboard', ['tab' => 'endorsed_applicants'])
+        return redirect()->route('central.dashboard', ['tabs' => 'endorsed_applicants'])
             ->with('success', 'Application has been accepted successfully. Scholar record has been created.');
     }
 
@@ -2843,7 +2849,7 @@ class ApplicationController extends Controller
         // Create notification for student
         NotificationService::notifyApplicationStatusChange($application, 'rejected');
 
-        return redirect()->route('central.dashboard', ['tab' => 'rejected_applicants'])
+        return redirect()->route('central.dashboard', ['tabs' => 'rejected_applicants'])
             ->with('success', 'Application has been rejected. The student will not be able to apply to this scholarship again.');
     }
 

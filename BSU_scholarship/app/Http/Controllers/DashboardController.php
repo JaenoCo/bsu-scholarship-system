@@ -1129,6 +1129,62 @@ class DashboardController extends Controller
         $analytics['all_applications_data'] = $allApplicationsData;
         // END: Enrich Analytics
 
+        $headerNotifications = \App\Models\Notification::where('user_id', $user->id)->latest()->take(5)->get();
+        $unreadNotificationCount = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->count();
+
+        $centralScholarshipRows = Scholarship::withCount(['applications', 'scholars'])
+            ->where('is_active', true)
+            ->orderBy('scholarship_name')
+            ->get();
+
+        $centralArchivedScholarshipRows = Scholarship::withCount(['applications', 'scholars'])
+            ->where('is_active', false)
+            ->orderBy('scholarship_name')
+            ->get();
+
+        $centralScholarRows = Scholar::with(['user.campus', 'scholarship'])
+            ->latest()
+            ->get();
+
+        $centralApplicationRows = Application::with(['user.campus', 'scholarship'])
+            ->whereHas('user', function($query) {
+                $query->where('role', 'student');
+            })
+            ->latest()
+            ->get();
+
+        $centralStaffRows = User::where('role', 'sfao')
+            ->with('campus')
+            ->orderBy('name')
+            ->get();
+
+        $allReportsForReportsTab = Report::with(['campus', 'college', 'program', 'track'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($report) {
+                $report->report_type_display = $report->getReportTypeDisplayName();
+                $report->campus_name = $report->campus ? $report->campus->name : 'Unknown Campus';
+                $report->student_type_val = $report->student_type;
+                $report->college_name = $report->college ? $report->college->short_name : null;
+                $report->program_name = $report->program ? $report->program->name : null;
+                $report->track_name = $report->track ? $report->track->name : null;
+                $report->display_submitted_at = $report->submitted_at ? $report->submitted_at->format('M d, Y') : $report->created_at->format('M d, Y');
+                $report->display_reviewed_at = $report->reviewed_at ? $report->reviewed_at->format('M d, Y') : 'Recently';
+                if ($report->academic_year) {
+                    $report->academic_year_display = $report->academic_year;
+                } else {
+                    $date = $report->report_period_start ?? $report->created_at;
+                    $year = $date->year;
+                    $month = $date->month;
+                    if ($month >= 8) {
+                        $report->academic_year_display = $year . '-' . ($year + 1);
+                    } else {
+                        $report->academic_year_display = ($year - 1) . '-' . $year;
+                    }
+                }
+                return $report;
+            });
+
         // Get filter options for applications
         $campusOptions = $campuses->map(function($campus) {
             return [
@@ -1337,7 +1393,9 @@ class DashboardController extends Controller
             'sortBy', 'sortOrder', 'statusFilter', 'campusFilter', 'scholarshipFilter', 'scholars',
             'scholarsAll', 'scholarsNew', 'scholarsOld', 'qualifiedApplicants', 'endorsedApplicants',
             'rejectedApplicants', 'totalReports', 'academicYearOptions', 'academicYearFilter',
-            'campusColleges', 'allReportsForReportsTab'
+            'campusColleges', 'allReportsForReportsTab', 'headerNotifications', 'unreadNotificationCount',
+            'centralScholarshipRows', 'centralArchivedScholarshipRows', 'centralScholarRows',
+            'centralApplicationRows', 'centralStaffRows'
         ));
     }
 

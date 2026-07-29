@@ -97,24 +97,14 @@
     };
 
     $navActive = fn (...$tabs) => in_array($activeTab, $tabs, true) ? ' active' : '';
-    $headerNotifications = \App\Models\Notification::where('user_id', $user->id)->latest()->take(5)->get();
-    $unreadNotificationCount = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->count();
-    $centralScholarshipRows = \App\Models\Scholarship::withCount(['applications', 'scholars'])
-        ->where('is_active', true)
-        ->orderBy('scholarship_name')
-        ->get();
-    $centralArchivedScholarshipRows = \App\Models\Scholarship::withCount(['applications', 'scholars'])
-        ->where('is_active', false)
-        ->orderBy('scholarship_name')
-        ->get();
-    $centralScholarRows = \App\Models\Scholar::with(['user.campus', 'scholarship'])
-        ->latest()
-        ->get();
-    $centralApplicationRows = \App\Models\Application::with(['user.campus', 'scholarship'])
-        ->whereHas('user', fn ($query) => $query->where('role', 'student'))
-        ->latest()
-        ->get();
-    $centralStaffRows = \App\Models\User::where('role', 'sfao')->with('campus')->orderBy('name')->get();
+    $headerNotifications = $headerNotifications ?? collect();
+    $unreadNotificationCount = $unreadNotificationCount ?? 0;
+    $centralScholarshipRows = $centralScholarshipRows ?? collect();
+    $centralArchivedScholarshipRows = $centralArchivedScholarshipRows ?? collect();
+    $centralScholarRows = $centralScholarRows ?? collect();
+    $centralApplicationRows = $centralApplicationRows ?? collect();
+    $centralStaffRows = $centralStaffRows ?? collect();
+    $allReportsForReportsTab = $allReportsForReportsTab ?? collect();
 @endphp
 
 <!doctype html>

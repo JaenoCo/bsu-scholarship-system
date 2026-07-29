@@ -15,6 +15,10 @@ class User extends Authenticatable implements MustVerifyEmail
     protected static function booted()
     {
         static::creating(function (User $user) {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                return;
+            }
+
             $hasFirstName = \Illuminate\Support\Facades\Schema::hasColumn('users', 'first_name');
             $hasLastName = \Illuminate\Support\Facades\Schema::hasColumn('users', 'last_name');
 

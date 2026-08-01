@@ -48,5 +48,5 @@ EXPOSE 8080
 # This fixes your migration and startup logic cleanly
 CMD php artisan config:clear \
  && php artisan cache:clear \
- && php artisan migrate:fresh \
+ && php artisan migrate:fresh --seed --force \
  && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisor.conf

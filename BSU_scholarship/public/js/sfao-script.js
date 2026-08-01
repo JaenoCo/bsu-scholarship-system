@@ -2560,21 +2560,17 @@ window.sfaoDashboardState = function (config) {
 
         switchTab(nextTab) {
             nextTab = this.urlMapping[nextTab] || nextTab;
-            const clickedCurrentTab = this.tab === nextTab;
 
             this.tab = nextTab;
-
-            if (clickedCurrentTab) {
-                localStorage.setItem("sfaoTab", nextTab);
-                this.updateUrl(nextTab);
-                this.syncDropdowns(nextTab);
-                this.$dispatch("tab-changed", nextTab);
-                window.dispatchEvent(
-                    new CustomEvent("sfao-filter-tab-selected", {
-                        detail: nextTab,
-                    }),
-                );
-            }
+            localStorage.setItem("sfaoTab", nextTab);
+            this.updateUrl(nextTab);
+            this.syncDropdowns(nextTab);
+            this.$dispatch("tab-changed", nextTab);
+            window.dispatchEvent(
+                new CustomEvent("sfao-filter-tab-selected", {
+                    detail: nextTab,
+                }),
+            );
         },
 
         updateUrl(currentTab) {
@@ -2818,41 +2814,50 @@ window.sfaoApplicantsFilter = function (config) {
         init() {
             this.$watch("filters.sort_by", (value) => {
                 localStorage.setItem("sfaoApplicantsSortBy", value);
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.sort_order", (value) => {
                 localStorage.setItem("sfaoApplicantsSortOrder", value);
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.campus", (value) => {
                 localStorage.setItem("sfaoApplicantsCampus", value);
                 this.updateColleges();
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.college", (value) => {
                 localStorage.setItem("sfaoApplicantsCollege", value);
                 this.updatePrograms();
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.program", (value) => {
                 localStorage.setItem("sfaoApplicantsProgram", value);
                 this.updateTracks();
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.track", (value) => {
                 localStorage.setItem("sfaoApplicantsTrack", value);
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.academic_year", (value) => {
                 localStorage.setItem("sfaoApplicantsAcademicYear", value);
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.scholarship", (value) => {
                 localStorage.setItem("sfaoApplicantsScholarship", value);
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.status", (value) => {
                 localStorage.setItem("sfaoApplicantsStatus", value);
+                this.updateQueryParams();
                 this.fetchApplicants();
             });
 
@@ -2863,6 +2868,12 @@ window.sfaoApplicantsFilter = function (config) {
             });
 
             window.addEventListener("sfao-filter-tab-selected", (event) => {
+                if (event.detail && event.detail.startsWith("applicants")) {
+                    this.handleTabChange(event.detail);
+                }
+            });
+
+            window.addEventListener("tab-changed", (event) => {
                 if (event.detail && event.detail.startsWith("applicants")) {
                     this.handleTabChange(event.detail);
                 }
@@ -3115,6 +3126,9 @@ window.sfaoApplicantsFilter = function (config) {
             this.filters.track = "all";
             this.filters.academic_year = "all";
             this.filters.status = "all";
+            localStorage.setItem("sfaoApplicantsStatus", "all");
+            this.updateQueryParams();
+            this.fetchApplicants();
         },
 
         getHeaderTitle() {
@@ -3174,6 +3188,23 @@ window.sfaoApplicantsFilter = function (config) {
             return desc;
         },
 
+        updateQueryParams() {
+            const url = new URL(window.location);
+
+            url.searchParams.set("tab", this.currentTab);
+            url.searchParams.set("sort_by", this.filters.sort_by);
+            url.searchParams.set("sort_order", this.filters.sort_order);
+            url.searchParams.set("campus_filter", this.filters.campus);
+            url.searchParams.set("college_filter", this.filters.college);
+            url.searchParams.set("program_filter", this.filters.program);
+            url.searchParams.set("track_filter", this.filters.track);
+            url.searchParams.set("academic_year_filter", this.filters.academic_year);
+            url.searchParams.set("scholarship_filter", this.filters.scholarship);
+            url.searchParams.set("status_filter", this.filters.status);
+
+            window.history.replaceState({}, "", url);
+        },
+
         handleTabChange(tab) {
             this.currentTab = tab;
 
@@ -3183,6 +3214,8 @@ window.sfaoApplicantsFilter = function (config) {
                 this.filters.status = tab.replace("applicants-", "");
             }
 
+            localStorage.setItem("sfaoApplicantsStatus", this.filters.status);
+            this.updateQueryParams();
             this.fetchApplicants();
         },
     };

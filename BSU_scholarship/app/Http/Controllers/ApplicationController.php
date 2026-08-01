@@ -35,6 +35,24 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class ApplicationController extends Controller
 {
     /**
+     * Shared status sort priority used whenever we need a single
+     * representative status for a student who may have multiple
+     * applications. Mirrors the "highest status wins" rule used
+     * for badge counts elsewhere in this controller.
+     *
+     * @return array<string,int>
+     */
+    private function statusSortPriority(): array
+    {
+        return [
+            'approved' => 1,
+            'in_progress' => 2,
+            'pending' => 3,
+            'rejected' => 4,
+        ];
+    }
+
+    /**
      * Helper method to handle application status updates for both SFAO and Central roles.
      */
     private function updateApplicationStatus($id, $status, $role)
@@ -262,12 +280,35 @@ class ApplicationController extends Controller
     }
 
     // 6. Sorting
-    $orderCol = match ($sortBy) {
-        'email' => 'email',
-        'date_joined' => 'created_at',
-        default => 'name',
-    };
-    $query->orderBy($orderCol, $sortOrder);
+    // NOTE: previously 'status' fell through to the default (name) case because the
+    // applications table was never joined/considered here, so a status sort was
+    // silently ignored. We now support it via a correlated subquery that resolves
+    // each student's "best" application status using the standard priority order
+    // (approved > in_progress > pending > rejected) — the same rule used for the
+    // badge counts below.
+    if ($sortBy === 'status') {
+        $statusCaseSql = "CASE status
+                WHEN 'approved' THEN 1
+                WHEN 'in_progress' THEN 2
+                WHEN 'pending' THEN 3
+                WHEN 'rejected' THEN 4
+                ELSE 5 END";
+
+        $query->addSelect([
+            'status_priority' => Application::selectRaw($statusCaseSql)
+                ->whereColumn('applications.user_id', 'users.id')
+                ->orderByRaw($statusCaseSql)
+                ->limit(1),
+        ]);
+        $query->orderBy('status_priority', $sortOrder);
+    } else {
+        $orderCol = match ($sortBy) {
+            'email' => 'email',
+            'date_joined' => 'created_at',
+            default => 'name',
+        };
+        $query->orderBy($orderCol, $sortOrder);
+    }
 
     // 7. Paginate
     $paginatedStudents = $query->paginate(10, ['*'], 'page_applicants');
@@ -434,8 +475,26 @@ class ApplicationController extends Controller
             $q->where('status', 'approved');
         });
 
+        // Precompute a representative application status per student, used only
+        // for sorting the "status" column below. Previously the applications
+        // table was never pulled into this part of the dashboard at all, so a
+        // status-based sort request had nothing to sort by and silently fell
+        // back to sorting by name. Priority mirrors the "highest status wins"
+        // rule used for badge counts elsewhere: approved > in_progress > pending > rejected.
+        $statusPriority = $this->statusSortPriority();
+        $sortStatusMap = Application::whereHas('user', function ($q) use ($campusIds) {
+                $q->whereIn('campus_id', $campusIds);
+            })
+            ->get(['user_id', 'status'])
+            ->groupBy('user_id')
+            ->map(function ($apps) use ($statusPriority) {
+                return $apps->pluck('status')
+                    ->sortBy(fn ($status) => $statusPriority[$status] ?? 999)
+                    ->first();
+            });
+
         // Helper to process (fetch, sort, paginate)
-        $processStudents = function ($query, $pageName) use ($sortBy, $sortOrder, $request) {
+        $processStudents = function ($query, $pageName) use ($sortBy, $sortOrder, $request, $sortStatusMap, $statusPriority) {
             $students = $query->select(
                 'users.id as student_id',
                 'users.name',
@@ -448,7 +507,7 @@ class ApplicationController extends Controller
                 ->groupBy('users.id', 'users.name', 'users.email', 'users.created_at', 'users.campus_id')
                 ->get();
 
-            $students = $students->sortBy(function ($student) use ($sortBy) {
+            $students = $students->sortBy(function ($student) use ($sortBy, $sortStatusMap, $statusPriority) {
                 switch ($sortBy) {
                     case 'name':
                         return $student->name;
@@ -460,6 +519,9 @@ class ApplicationController extends Controller
                         return $student->last_uploaded;
                     case 'documents_count':
                         return $student->documents_count;
+                    case 'status':
+                        $status = $sortStatusMap->get($student->student_id);
+                        return $statusPriority[$status] ?? 999;
                     default:
                         return $student->name;
                 }
@@ -1088,9 +1150,6 @@ class ApplicationController extends Controller
     // =====================================================
 
     /**
-     * Approve application (SFAO)
-     */
-    /**
      * Approve application (SFAO) - Sets to in_progress for admin final review
      */
     public function sfaoApproveApplication($id)
@@ -1673,6 +1732,7 @@ class ApplicationController extends Controller
         $scholarQuery = Scholar::query();
 
         // Apply time period filter
+        $dateCondition = null;
         if ($timePeriod !== 'all') {
             $dateCondition = $this->getDateCondition($timePeriod);
             if ($dateCondition) {
@@ -1945,8 +2005,10 @@ class ApplicationController extends Controller
             $campusNewScholars = (clone $campusScholarsQuery)->where('type', 'new')->count();
             $campusOldScholars = (clone $campusScholarsQuery)->where('type', 'old')->count();
 
-            // Get total students for this campus
-            $campusStudents = User::where('role', 'student')
+            // Get total students for this campus (uses a locally scoped variable so it
+            // no longer overwrites the outer $campusStudents array used for the
+            // overall campus chart above).
+            $campusStudentsCount = User::where('role', 'student')
                 ->where('campus_id', $campus->id)
                 ->count();
 
@@ -1965,11 +2027,6 @@ class ApplicationController extends Controller
             $campusFemaleStudents = (clone $campusScholarsQuery)->whereHas('user', function ($q) {
                 $q->where('sex', 'female');
             })->count();
-
-            // Get year level statistics for this campus (Scholars)
-            $campusYearLevelStats = (clone $campusScholarsQuery)->whereHas('user', function ($q) use ($campus) {
-                $q->where('campus_id', $campus->id); // Redundant if query has it, but safe
-            })->first(); // Wait, I need to join to get year_level or use whereHas logic.
 
             // Better approach for Campus Loop: Query Users who are Scholars in this Campus
             $campusScholarUsers = User::where('campus_id', $campus->id)
@@ -2045,14 +2102,14 @@ class ApplicationController extends Controller
             $campusApplicationStats[] = [
                 'campus_id' => $campus->id,
                 'campus_name' => $campus->name,
-                'total_students' => $campusStudents,
+                'total_students' => $campusStudentsCount,
                 'total_applications' => $campusApplications->count(),
                 'approved_applications' => $campusApplications->where('status', 'approved')->count(),
                 'rejected_applications' => $campusApplications->where('status', 'rejected')->count(),
                 'pending_applications' => $campusApplications->where('status', 'pending')->count(),
                 'claimed_applications' => $campusApplications->where('status', 'claimed')->count(),
                 'students_with_applications' => $campusStudentsWithApplications,
-                'students_without_applications' => $campusStudents - $campusStudentsWithApplications,
+                'students_without_applications' => $campusStudentsCount - $campusStudentsWithApplications,
                 'approval_rate' => $campusApplications->count() > 0 ?
                     round(($campusApplications->where('status', 'approved')->count() / $campusApplications->count()) * 100, 2) : 0,
                 // Scholar Stats
@@ -2145,8 +2202,7 @@ class ApplicationController extends Controller
         ];
 
         // Data required by the Alpine.js frontend for dropdowns, charts, and
-// client-side fallback counting. Previously missing — this is why the
-// Statistics tab's filters and metric cards had nothing to work with.
+        // client-side fallback counting.
         $rawStudentQuery = User::where('role', 'student');
         if ($campusId !== 'all') {
             $rawStudentQuery->where('campus_id', $campusId);
@@ -2679,7 +2735,7 @@ class ApplicationController extends Controller
         $notificationMessage = match ($action) {
             'approve' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been approved by SFAO. It is now forwarded to Central Administration for final review.',
             'reject' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been rejected based on document evaluation.',
-            'approve', 'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' is now in progress after SFAO evaluation.',
+            'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' is now in progress after SFAO evaluation.',
             default => 'Your application status has been updated.'
         };
 
@@ -2715,7 +2771,7 @@ class ApplicationController extends Controller
         $message = match ($action) {
             'approve' => 'Application approved and forwarded to Central Administration for final review.',
             'reject' => 'Application rejected successfully based on document evaluation.',
-            'approve', 'pending' => 'Application moved to in progress successfully after SFAO evaluation.',
+            'pending' => 'Application moved to in progress successfully after SFAO evaluation.',
             default => 'Application status updated successfully.'
         };
 
@@ -2744,10 +2800,6 @@ class ApplicationController extends Controller
         $submittedDocuments = StudentSubmittedDocument::where('user_id', $user->id)
             ->where('scholarship_id', $scholarship->id)
             ->get();
-
-
-        // DEBUG: Verify the user being passed
-        // dd('DEBUG: checking user', $user->toArray(), 'Is this the admin?', $user->name);
 
         return view('central.endorsed.validate', compact('application', 'user', 'scholarship', 'submittedDocuments'));
     }

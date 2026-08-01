@@ -23,7 +23,8 @@
         programTracks: @json($analytics['program_tracks'] ?? []),
         sfaoCampusName: @json($sfaoCampus->name),
         extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck('name'))
-     })'>
+     })'
+     x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value));">
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             <span x-text="getHeaderTitle()" class="flex items-center gap-2"></span>
@@ -137,16 +138,17 @@
             <div class="flex-1 min-w-[150px]">
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Academic Year</label>
                 <div class="relative">
-                    <select x-model="filters.academic_year" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
-                        <option value="all">All Years</option>
-                        @foreach($academicYears ?? [] as $year)
-                            <option value="{{ $year }}">{{ $year }}</option>
-                        @endforeach
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
-                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <select x-model="filters.academic_year" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                            <option value="all">All Years</option>
+                            @foreach($academicYears ?? [] as $year)
+                                <option value="{{ $year }}">{{ $year }}</option>
+                            @endforeach
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
                     </div>
-                </div>
+                    <button type="button" @click="filters.academic_year = 'all'" class="mt-2 text-xs font-semibold text-bsu-red hover:text-red-700 focus:outline-none">Select All Years</button>
             </div>
 
             <!-- Status -->
@@ -190,6 +192,8 @@
             Alpine.data('sfaoApplicantsFilter', () => ({
                 activeTab: @json(str_replace('_', '-', $activeTab ?? 'applicants')),
                 currentTab: @json(str_replace('_', '-', $activeTab ?? 'applicants')),
+                loading: false,
+                suspendFetch: false,
                 filters: {
                     sort_by: localStorage.getItem('sfaoApplicantsSortBy') || 'name',
                     sort_order: localStorage.getItem('sfaoApplicantsSortOrder') || 'asc',
@@ -215,34 +219,42 @@
 
                 init() {
                     this.$watch('filters.sort_by', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsSortBy', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.sort_order', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsSortOrder', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.campus', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsCampus', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.status', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsStatus', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.college', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsCollege', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.program', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsProgram', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.track', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsTrack', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.academic_year', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsAcademicYear', value);
                         this.fetchApplicants();
                     });
@@ -252,7 +264,7 @@
                 },
 
                 fetchApplicants(page = 1) {
-                    const params = new URLSearchParams({
+                    const params = {
                         tab: this.currentTab,
                         sort_by: this.filters.sort_by,
                         sort_order: this.filters.sort_order,
@@ -263,9 +275,13 @@
                         academic_year_filter: this.filters.academic_year,
                         status_filter: this.filters.status,
                         page_applicants: page
-                    });
+                    };
+                    const queryString = Object.entries(params)
+                        .map(([key, value]) => encodeURIComponent(key) + '=' + encodeURIComponent(value))
+                        .join('&');
 
-                    fetch(`{{ route('sfao.applicants.list') }}?${params.toString()}`, {
+                    this.loading = true;
+                    fetch(`{{ route('sfao.applicants.list') }}?${queryString}`, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     })
                     .then(response => response.json())
@@ -274,23 +290,28 @@
                         this.counts = data.counts;
                         this.updatePaginationLinks();
                     })
-                    .catch(error => console.error('Error fetching applicants:', error));
+                    .catch(error => console.error('Error fetching applicants:', error))
+                    .finally(() => {
+                        this.loading = false;
+                    });
                 },
 
                 updatePaginationLinks() {
                     const container = document.getElementById('applicants-list-container');
-                    const links = container.querySelectorAll('a.page-link'); 
+                    const links = container.querySelectorAll('a.page-link');
                     links.forEach(link => {
                         link.addEventListener('click', (e) => {
                             e.preventDefault();
-                            const url = new URL(link.href);
-                            const page = url.searchParams.get('page_applicants') || 1;
+                            const href = link.getAttribute('href') || '';
+                            const match = href.match(/[?&]page_applicants=(\d+)/);
+                            const page = match ? Number(match[1]) : 1;
                             this.fetchApplicants(page);
                         });
                     });
                 },
 
                 resetFilters() {
+                    this.suspendFetch = true;
                     this.filters.sort_by = 'name';
                     this.filters.sort_order = 'asc';
                     this.filters.campus = 'all';
@@ -299,6 +320,8 @@
                     this.filters.track = 'all';
                     this.filters.academic_year = 'all';
                     this.filters.status = 'all';
+                    this.suspendFetch = false;
+                    this.fetchApplicants();
                 },
 
                 getHeaderTitle() {

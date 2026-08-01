@@ -1,13 +1,25 @@
 #!/bin/sh
+set -e
 
-echo "Starting Laravel..."
+printf "Starting Laravel container entrypoint...\n"
 
-# Run migrations safely
-php artisan migrate:fresh --seed --force
+if [ -f "/var/www/html/.env" ]; then
+    printf "Using .env configuration\n"
+else
+    printf "WARNING: .env not found, ensure env vars are provided by Render.\n"
+fi
 
-# Clear caches
-php artisan config:clear
-php artisan cache:clear
+printf "Running database migrations...\n"
+php artisan migrate --force
 
-echo "Starting server..."
-php artisan serve --host=0.0.0.0 --port=10000
+printf "Caching configuration and routes...\n"
+php artisan config:cache --force
+php artisan route:cache --force
+php artisan view:cache --force
+
+printf "Starting supervisor...\n"
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+else
+    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisor.conf
+fi

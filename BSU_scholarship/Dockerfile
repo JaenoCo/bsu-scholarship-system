@@ -1,52 +1,48 @@
-FROM php:8.2-fpm
+FROM php:8.2-fpm AS base
 
-# Install system dependencies, Nginx, and Supervisor
-# Added libzip-dev here
-RUN apt-get update && apt-get install -y \
-    git curl unzip zip \
-    libpq-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    nginx \
-    supervisor \
-    nodejs \
-    npm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl unzip zip ca-certificates \
+    libpq-dev libpng-dev libjpeg-dev libfreetype6-dev libonig-dev libxml2-dev libzip-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Configure and install PHP extensions
-# Added zip here
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd zip
 
-# Copy Composer from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Copy project files
+FROM base AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+COPY package*.json ./
+RUN npm install --silent
+
 COPY . .
+RUN npm run build
+RUN composer dump-autoload --optimize --no-interaction
 
-# Install dependencies and build frontend assets
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-RUN npm install && npm run build
+FROM base AS runtime
 
-# Copy configuration files (Make sure these match your project)
+RUN apt-get update && apt-get install -y --no-install-recommends nginx supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /var/www/html
+
+COPY --from=builder /var/www/html /var/www/html
 COPY .docker/nginx.conf /etc/nginx/sites-available/default
 COPY .docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
+COPY start.sh /var/www/html/start.sh
 
-# Set production permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+RUN chmod +x /var/www/html/start.sh \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Render automatically maps its traffic here; EXPOSE is optional but good practice
 EXPOSE 8080
-
-# This fixes your migration and startup logic cleanly
-CMD php artisan config:clear \
- && php artisan cache:clear \
- && php artisan migrate:fresh --seed --force \
- && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisor.conf
+ENTRYPOINT ["/var/www/html/start.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisor.conf"]

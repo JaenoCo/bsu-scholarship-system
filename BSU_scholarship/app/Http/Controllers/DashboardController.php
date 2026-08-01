@@ -361,19 +361,21 @@ class DashboardController extends Controller
                 $startYear = $app->month >= 8 ? (int)$app->year : (int)$app->year - 1;
                 return $startYear . '-' . ($startYear + 1);
             })
-            ->unique()
-            ->sortDesc()
-            ->values();
+            ->unique();
 
-        // Ensure Current AY is present
+        // Ensure current and previous AY options are always available
         $currentMonth = date('n');
         $currentYear = date('Y');
         $currentAYStart = $currentMonth >= 8 ? $currentYear : $currentYear - 1;
         $currentAY = $currentAYStart . '-' . ($currentAYStart + 1);
-        
-        if (!$academicYears->contains($currentAY)) {
-            $academicYears->prepend($currentAY);
-        }
+        $previousAY = ($currentAYStart - 1) . '-' . $currentAYStart;
+
+        $academicYears = $academicYears
+            ->push($currentAY)
+            ->push($previousAY)
+            ->unique()
+            ->sortDesc()
+            ->values();
 
         // 5. Application Forms
         $forms = \App\Models\ApplicationForm::with(['campus', 'uploader'])

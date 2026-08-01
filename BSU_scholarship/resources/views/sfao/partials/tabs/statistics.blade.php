@@ -101,7 +101,7 @@
             <!-- Key Metrics Overview -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <!-- Total Applications -->
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+            <div @click="openStudentDetails('total')" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg cursor-pointer hover:ring-1 hover:ring-blue-500 transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -120,7 +120,7 @@
             </div>
 
             <!-- Approved Applications -->
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+            <div @click="openStudentDetails('approved')" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg cursor-pointer hover:ring-1 hover:ring-green-500 transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -139,7 +139,7 @@
             </div>
 
             <!-- Pending Applications -->
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+            <div @click="openStudentDetails('active')" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg cursor-pointer hover:ring-1 hover:ring-yellow-500 transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -158,7 +158,7 @@
             </div>
 
             <!-- Approval Rate -->
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+            <div @click="openStudentDetails('approvalRate')" class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg cursor-pointer hover:ring-1 hover:ring-red-500 transition">
                 <div class="p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -169,7 +169,8 @@
                         <div class="ml-5 w-0 flex-1">
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Approval Rate</dt>
-                                <dd class="text-lg font-medium text-gray-900 dark:text-white" x-text="(filteredData.approval_rate || 0) + '%'"></dd>
+                                <dd class="text-lg font-medium text-gray-900 dark:text-white" x-text="(filteredData.approval_rate || 0) + '%'">
+                                </dd>
                             </dl>
                         </div>
                     </div>

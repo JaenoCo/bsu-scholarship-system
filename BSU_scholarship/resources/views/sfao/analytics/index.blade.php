@@ -188,17 +188,17 @@
             <!-- Summary Cards for Scholarships Tab -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                  <!-- Total -->
-                 <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600">
+                 <div @click="openStudentDetails('comparison', 'all')" class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600 cursor-pointer hover:ring-1 hover:ring-gray-300 transition">
                      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Total</p>
                      <p class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.counts?.total || 0"></p>
                  </div>
                  <!-- Applicants -->
-                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800">
+                 <div @click="openStudentDetails('comparison', 'applicants')" class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 cursor-pointer hover:ring-1 hover:ring-blue-300 transition">
                      <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Applicants</p>
                      <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="filteredData.counts?.applicantsCount || 0"></p>
                  </div>
                  <!-- Scholars -->
-                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                 <div @click="openStudentDetails('comparison', 'scholars')" class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 cursor-pointer hover:ring-1 hover:ring-green-300 transition">
                      <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Scholars</p>
                      <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.counts?.scholarsCount || 0"></p>
                  </div>
@@ -243,27 +243,27 @@
             <!-- Dynamic Summary Counts -->
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                  <!-- Total -->
-                 <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600">
+                 <div @click="openStudentDetails('total')" class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600 cursor-pointer hover:ring-1 hover:ring-gray-300 transition">
                      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Total</p>
                      <p class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.counts?.total || 0"></p>
                  </div>
                  <!-- Approved -->
-                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                 <div @click="openStudentDetails('approved')" class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 cursor-pointer hover:ring-1 hover:ring-green-300 transition">
                      <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Approved</p>
                      <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.counts?.approved || 0"></p>
                  </div>
                  <!-- Rejected -->
-                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800">
+                 <div @click="openStudentDetails('rejected')" class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800 cursor-pointer hover:ring-1 hover:ring-red-300 transition">
                      <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Rejected</p>
                      <p class="text-xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.counts?.rejected || 0"></p>
                  </div>
                  <!-- Active / Pending -->
-                 <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800">
+                 <div @click="openStudentDetails('active')" class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800 cursor-pointer hover:ring-1 hover:ring-yellow-300 transition">
                      <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Pending/In Progress</p>
                      <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.counts?.active || 0"></p>
                  </div>
                  <!-- Rate -->
-                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800">
+                 <div @click="openStudentDetails('approvalRate')" class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 cursor-pointer hover:ring-1 hover:ring-blue-300 transition">
                      <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Approval Rate</p>
                      <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="(filteredData.counts?.approvalRate || '0.0') + '%'"></p>
                  </div>
@@ -307,3 +307,61 @@
     </div>
 
 </div>
+
+    <!-- Student Details Modal -->
+    <div x-show="studentDetails.open" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         class="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/50" @click="closeStudentDetails()"></div>
+        <div class="relative max-w-4xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white" x-text="studentDetails.title"></h3>
+                <button @click="closeStudentDetails()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="p-4 max-h-[60vh] overflow-auto">
+                <template x-if="!studentDetails.rows || studentDetails.rows.length === 0">
+                    <div class="text-center text-sm text-gray-500 dark:text-gray-400 py-6">No students to display for this selection.</div>
+                </template>
+
+                <template x-if="studentDetails.rows && studentDetails.rows.length > 0">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                        <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Student #</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Name</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Campus</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">College</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Program</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Scholarship</th>
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+                            <template x-for="row in studentDetails.rows" :key="row.key">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200" x-text="row.studentNumber"></td>
+                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200" x-text="row.name"></td>
+                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200" x-text="row.campus"></td>
+                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200" x-text="row.college"></td>
+                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200" x-text="row.program"></td>
+                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200" x-text="row.scholarship"></td>
+                                    <td class="px-3 py-2 text-gray-800 dark:text-gray-200" x-text="row.status"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </template>
+            </div>
+            <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2">
+                <button @click="isAnonymized = !isAnonymized; studentDetails.rows = studentDetails.rows.map(r => ({...r, name: isAnonymized ? r.name : r.name}))" class="px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-800 text-sm">Toggle Anonymize</button>
+                <button @click="closeStudentDetails()" class="px-4 py-2 rounded-md bg-bsu-red text-white">Close</button>
+            </div>
+        </div>
+    </div>

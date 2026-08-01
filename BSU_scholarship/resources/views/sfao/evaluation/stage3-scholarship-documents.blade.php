@@ -124,7 +124,7 @@
                                                            class="peer sr-only"
                                                            {{ $document->evaluation_status === $value ? 'checked' : '' }}
                                                            required>
-                                                    <span class="block rounded-md border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 transition hover:bg-gray-50 peer-focus:ring-2 peer-focus:ring-bsu-red dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 {{ $option['class'] }}">
+                                                    <span class="block rounded-md border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 transform transition-all duration-150 peer-checked:scale-105 peer-checked:shadow-lg peer-checked:ring-2 peer-checked:ring-offset-1 peer-focus:ring-2 peer-focus:ring-bsu-red dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 {{ $option['class'] }}">
                                                         {{ $option['label'] }}
                                                     </span>
                                                 </label>

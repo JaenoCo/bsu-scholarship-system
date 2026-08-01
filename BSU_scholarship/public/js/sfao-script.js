@@ -9,6 +9,42 @@ window.addEventListener("pageshow", function (event) {
     }
 });
 
+// Robust auto-refresh: reload after a period and when returning from background
+(function () {
+    try {
+        const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+        const VISIBILITY_GRACE_MS = 2 * 60 * 1000; // 2 minutes
+        let hiddenAt = null;
+
+        document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "hidden") {
+                hiddenAt = Date.now();
+            } else if (document.visibilityState === "visible") {
+                if (hiddenAt && Date.now() - hiddenAt > VISIBILITY_GRACE_MS) {
+                    try {
+                        window.location.reload();
+                    } catch (e) {
+                        console.error("Auto-refresh failed on visibilitychange:", e);
+                    }
+                }
+                hiddenAt = null;
+            }
+        });
+
+        setInterval(function () {
+            try {
+                if (document.visibilityState === "visible") {
+                    window.location.reload();
+                }
+            } catch (e) {
+                console.error("Auto-refresh interval error:", e);
+            }
+        }, AUTO_REFRESH_INTERVAL_MS);
+    } catch (err) {
+        console.error("Failed to initialize auto-refresh:", err);
+    }
+})();
+
 // SFAO Statistics Tab Component
 window.sfaoStatisticsTab = function (config = {}) {
     // Store chart instances globally or in a scoped tracking object (non-reactive)

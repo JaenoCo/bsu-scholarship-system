@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 COPY composer.json composer.lock ./
+COPY artisan ./
+COPY bootstrap/app.php bootstrap/app.php
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
 COPY package*.json ./

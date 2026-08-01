@@ -13,9 +13,9 @@ printf "Running database migrations...\n"
 php artisan migrate --force
 
 printf "Caching configuration and routes...\n"
-php artisan config:cache --force
-php artisan route:cache --force
-php artisan view:cache --force
+php artisan config:cache 
+php artisan route:cache 
+php artisan view:cache 
 
 printf "Starting supervisor...\n"
 if [ "$#" -gt 0 ]; then

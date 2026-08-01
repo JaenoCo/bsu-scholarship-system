@@ -370,7 +370,7 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
 
 // SFAO password setup after email verification
 Route::get('/sfao/password-setup', [UserController::class, 'showSFAOPasswordSetup'])->name('sfao.password.setup');
-Route::post('/sfao/password-setup', [UserController::class, 'setupSFAOPassword'])->name('sfao.password.setup');
+Route::post('/sfao/password-setup', [UserController::class, 'setupSFAOPassword'])->name('sfao.password.setup.submit');
 
 // =====================================================
 // NOTIFICATION ROUTES

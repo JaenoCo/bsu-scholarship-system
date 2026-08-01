@@ -17,16 +17,20 @@ FROM base AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
+# 1. Install composer dependencies without running artisan scripts
 COPY composer.json composer.lock ./
-COPY artisan ./
-COPY bootstrap/app.php bootstrap/app.php
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --no-scripts --optimize-autoloader --no-interaction --prefer-dist
 
+# 2. Install NPM dependencies
 COPY package*.json ./
 RUN npm install --silent
 
+# 3. Copy all application code
 COPY . .
+
+# 4. Build frontend assets and run package discovery/autoloading safely now that all code exists
 RUN npm run build
+RUN php artisan package:discover --ansi
 RUN composer dump-autoload --optimize --no-interaction
 
 FROM base AS runtime

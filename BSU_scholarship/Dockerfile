@@ -28,10 +28,8 @@ RUN npm install --silent
 # 3. Copy all application code
 COPY . .
 
-# 4. Build frontend assets and run package discovery/autoloading safely now that all code exists
+# 4. Build Vite/Mix frontend assets
 RUN npm run build
-RUN php artisan package:discover --ansi
-RUN composer dump-autoload --optimize --no-interaction
 
 FROM base AS runtime
 
@@ -40,12 +38,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends nginx superviso
 
 WORKDIR /var/www/html
 
+# Copy application source from builder stage
 COPY --from=builder /var/www/html /var/www/html
+
+# Copy Docker configuration files
 COPY .docker/nginx.conf /etc/nginx/sites-available/default
 COPY .docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY start.sh /var/www/html/start.sh
 
-RUN chmod +x /var/www/html/start.sh \
+# Ensure storage directories exist, assign permissions, and make start.sh executable
+RUN mkdir -p /var/www/html/storage/framework/views \
+    /var/www/html/storage/framework/sessions \
+    /var/www/html/storage/framework/cache \
+    /var/www/html/bootstrap/cache \
+    && chmod +x /var/www/html/start.sh \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 

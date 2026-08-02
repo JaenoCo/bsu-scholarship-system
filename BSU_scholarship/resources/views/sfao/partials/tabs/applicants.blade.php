@@ -50,6 +50,24 @@
                 </div>
             </div>
 
+            <!-- Search -->
+            <div class="flex-1 min-w-[240px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Search</label>
+                <div class="relative">
+                    <input
+                        x-model.debounce.300ms="filters.search"
+                        type="search"
+                        placeholder="Search name, email, scholarship..."
+                        class="block w-full rounded-full border border-red-500 dark:border-red-500 bg-white dark:bg-gray-700 px-4 py-2 text-base text-gray-900 dark:text-white focus:border-bsu-red focus:outline-none focus:ring-bsu-red focus:ring-opacity-40 sm:text-sm"
+                    />
+                    <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500 dark:text-gray-400">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
             <!-- Campus -->
             <div class="flex-1 min-w-[140px]">
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Campus</label>
@@ -93,7 +111,8 @@
                     campus: localStorage.getItem('sfaoApplicantsCampus') || 'all',
                     status: (@json(str_replace('_', '-', $activeTab ?? 'applicants')).startsWith('applicants-')
                         ? @json(str_replace('_', '-', $activeTab ?? 'applicants')).replace('applicants-', '')
-                        : (localStorage.getItem('sfaoApplicantsStatus') || 'all'))
+                        : (localStorage.getItem('sfaoApplicantsStatus') || 'all')),
+                    search: localStorage.getItem('sfaoApplicantsSearch') || ''
                 },
                 counts: {
                     total: {{ $studentsAll->total() }},
@@ -105,6 +124,7 @@
                 campusOptions: @json($campusOptions),
                 sfaoCampusName: '{{ $sfaoCampus->name }}',
                 extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck('name')),
+                searchDebounceTimer: null,
 
                 init() {
                     this.$watch('filters.sort_by', (value) => {
@@ -118,6 +138,13 @@
                     this.$watch('filters.campus', (value) => {
                         localStorage.setItem('sfaoApplicantsCampus', value);
                         this.fetchApplicants();
+                    });
+                    this.$watch('filters.search', (value) => {
+                        localStorage.setItem('sfaoApplicantsSearch', value);
+                        clearTimeout(this.searchDebounceTimer);
+                        this.searchDebounceTimer = setTimeout(() => {
+                            this.fetchApplicants();
+                        }, 300);
                     });
                     this.$watch('filters.status', (value) => {
                         localStorage.setItem('sfaoApplicantsStatus', value);
@@ -135,6 +162,7 @@
                         sort_order: this.filters.sort_order,
                         campus_filter: this.filters.campus,
                         status_filter: this.filters.status,
+                        search: this.filters.search ?? '',
                         page_applicants: page
                     });
 
@@ -168,6 +196,7 @@
                     this.filters.sort_order = 'asc';
                     this.filters.campus = 'all';
                     this.filters.status = 'all';
+                    this.filters.search = '';
                 },
 
                 getHeaderTitle() {

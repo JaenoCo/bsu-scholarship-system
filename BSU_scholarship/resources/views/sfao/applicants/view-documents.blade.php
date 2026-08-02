@@ -65,12 +65,14 @@
                 @endforeach
             </ul>
 
-            <!-- Evaluate Button -->
-            <div class="mt-6 text-center">
-                <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg">
-                    Evaluate
-                </button>
-            </div>
+            @if(session('role') === 'sfao')
+                <!-- Evaluate Button -->
+                <div class="mt-6 text-center">
+                    <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg">
+                        Evaluate
+                    </button>
+                </div>
+            @endif
         @endif
     </main>
 

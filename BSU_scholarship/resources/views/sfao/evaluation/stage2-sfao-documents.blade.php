@@ -102,20 +102,24 @@
                                     </div>
                                 </div>
                                 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Evaluation Status
-                                        </label>
-                                        <select name="evaluations[{{ $document->id }}][status]" 
-                                                class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-bsu-red focus:border-bsu-red" required>
-                                            <option value="">Select Status</option>
-                                            <option value="approved" {{ $document->evaluation_status === 'approved' ? 'selected' : '' }}>Approved</option>
-                                            <option value="pending" {{ $document->evaluation_status === 'pending' ? 'selected' : '' }}>Pending</option>
-                                            <option value="rejected" {{ $document->evaluation_status === 'rejected' ? 'selected' : '' }}>Rejected</option>
-                                        </select>
+                                <div class="grid grid-cols-1 gap-4">
+                                    <fieldset class="space-y-3">
+                                        <legend class="block text-sm font-medium text-gray-700 dark:text-gray-300">Evaluation Status</legend>
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            @foreach(['approved' => 'Approved', 'pending' => 'Pending', 'rejected' => 'Rejected'] as $value => $label)
+                                                <label class="cursor-pointer rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 flex items-center gap-3 hover:border-bsu-red transition-colors">
+                                                    <input type="radio"
+                                                           name="evaluations[{{ $document->id }}][status]"
+                                                           value="{{ $value }}"
+                                                           {{ $document->evaluation_status === $value ? 'checked' : '' }}
+                                                           required
+                                                           class="form-radio text-bsu-red focus:ring-bsu-red" />
+                                                    <span class="text-sm text-gray-700 dark:text-gray-200">{{ $label }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
                                         <input type="hidden" name="evaluations[{{ $document->id }}][document_id]" value="{{ $document->id }}">
-                                    </div>
+                                    </fieldset>
                                 </div>
                                 
                                 @if($document->evaluated_at)

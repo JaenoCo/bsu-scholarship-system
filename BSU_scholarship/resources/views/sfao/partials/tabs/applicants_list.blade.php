@@ -19,141 +19,147 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">#</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Student</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Scholarship</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Application Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Documents</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Applied Scholarships</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Grant Count</th>
                         <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    @foreach($students as $index => $student)
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                {{ $students->firstItem() + $index }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="flex-shrink-0 h-10 w-10">
-                                        <div class="h-10 w-10 rounded-full bg-bsu-red flex items-center justify-center">
-                                            <span class="text-sm font-medium text-white">
-                                                {{ strtoupper(substr($student->name, 0, 2)) }}
-                                            </span>
+                    @php $rowIndex = $students->firstItem() ? $students->firstItem() - 1 : 0; @endphp
+                    @foreach($students as $student)
+                        @if(isset($student->applications) && $student->applications->isNotEmpty())
+                            @foreach($student->applications as $application)
+                                @php $rowIndex++; @endphp
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ $rowIndex }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10">
+                                                <div class="h-10 w-10 rounded-full bg-bsu-red flex items-center justify-center">
+                                                    <span class="text-sm font-medium text-white">{{ strtoupper(substr($student->name, 0, 2)) }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 hover:underline" @click="$dispatch('open-applicant-modal', {{ json_encode($student) }})">{{ $student->name }}</div>
+                                                <div class="text-sm text-gray-500 dark:text-gray-400">{{ $student->email }}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $student->name }}</div>
-                                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ $student->email }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @php
-                                    $status = $student->display_status ?? 'not_applied';
-                                    $statusLabel = match ($status) {
-                                        'approved' => 'Approved',
-                                        'in_progress' => 'In Progress',
-                                        'pending' => 'Pending',
-                                        'rejected' => 'Rejected',
-                                        default => 'Not Applied',
-                                    };
-                                    $statusClasses = match ($status) {
-                                        'approved' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                                        'in_progress' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-                                        'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-                                        'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                                        default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-                                    };
-                                @endphp
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full {{ $statusClasses }}">
-                                        {{ $statusLabel }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if($student->has_documents)
-                                    <div class="flex items-center">
-                                        <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        <span class="text-sm text-green-600 dark:text-green-400 font-medium">
-                                            {{ $student->documents_count }} uploaded
-                                        </span>
-                                    </div>
-                                    @if($student->last_uploaded)
-                                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            {{ \Carbon\Carbon::parse($student->last_uploaded)?->format('M d, Y') }}
-                                        </div>
-                                    @endif
-                                @else
-                                    <div class="flex items-center">
-                                        <svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        <span class="text-sm text-red-600 dark:text-red-400 font-medium">No documents</span>
-                                    </div>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4">
-                                @if($student->has_applications && count($student->applied_scholarships) > 0)
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach($student->applied_scholarships as $scholarship)
-                                            <span class="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
-                                                {{ $scholarship }}
-                                            </span>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">None</span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4">
-                                @if($student->has_applications && isset($student->applications_with_types))
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach($student->applications_with_types as $app)
-                                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded {{ $app['grant_count_badge_color'] }}">
-                                                {{ $app['grant_count_display'] }}
-                                            </span>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">None</span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex space-x-2">
-                                    @if($status === 'pending')
-                                        @php $evalUserId = $student->student_id ?? $student->id ?? $student->user_id ?? null; @endphp
-                                        @if($evalUserId)
-                                            <a href="{{ route('sfao.evaluation.show', ['user_id' => $evalUserId]) }}"
-                                               class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
-                                                Evaluate
-                                            </a>
-                                        @else
-                                            <button type="button" disabled
-                                                    class="px-3 py-1.5 bg-blue-600 text-white rounded-lg opacity-60 cursor-not-allowed transition text-sm font-semibold">
-                                                Evaluate
-                                            </button>
-                                        @endif
-
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $application->scholarship?->scholarship_name ?? 'Unknown Scholarship' }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
                                         @php
-                                            $pendingApplication = $student->applications->firstWhere('status', 'pending') ?? $student->applications->first();
+                                            $status = $application->status ?? 'not_applied';
+                                            $statusLabel = match ($status) {
+                                                'approved' => 'Approved',
+                                                'in_progress' => 'In Progress',
+                                                'pending' => 'Pending',
+                                                'rejected' => 'Rejected',
+                                                default => 'Not Applied',
+                                            };
+                                            $statusClasses = match ($status) {
+                                                'approved' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                                                'in_progress' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                                'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                                                'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                                                default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                            };
                                         @endphp
-
-                                        @if($pendingApplication)
-                                            <form method="POST" action="{{ url('/applications/' . $pendingApplication->id . '/reject') }}" onsubmit="return confirm('Reject this application?');">
-                                                @csrf
-                                                <button type="submit"
-                                                        class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-semibold">
-                                                    Reject
-                                                </button>
-                                            </form>
+                                        <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full {{ $statusClasses }}">{{ $statusLabel }}</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if($student->has_documents)
+                                            <div class="flex items-center">
+                                                <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-sm text-green-600 dark:text-green-400 font-medium">{{ $student->documents_count }} uploaded</span>
+                                            </div>
+                                            @if($student->last_uploaded)
+                                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ \Carbon\Carbon::parse($student->last_uploaded)?->format('M d, Y') }}</div>
+                                            @endif
+                                        @else
+                                            <div class="flex items-center">
+                                                <svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-sm text-red-600 dark:text-red-400 font-medium">No documents</span>
+                                            </div>
                                         @endif
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        @php
+                                            $grantCount = method_exists($application, 'getGrantCountDisplay') ? $application->getGrantCountDisplay() : $application->grant_count;
+                                            $grantBadge = method_exists($application, 'getGrantCountBadgeColor') ? $application->getGrantCountBadgeColor() : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+                                        @endphp
+                                        <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {{ $grantBadge }}">{{ $grantCount ?? 'None' }}</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div class="flex flex-wrap gap-2">
+                                            @if($status === 'pending')
+                                                @php $evalUserId = $student->student_id ?? $student->id ?? $student->user_id ?? null; @endphp
+                                                @if($evalUserId)
+                                                    <a href="{{ route('sfao.evaluation.show', ['user_id' => $evalUserId]) }}" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">Evaluate</a>
+                                                @else
+                                                    <span class="px-3 py-1.5 bg-blue-600 text-white rounded-lg opacity-60 cursor-not-allowed text-sm font-semibold">Evaluate</span>
+                                                @endif
+
+                                                <form method="POST" action="{{ url('/applications/' . $application->id . '/reject') }}" onsubmit="return confirm('Reject this application?');">
+                                                    @csrf
+                                                    <button type="submit" class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-semibold">Reject</button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @else
+                            @php $rowIndex++; @endphp
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ $rowIndex }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10">
+                                            <div class="h-10 w-10 rounded-full bg-bsu-red flex items-center justify-center">
+                                                <span class="text-sm font-medium text-white">{{ strtoupper(substr($student->name, 0, 2)) }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $student->name }}</div>
+                                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ $student->email }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">No applications</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">Not Applied</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if($student->has_documents)
+                                        <div class="flex items-center">
+                                            <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            <span class="text-sm text-green-600 dark:text-green-400 font-medium">{{ $student->documents_count }} uploaded</span>
+                                        </div>
+                                        @if($student->last_uploaded)
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ \Carbon\Carbon::parse($student->last_uploaded)?->format('M d, Y') }}</div>
+                                        @endif
+                                    @else
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">No documents</span>
                                     @endif
-                                </div>
-                            </td>
-                        </tr>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">None</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <span class="text-sm text-gray-500 dark:text-gray-400">No action</span>
+                                </td>
+                            </tr>
+                        @endif
                     @endforeach
                 </tbody>
             </table>

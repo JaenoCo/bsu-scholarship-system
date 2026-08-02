@@ -145,7 +145,7 @@
         <div class="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-800">
           @foreach($scholarships as $scholarship)
             <label class="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
-              <input type="checkbox" value="{{ $scholarship->id }}" x-model="formData.selected_scholarships" class="form-checkbox text-red-600 focus:ring-red-500 rounded border-gray-300 dark:border-gray-500 dark:bg-gray-700">
+              <input type="checkbox" name="selected_scholarships[]" value="{{ $scholarship->id }}" x-model="formData.selected_scholarships" class="form-checkbox text-red-600 focus:ring-red-500 rounded border-gray-300 dark:border-gray-500 dark:bg-gray-700">
               <span class="ml-2 text-sm text-gray-700 dark:text-gray-200">{{ $scholarship->scholarship_name }}</span>
             </label>
           @endforeach

@@ -36,6 +36,11 @@
       </div>
   </div>
 
+  <!-- Global Search -->
+  <div class="hidden md:flex flex-1 justify-center px-4">
+      <x-global-search />
+  </div>
+
   <!-- Dark Mode Toggle & User Profile -->
   <div class="flex items-center gap-2">
       @if($actionText)

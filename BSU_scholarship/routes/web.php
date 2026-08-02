@@ -11,6 +11,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\StudentApplicationController;
 use App\Http\Controllers\CentralApplicationController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Http\Request;
 
 // =================================================================
@@ -153,6 +154,14 @@ Route::get('/ping', function() {
     return response()->noContent();
 })->middleware('web');
 
+// Global search suggestions and redirect
+Route::get('/search/suggest', [SearchController::class, 'suggest'])
+    ->name('search.suggest');
+Route::get('/search/redirect/{type}/{id}', [SearchController::class, 'redirectToRecord'])
+    ->name('search.redirect');
+Route::get('/search', [SearchController::class, 'results'])
+    ->name('search.index');
+
 // Profile Picture Upload
 Route::post('/upload-profile-picture/{role}', [UserController::class, 'uploadProfilePicture'])
     ->whereIn('role', ['student', 'sfao', 'central']);
@@ -191,6 +200,7 @@ Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')
         return redirect()->route('student.apply', ['scholarship_id' => $scholarship_id]);
     })->name('upload-documents');
     Route::post('/upload-documents/{scholarship_id}', [UserController::class, 'uploadDocuments'])->name('upload-documents.submit');
+    Route::get('/documents/{scholarship_id}', [UserController::class, 'viewStudentDocuments'])->name('view-documents');
     
     // Multi-Stage Application
     Route::get('/apply/{scholarship_id}', [UserController::class, 'showMultiStageApplication'])->name('apply');

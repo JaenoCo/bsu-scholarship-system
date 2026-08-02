@@ -17,12 +17,70 @@
     unreadCountScholarships: {{ $unreadCountScholarships ?? 0 }},
     unreadCountStatus: {{ $unreadCountStatus ?? 0 }},
     unreadCountComments: {{ $unreadCountComments ?? 0 }},
+    activeTab: 'announcements',
+    openMenu: null,
+
+    init() {
+        const params = new URLSearchParams(window.location.search);
+        this.activeTab = this.normalizeTab(params.get('tab') || localStorage.getItem('studentActiveTab') || 'announcements');
+        this.openMenu = this.sectionForTab(this.activeTab);
+        this.markActiveNav();
+        this.$watch('activeTab', () => this.markActiveNav());
+        this.$nextTick(() => this.$dispatch('sidebar-accordion-open', this.openMenu));
+    },
+
+    normalizeTab(tab) {
+        const map = {
+            scholarships: 'all_scholarships',
+            'applied-scholarships': 'applied_scholarships',
+            notifications: 'all_notifications',
+            account: 'account_settings'
+        };
+        return map[tab] || tab || 'announcements';
+    },
+
+    sectionForTab(tab) {
+        const normalized = this.normalizeTab(tab);
+        if (['all_scholarships', 'private_scholarships', 'government_scholarships'].includes(normalized)) return 'scholarships';
+        if (['sfao_form', 'all-app-forms'].includes(normalized)) return 'application_forms';
+        if (['applied_scholarships', 'application_tracking', 'announcements'].includes(normalized)) return 'applications';
+        if (['all_notifications', 'scholarship_notifications', 'status_updates', 'comments'].includes(normalized)) return 'notifications';
+        return null;
+    },
 
     // Helper to dispatch
     switchTab(tab) {
+        this.activeTab = this.normalizeTab(tab);
+        this.openMenu = this.sectionForTab(tab);
+        this.$dispatch('sidebar-accordion-open', this.openMenu);
         $dispatch('switch-tab', tab);
+    },
+
+    toggleMenu(menu) {
+        this.openMenu = this.openMenu === menu ? null : menu;
+    },
+
+    markActiveNav() {
+        this.$nextTick(() => {
+            this.$root.querySelectorAll('button').forEach((button) => {
+                const click = button.getAttribute('@click') || button.getAttribute('x-on:click') || '';
+                const match = click.match(/switch-tab'\s*,\s*'([^']+)'/);
+                const active = match && this.normalizeTab(match[1]) === this.activeTab;
+                button.classList.toggle('sidebar-tab-active', !!active);
+                if (active) button.setAttribute('aria-current', 'page');
+                else button.removeAttribute('aria-current');
+            });
+
+            this.$root.querySelectorAll('.space-y-1').forEach((section) => {
+                const trigger = section.querySelector(':scope > button');
+                if (!trigger) return;
+                const hasActiveChild = !!section.querySelector('.sidebar-tab-active');
+                trigger.classList.toggle('sidebar-section-active', hasActiveChild && !trigger.classList.contains('sidebar-tab-active'));
+            });
+        });
     }
 }"
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail); openMenu = sectionForTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))"
 @notification-changed.window="
     const status = $event.detail.status;
     const type = $event.detail.type;
@@ -47,8 +105,8 @@
 ">
 
 <!-- Scholarships Dropdown -->
-<div class="space-y-1" x-data="{ open: true }"> <!-- Default open for primary -->
-    <button @click="open = !open" 
+<div class="space-y-1">
+    <button @click="toggleMenu('scholarships')" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -58,11 +116,11 @@
         </svg>
         <span class="whitespace-nowrap truncate">Scholarships</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="openMenu === 'scholarships' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
-    <div x-show="open" 
+    <div x-show="openMenu === 'scholarships'" 
          x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-2"
@@ -88,18 +146,12 @@
             </svg>
             Government Scholarships
         </button>
-        <button @click="$dispatch('switch-tab', 'my_scholarships')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-             </svg>
-             My Scholarships
-        </button>
     </div>
 </div>
 
 <!-- Application Forms Dropdown -->
-<div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+<div class="space-y-1">
+    <button @click="toggleMenu('application_forms')" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,11 +159,11 @@
         </svg>
         <span class="whitespace-nowrap truncate">App Forms</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="openMenu === 'application_forms' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
-    <div x-show="open" 
+    <div x-show="openMenu === 'application_forms'" 
          x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-2"
@@ -123,12 +175,6 @@
             </svg>
             SFAO Application Form
          </button>
-         <button @click="$dispatch('switch-tab', 'grade_data_form')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-            Grade Data Gathering Form
-         </button>
          <button @click="$dispatch('switch-tab', 'all-app-forms')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -139,8 +185,8 @@
 </div>
 
 <!-- Applications Dropdown -->
-<div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+<div class="space-y-1">
+    <button @click="toggleMenu('applications')" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -150,11 +196,11 @@
         </svg>
         <span class="whitespace-nowrap truncate">Applications</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="openMenu === 'applications' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
-    <div x-show="open" 
+    <div x-show="openMenu === 'applications'" 
          x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-2"
@@ -184,8 +230,8 @@
 </div>
 
 <!-- Notifications Dropdown -->
-<div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+<div class="space-y-1">
+    <button @click="toggleMenu('notifications')" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -197,11 +243,11 @@
             class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-2 flex-shrink-0">
          </span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="openMenu === 'notifications' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
-    <div x-show="open" 
+    <div x-show="openMenu === 'notifications'" 
          x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-2"

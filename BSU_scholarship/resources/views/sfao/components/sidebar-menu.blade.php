@@ -13,15 +13,80 @@
   </div>
 
 <nav class="mt-6 px-4 pb-4 overflow-y-auto flex-1 space-y-4 custom-scrollbar" x-data="{
-    // Helper to dispatch event to the main content
+    openMenu: null,
+    activeTab: 'analytics_scholarships',
+    init() {
+        const params = new URLSearchParams(window.location.search);
+        this.activeTab = this.normalizeTab(params.get('tabs') || localStorage.getItem('sfaoTab') || 'analytics_scholarships');
+        this.openMenu = this.sectionForTab(this.activeTab);
+        this.markActiveNav();
+        this.$watch('activeTab', () => this.markActiveNav());
+        this.$nextTick(() => this.$dispatch('sidebar-accordion-open', this.openMenu));
+    },
+    toggleMenu(menu) {
+        this.openMenu = this.openMenu === menu ? null : menu;
+    },
+    normalizeTab(tab) {
+        const map = {
+            overview: 'analytics',
+            all_scholarships: 'scholarships',
+            private_scholarships: 'scholarships-private',
+            government_scholarships: 'scholarships-government',
+            all_applicants: 'applicants',
+            applicants_in_progress: 'applicants-in_progress',
+            applicants_pending: 'applicants-pending',
+            applicants_approved: 'applicants-approved',
+            all_scholars: 'scholars',
+            new_scholars: 'scholars-new',
+            old_scholars: 'scholars-old',
+            reports_student_summary: 'reports-student_summary',
+            reports_grant_summary: 'reports-grant_summary',
+            account_settings: 'account-info'
+        };
+        return map[tab] || tab || 'analytics_scholarships';
+    },
+    sectionForTab(tab) {
+        const normalized = this.normalizeTab(tab);
+        if (normalized.startsWith('analytics')) return 'analytics';
+        if (normalized.startsWith('scholarships')) return 'scholarships';
+        if (normalized.startsWith('applicants')) return 'applicants';
+        if (normalized.startsWith('scholars')) return 'scholars';
+        if (normalized === 'all-app-forms' || normalized === 'up-app-form' || normalized === 'import-scholarships') return 'application_forms';
+        if (normalized.startsWith('reports')) return 'reports';
+        if (normalized.startsWith('account')) return 'settings';
+        return null;
+    },
     switchTab(tab) {
+        this.activeTab = this.normalizeTab(tab);
+        this.openMenu = this.sectionForTab(tab);
+        this.$dispatch('sidebar-accordion-open', this.openMenu);
         $dispatch('switch-tab', tab); 
+    },
+    markActiveNav() {
+        this.$nextTick(() => {
+            this.$root.querySelectorAll('button').forEach((button) => {
+                const click = button.getAttribute('@click') || button.getAttribute('x-on:click') || '';
+                const match = click.match(/switch-tab'\s*,\s*'([^']+)'/);
+                const active = match && this.normalizeTab(match[1]) === this.activeTab;
+                button.classList.toggle('sidebar-tab-active', !!active);
+                if (active) button.setAttribute('aria-current', 'page');
+                else button.removeAttribute('aria-current');
+            });
+
+            this.$root.querySelectorAll('.space-y-1').forEach((section) => {
+                const trigger = section.querySelector(':scope > button');
+                if (!trigger) return;
+                const hasActiveChild = !!section.querySelector('.sidebar-tab-active');
+                trigger.classList.toggle('sidebar-section-active', hasActiveChild && !trigger.classList.contains('sidebar-tab-active'));
+            });
+        });
     }
-}">
+}"
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail); openMenu = sectionForTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))">
   
   <!-- Analytics Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+  <div class="space-y-1">
+    <button @click="toggleMenu('analytics')" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -29,12 +94,12 @@
         </svg>
         <span>Analytics</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'analytics' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
     
-    <div x-show="open" 
+    <div x-show="openMenu === 'analytics'" 
          x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 -translate-y-2"
@@ -69,8 +134,8 @@
   </div>
 
    <!-- Scholarships Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" 
+  <div class="space-y-1">
+    <button @click="toggleMenu('scholarships')" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -80,11 +145,11 @@
         </svg>
         <span>Scholarships</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'scholarships' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
     </button>
-    <div x-show="open" x-cloak class="space-y-1">
+    <div x-show="openMenu === 'scholarships'" x-cloak class="space-y-1">
         <button @click="$dispatch('switch-tab', 'scholarships')"
                 class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,8 +174,8 @@
   </div>
   
   <!-- Applicants Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-     <button @click="open = !open" 
+  <div class="space-y-1">
+     <button @click="toggleMenu('applicants')" 
             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
        <div class="flex items-center gap-2">
          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -118,11 +183,11 @@
          </svg>
          <span>Applicants</span>
        </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'applicants' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
        </svg>
      </button>
-     <div x-show="open" x-cloak class="space-y-1">
+     <div x-show="openMenu === 'applicants'" x-cloak class="space-y-1">
           <button @click="$dispatch('switch-tab', 'applicants')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -151,8 +216,8 @@
    </div>
  
     <!-- Scholars Dropdown -->
-   <div class="space-y-1" x-data="{ open: false }">
-     <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
+   <div class="space-y-1">
+     <button @click="toggleMenu('scholars')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
        <div class="flex items-center gap-2">
          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
            <path d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -161,9 +226,9 @@
          </svg>
          <span>Scholars</span>
        </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'scholars' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
      </button>
-     <div x-show="open" x-cloak class="space-y-1">
+     <div x-show="openMenu === 'scholars'" x-cloak class="space-y-1">
          <button @click="$dispatch('switch-tab', 'scholars')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -188,8 +253,8 @@
    </div>
  
    <!-- Application Forms Dropdown -->
-   <div class="space-y-1" x-data="{ open: false }">
-     <button @click="open = !open" 
+   <div class="space-y-1">
+     <button @click="toggleMenu('application_forms')" 
              class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
        <div class="flex items-center gap-2">
          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -197,11 +262,11 @@
          </svg>
          <span class="whitespace-nowrap">App Forms</span>
        </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'application_forms' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
        </svg>
      </button>
-     <div x-show="open" x-cloak class="space-y-1">
+     <div x-show="openMenu === 'application_forms'" x-cloak class="space-y-1">
          <button @click="$dispatch('switch-tab', 'all-app-forms')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -218,17 +283,17 @@
    </div>
 
   <!-- Reports Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
+  <div class="space-y-1">
+    <button @click="toggleMenu('reports')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <span>Reports</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'reports' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
     </button>
-    <div x-show="open" x-cloak class="space-y-1">
+    <div x-show="openMenu === 'reports'" x-cloak class="space-y-1">
          <button @click="$dispatch('switch-tab', 'reports-student_summary')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -245,8 +310,8 @@
   </div>
 
   <!-- Settings Dropdown -->
-  <div class="space-y-1" x-data="{ open: false }">
-    <button @click="open = !open" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
+  <div class="space-y-1">
+    <button @click="toggleMenu('settings')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -254,9 +319,9 @@
         </svg>
         <span>Settings</span>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="open ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'settings' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
     </button>
-    <div x-show="open" x-cloak class="space-y-1">
+    <div x-show="openMenu === 'settings'" x-cloak class="space-y-1">
          <button @click="$dispatch('switch-tab', 'account-info')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

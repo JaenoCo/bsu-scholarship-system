@@ -11,8 +11,7 @@
     $isScholar = $isStudent && ($scholarship->is_scholar ?? false);
     $isApplied = $isStudent && $scholarship->applied && !$isScholar;
 
-    $cardBaseClass = 'rounded-xl shadow-lg border-2 p-6 hover:shadow-xl transition-all duration-300 group relative overflow-hidden mb-8';
-    $cardCursorClass = $disableModal ? 'cursor-not-allowed opacity-80' : 'cursor-pointer';
+    $cardBaseClass = 'rounded-xl shadow-lg border-2 p-6 hover:shadow-xl transition-all duration-300 group relative overflow-hidden mb-8 cursor-pointer';
     
     if ($isScholar) {
         $cardClass = $cardBaseClass . ' bg-green-50 dark:bg-green-900/20 border-green-500 hover:border-green-600 hover:shadow-green-500/20';
@@ -27,7 +26,7 @@
 @endphp
 
 <div x-data="{ open: false, showReleaseModal: false, disableModal: @json($disableModal) }" 
-     class="{{ $cardClass }} {{ $cardCursorClass }}"
+     class="{{ $cardClass }}"
      @click="if(!disableModal) open = true"
      @if($scholarship->background_image)
      style="background-image: linear-gradient({{ $gradientColors }}), url('{{ $scholarship->getBackgroundImageUrl() }}'); background-size: cover; background-position: center;"
@@ -139,26 +138,14 @@
                 @endif
 
                 @if($role === 'student')
-                    @if(!$scholarship->is_active)
-                        <div class="mt-4 rounded-2xl border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-200">
-                            <strong>Archived:</strong> This scholarship is no longer accepting applications.
-                        </div>
-                    @elseif($scholarship->is_scholar ?? false)
+                    @if($scholarship->is_scholar ?? false)
                         <!-- Scholar status is handled by overlay -->
                     @elseif($scholarship->applied)
-                        <!-- Applied status is handled by overlay -->
+                      <!-- Applied status is handled by overlay -->
                     @endif
                 @endif
             </div>
         </div>
-
-        @if($disableModal && $role === 'student')
-            <div class="absolute inset-0 z-20 bg-black/10 backdrop-blur-sm pointer-events-none rounded-xl"></div>
-            <div class="absolute bottom-4 left-4 right-4 z-30 rounded-2xl bg-white/90 dark:bg-gray-900/90 border border-gray-200 dark:border-gray-700 p-3 text-center text-sm text-gray-700 dark:text-gray-200 shadow-lg">
-                <span class="font-semibold">Archived Scholarship</span>
-                <p class="mt-1 text-xs">This scholarship is archived and cannot accept new applications.</p>
-            </div>
-        @endif
 
         <!-- Fabulous Modal Content (Generic Student/Central View) -->
         <div x-show="open && !disableModal" 
@@ -403,12 +390,7 @@
                                 Close
                             </button>
 
-                            @if(!$scholarship->is_active)
-                                <button type="button" disabled
-                                        class="px-6 py-2.5 bg-gray-300 text-gray-700 text-sm font-semibold rounded-lg cursor-not-allowed border border-gray-200">
-                                    Archived
-                                </button>
-                            @elseif($scholarship->is_scholar ?? false)
+                            @if($scholarship->is_scholar ?? false)
                                 <!-- Scholar badge removed from here as per overlay design -->
                             @elseif($scholarship->applied)
                                 <div class="flex gap-2 relative z-20">
@@ -420,7 +402,16 @@
                                         </svg>
                                         Withdraw
                                     </button>
+
+
                                 </div>
+                            @else
+                                @if($hasActiveApplication && !$scholarship->allow_existing_scholarship)
+                                    <button type="button"
+                                            @click="$dispatch('show-warning')"
+                                            class="px-6 py-2.5 bg-bsu-red hover:bg-bsu-redDark text-white text-sm font-semibold rounded-lg shadow-lg shadow-bsu-red/30 hover:shadow-bsu-red/50 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
                                         </svg>
                                         Apply Now

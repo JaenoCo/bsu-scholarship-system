@@ -115,6 +115,34 @@
         @endif
     </div>
 
+    <!-- Archived Scholarships Section -->
+    @if(isset($archivedScholarships) && $archivedScholarships->count())
+        <div x-show="subTab !== 'my_scholarships'" x-cloak class="mt-10">
+            <div class="mb-6">
+                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Archived Scholarships</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">These scholarships are archived and no longer accepting new applications, but you remain connected to them through a past application or scholar relationship.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                @foreach($archivedScholarships as $scholarship)
+                    <div class="col-span-1">
+                        @php
+                            $applicationsCount = $scholarship->applications_count ?? 0;
+                            $slotsAvailable = $scholarship->slots_available ?? 1;
+                            $fillPercentage = min(100, ($applicationsCount / $slotsAvailable) * 100);
+                        @endphp
+                        @include('central.partials.components.scholarship-card', [
+                            'scholarship' => $scholarship,
+                            'role' => 'student',
+                            'hasActiveApplication' => false,
+                            'fillPercentage' => $fillPercentage,
+                            'disableModal' => true
+                        ])
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <!-- Pagination -->
     <div x-show="subTab !== 'my_scholarships'" class="mt-8 flex justify-center">
         {{ $scholarships->appends(request()->query())->links('vendor.pagination.custom') }}

@@ -12,6 +12,30 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected static function booted()
+    {
+        static::creating(function (User $user) {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                return;
+            }
+
+            $hasFirstName = \Illuminate\Support\Facades\Schema::hasColumn('users', 'first_name');
+            $hasLastName = \Illuminate\Support\Facades\Schema::hasColumn('users', 'last_name');
+
+            if (($hasFirstName && ! $user->first_name) || ($hasLastName && ! $user->last_name)) {
+                $parts = preg_split('/\s+/', trim((string) $user->name), 2);
+
+                if ($hasFirstName) {
+                    $user->first_name = $user->first_name ?: ($parts[0] ?? 'User');
+                }
+
+                if ($hasLastName) {
+                    $user->last_name = $user->last_name ?: ($parts[1] ?? $user->first_name ?? 'User');
+                }
+            }
+        });
+    }
+
     protected $fillable = [
         'name',
         'first_name',

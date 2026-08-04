@@ -46,7 +46,7 @@ class ScholarshipController extends Controller
             return redirect('/login')->with('session_expired', true);
         }
 
-        return redirect()->route('central.dashboard', ['tab' => 'scholarships']);
+        return redirect()->route('central.dashboard', ['tabs' => 'all_scholarships']);
     }
 
     /**
@@ -60,7 +60,7 @@ class ScholarshipController extends Controller
 
         $colleges = \App\Models\College::orderBy('short_name')->pluck('short_name');
         $campuses = \App\Models\Campus::orderBy('name')->get();
-        return view('central.scholarships.create', compact('colleges', 'campuses'));
+        return view('central.scholarships.create', compact('scholarship', 'colleges', 'campuses'));
     }
 
     /**
@@ -706,7 +706,7 @@ class ScholarshipController extends Controller
         $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'asc');
         
-        return redirect()->route('sfao.dashboard', ['tab' => 'scholarships']);
+        return redirect()->route('sfao.dashboard', ['tabs' => 'all_scholarships']);
     }
 
     /**

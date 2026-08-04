@@ -1747,26 +1747,35 @@ class UserController extends Controller
             abort(404, 'Document not found');
         }
         
-        $filePath = Storage::disk('public')->path($document->file_path);
-        $fileType = strtolower($document->file_type);
+        $storedType = strtolower(trim((string) $document->file_type));
+        $extension = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
+        $mimeType = strtolower((string) Storage::disk('public')->mimeType($document->file_path));
+        $fileType = match (true) {
+            in_array($storedType, ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'webp'], true) => $storedType,
+            in_array($extension, ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'webp'], true) => $extension,
+            str_contains($mimeType, 'pdf') => 'pdf',
+            str_contains($mimeType, 'wordprocessingml') => 'docx',
+            str_contains($mimeType, 'msword') => 'doc',
+            str_starts_with($mimeType, 'image/') => str_replace('image/', '', $mimeType),
+            default => $storedType ?: $extension,
+        };
         
-        // Generate file URL (accessible via browser)
-        $fileUrl = asset('storage/' . ltrim($document->file_path, '/'));
+        // Generate a Laravel-served file URL so the viewer works even without a public storage symlink.
+        $fileUrl = route('document.file', ['id' => $document->id]);
         
         $viewers = [];
         $viewerType = 'fallback'; // default
 
+        $isLocalhost = !app()->isProduction() && (
+            in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1'], true) ||
+            str_contains(request()->getHost(), '.local')
+        );
+
         // Handle specific file types
-        if ($fileType === 'docx') {
+        if (in_array($fileType, ['doc', 'docx'], true)) {
             $viewerType = 'office';
             $encodedUrl = urlencode($fileUrl);
-            
-            // Check if we're on localhost
-            $isLocalhost = !app()->isProduction() && (
-                in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1']) || 
-                str_contains(request()->getHost(), '.local')
-            );
-            
+
             if (!$isLocalhost) {
                 // Option 1: Google Docs Viewer
                 $viewers[] = [
@@ -1786,17 +1795,12 @@ class UserController extends Controller
                 'name' => 'Native PDF Viewer',
                 'url' => $fileUrl
             ];
-            $isLocalhost = false; 
         } elseif (in_array($fileType, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
             $viewerType = 'image';
              $viewers[] = [
                 'name' => 'Image Viewer',
                 'url' => $fileUrl
             ];
-            $isLocalhost = false;
-        } else {
-             // Other files or unknown types
-             $isLocalhost = false;
         }
 
         return view('components.document-viewer', [
@@ -1804,8 +1808,32 @@ class UserController extends Controller
             'viewers' => $viewers,
             'viewerType' => $viewerType,
             'fileUrl' => $fileUrl, // For direct access
-            'downloadUrl' => $fileUrl,
+            'downloadUrl' => route('document.file', ['id' => $document->id, 'download' => 1]),
             'isLocalhost' => $isLocalhost ?? false
+        ]);
+    }
+
+    public function serveDocumentFile(Request $request, $id)
+    {
+        $document = StudentSubmittedDocument::findOrFail($id);
+
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            abort(404, 'Document not found');
+        }
+
+        $filename = $document->original_filename ?: basename($document->file_path);
+
+        if ($request->boolean('download')) {
+            return Storage::disk('public')->download($document->file_path, $filename);
+        }
+
+        $path = Storage::disk('public')->path($document->file_path);
+        $mimeType = Storage::disk('public')->mimeType($document->file_path) ?: 'application/octet-stream';
+        $disposition = 'inline; filename="' . addcslashes($filename, '\\"') . '"';
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => $disposition,
         ]);
     }
 

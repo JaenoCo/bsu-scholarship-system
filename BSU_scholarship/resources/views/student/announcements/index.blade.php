@@ -6,12 +6,7 @@
                 Stay informed about the latest scholarship announcements available to your campus.
             </p>
         </div>
-        <div class="flex gap-2">
-            <button @click="$dispatch('switch-tab', 'all_scholarships')"
-                    class="px-5 py-2 rounded-full bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 transition">
-                Browse Scholarships
-            </button>
-        </div>
+       
     </div>
 
     @if(isset($announcements) && $announcements->count() > 0)

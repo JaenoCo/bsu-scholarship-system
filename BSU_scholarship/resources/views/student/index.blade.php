@@ -59,10 +59,26 @@
         'account_settings': { tab: 'account', subTab: 'all' }
     },
 
+    normalizeTabKey(key) {
+        const aliases = {
+            scholarships: 'all_scholarships',
+            'applied-scholarships': 'applied_scholarships',
+            'my-scholarships': 'my_scholarships',
+            'sfao-form': 'sfao_form',
+            'tdp-form': 'tdp_form',
+            all_app_forms: 'all-app-forms',
+            notifications: 'all_notifications',
+            settings: 'account_settings',
+            account: 'account_settings'
+        };
+
+        return aliases[key] || key;
+    },
+
     init() {
         // Restore state from URL
         const urlParams = new URLSearchParams(window.location.search);
-        const urlTab = urlParams.get('tab');
+        const urlTab = this.normalizeTabKey(urlParams.get('tab') || urlParams.get('tabs'));
         
         if (urlTab && this.tabMapping[urlTab]) {
             this.tab = this.tabMapping[urlTab].tab;
@@ -109,7 +125,7 @@
   @notifications-read-all.window="unreadCount = 0;"
 
   x-on:switch-tab.window="
-      const key = $event.detail;
+      const key = normalizeTabKey($event.detail);
       if (tabMapping[key]) {
           tab = tabMapping[key].tab;
           subTab = tabMapping[key].subTab;

@@ -211,8 +211,8 @@
              }));
         });
 
-        function confirmDelete(scholarshipName) {
-            return confirm('WARNING: This will permanently delete the scholarship "' + scholarshipName + '" and all associated applications. This action cannot be undone. Are you sure you want to proceed?');
+        function confirmArchive(scholarshipName) {
+            return confirm('Archive "' + scholarshipName + '"? Students will no longer see it as an active scholarship.');
         }
 
         function hasVisibleScholarships(type) {

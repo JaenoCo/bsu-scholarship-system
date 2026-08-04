@@ -49,7 +49,7 @@
                             </span>
                         </div>
                         <div>
-                            <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank" class="text-red-700 underline">
+                            <a href="{{ $doc->getViewUrl() }}" target="_blank" class="text-red-700 underline">
                                 {{ $doc->original_filename ?? basename($doc->file_path) }}
                             </a>
                         </div>

@@ -25,9 +25,9 @@ class CheckRole
         if (session('role') !== $role) {
             // Redirect to appropriate dashboard based on actual role
             return redirect(match (session('role')) {
-                'student' => '/student',
-                'sfao'    => '/sfao',
-                'central' => '/central',
+                'student' => route('student.dashboard'),
+                'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
+                'central' => route('central.dashboard', ['tabs' => 'dashboard']),
                 default   => '/login'
             })->with('error', 'Unauthorized access.');
         }

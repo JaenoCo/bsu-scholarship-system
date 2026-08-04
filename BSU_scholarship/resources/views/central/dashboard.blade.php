@@ -156,6 +156,30 @@
         } else {
             window.location.href = newUrl.toString();
         }
+    },
+
+    pageTitle() {
+      const titles = {
+        'all_scholarships': 'All Scholarships',
+        'private_scholarships': 'Private Scholarships',
+        'government_scholarships': 'Government Scholarships',
+        'all_scholars': 'All Scholars',
+        'new_scholars': 'New Scholars',
+        'old_scholars': 'Old Scholars',
+        'endorsed_applicants': 'Endorsed Applicants',
+        'rejected_applicants': 'Rejected Applicants',
+        'sfao_reports': 'SFAO Reports',
+        'all_statistics': 'All Campus Statistics',
+        'staff': 'SFAO Staff'
+      };
+      
+      // Handle dynamic campus statistics tabs
+      if (this.tab.endsWith('_statistics') && this.tab !== 'all_statistics') {
+        const campusName = this.tab.replace(/_statistics$/, '').replace(/_/g, ' ');
+        return campusName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Statistics';
+      }
+      
+      return titles[this.tab] || 'Dashboard';
     }
   }" 
   @change-stats-campus.window="currentStatsCampus = $event.detail"
@@ -251,7 +275,7 @@
         </div>
         <button @click="switchTab('all_scholarships')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'all_scholarships' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'all_scholarships' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
@@ -259,7 +283,7 @@
         </button>
         <button @click="switchTab('private_scholarships')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'private_scholarships' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'private_scholarships' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
@@ -267,7 +291,7 @@
         </button>
         <button @click="switchTab('government_scholarships')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'government_scholarships' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'government_scholarships' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
           </svg>
@@ -282,7 +306,7 @@
         </div>
         <button @click="switchTab('all_scholars')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'all_scholars' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'all_scholars' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
@@ -290,7 +314,7 @@
         </button>
         <button @click="switchTab('new_scholars')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'new_scholars' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'new_scholars' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
@@ -298,7 +322,7 @@
         </button>
         <button @click="switchTab('old_scholars')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'old_scholars' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'old_scholars' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -306,7 +330,7 @@
         </button>
         <button @click="switchTab('endorsed_applicants')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'endorsed_applicants' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'endorsed_applicants' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -314,7 +338,7 @@
         </button>
         <button @click="switchTab('rejected_applicants')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'rejected_applicants' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'rejected_applicants' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -329,7 +353,7 @@
         </div>
         <button @click="switchTab('sfao_reports')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'sfao_reports' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'sfao_reports' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -344,7 +368,7 @@
         </div>
         <button @click="switchTab('all_statistics'); $dispatch('change-stats-campus', 'all')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'all_statistics' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'all_statistics' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
@@ -356,7 +380,7 @@
         @foreach($campuses as $campus)
         <button @click="switchTab('{{ strtolower(str_replace(' ', '_', $campus->name)) }}_statistics'); $dispatch('change-stats-campus', '{{ $campus->id }}')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2 pl-8"
-                :class="tab === '{{ strtolower(str_replace(' ', '_', $campus->name)) }}_statistics' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === '{{ strtolower(str_replace(' ', '_', $campus->name)) }}_statistics' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
@@ -372,7 +396,7 @@
         </div>
         <button @click="switchTab('staff')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'staff' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'staff' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
@@ -462,6 +486,10 @@
         </div>
     </div>
 
+    <div class="flex-1 px-4">
+        @include('components.global-search')
+    </div>
+
     <!-- User Profile Icon & Dark Mode -->
     <div class="flex items-center gap-2">
         <!-- Dark Mode Toggle -->
@@ -487,6 +515,13 @@
     </div>
     </div>
   </header>
+
+  <!-- Page Title Bar -->
+  <div class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-3 sticky top-16 z-20"
+       :class="{ 'md:ml-64': sidebarOpen, 'md:mr-64': rightSidebarOpen }"
+       :style="isDesktop && rightSidebarOpen ? 'margin-right: 16rem;' : ''">
+    <h2 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide" x-text="pageTitle()"></h2>
+  </div>
 
   <!-- Right Sidebar -->
   <aside class="fixed inset-y-0 right-0 w-64 bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 z-50 flex flex-col"

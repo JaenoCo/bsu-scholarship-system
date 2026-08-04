@@ -2,7 +2,7 @@
 
 @section('title', 'Report Details - Central Administration')
 @section('navbar-title', $report->title)
-@section('back-url', route('central.dashboard', ['tabs' => 'sfao-reports']))
+@section('back-url', route('central.dashboard', ['tabs' => 'sfao_reports']))
 @section('back-text', 'Back to Reports')
 @section('content-width', 'max-w-[95%] 2xl:max-w-full')
 

@@ -1,13 +1,29 @@
 #!/bin/sh
+set -e
 
-echo "Starting Laravel..."
+printf "Starting Laravel container entrypoint...\n"
 
-# Run migrations safely
-php artisan migrate:fresh --seed --force
-
-# Clear caches
+# Clear old cached files that might break component loading
 php artisan config:clear
-php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
 
-echo "Starting server..."
-php artisan serve --host=0.0.0.0 --port=10000
+printf "Running package discovery...\n"
+php artisan package:discover --ansi
+php artisan storage:link || true
+
+printf "Running database migrations & seeders...\n"
+php artisan migrate --force
+php artisan db:seed --force
+
+printf "Caching configuration and routes...\n"
+php artisan config:cache 
+php artisan route:cache 
+php artisan view:cache 
+
+printf "Starting supervisor...\n"
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+else
+    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisor.conf
+fi

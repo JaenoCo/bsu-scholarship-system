@@ -30,7 +30,27 @@
     tab: localStorage.getItem('sfaoTab') || '{{ $activeTab ?? "scholarships" }}',
     statsCampus: localStorage.getItem('sfaoStatsCampus') || '{{ $defaultStatsCampus }}',
     darkMode: localStorage.getItem('darkMode_{{ $user->id }}') === 'true',
-    showLogoutModal: false
+    showLogoutModal: false,
+    
+    pageTitle() {
+      const titles = {
+        'scholarships': 'All Scholarships',
+        'scholarships-private': 'Private Scholarships',
+        'scholarships-government': 'Government Scholarships',
+        'applicants': 'All Applicants',
+        'applicants-in_progress': 'In Progress',
+        'applicants-pending': 'Pending',
+        'applicants-approved': 'Approved',
+        'applicants-rejected': 'Rejected',
+        'scholars': 'All Scholars',
+        'scholars-new': 'New Scholars',
+        'scholars-old': 'Old Scholars',
+        'reports-student_summary': 'Student Summary Report',
+        'reports-scholar_summary': 'Scholar Summary Report',
+        'reports-grant_summary': 'Grant Summary Report'
+      };
+      return titles[this.tab] || 'Dashboard';
+    }
   }"
   @resize.window="isDesktop = window.innerWidth >= 768"
   x-init="
@@ -112,7 +132,7 @@
         </div>
         <button @click="tab = 'scholarships'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'scholarships' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'scholarships' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path d="M12 14l9-5-9-5-9 5 9 5z" />
             <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
@@ -122,7 +142,7 @@
         </button>
         <button @click="tab = 'scholarships-private'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'scholarships-private' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'scholarships-private' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
           </svg>
@@ -130,7 +150,7 @@
         </button>
         <button @click="tab = 'scholarships-government'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'scholarships-government' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'scholarships-government' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
           </svg>
@@ -145,7 +165,7 @@
         </div>
         <button @click="tab = 'applicants'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'applicants' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'applicants' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
@@ -153,7 +173,7 @@
         </button>
         <button @click="tab = 'applicants-in_progress'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'applicants-in_progress' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'applicants-in_progress' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
           </svg>
@@ -161,7 +181,7 @@
         </button>
         <button @click="tab = 'applicants-pending'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'applicants-pending' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'applicants-pending' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -169,7 +189,7 @@
         </button>
         <button @click="tab = 'applicants-approved'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'applicants-approved' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'applicants-approved' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -177,7 +197,7 @@
         </button>
         <button @click="tab = 'applicants-rejected'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'applicants-rejected' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'applicants-rejected' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -192,7 +212,7 @@
         </div>
         <button @click="tab = 'scholars'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'scholars' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'scholars' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
           </svg>
@@ -200,7 +220,7 @@
         </button>
         <button @click="tab = 'scholars-new'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'scholars-new' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'scholars-new' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
           </svg>
@@ -208,7 +228,7 @@
         </button>
         <button @click="tab = 'scholars-old'"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'scholars-old' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'scholars-old' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
           </svg>
@@ -253,7 +273,7 @@
         @if($sfaoCampus->getAllCampusesUnder()->count() > 1)
         <button @click="tab = 'statistics'; statsCampus = 'all'; $dispatch('set-stats-filter', 'all')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'statistics' && statsCampus === 'all' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'statistics' && statsCampus === 'all' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
@@ -263,7 +283,7 @@
         @foreach($sfaoCampus->getAllCampusesUnder() as $campus)
         <button @click="tab = 'statistics'; statsCampus = '{{ $campus->id }}'; $dispatch('set-stats-filter', '{{ $campus->id }}')"
                 class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
-                :class="tab === 'statistics' && statsCampus == '{{ $campus->id }}' ? 'bg-white text-bsu-red dark:bg-gray-200' : 'text-white dark:text-white'">
+                :class="tab === 'statistics' && statsCampus == '{{ $campus->id }}' ? 'sidebar-tab-active' : 'text-white dark:text-white'">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
@@ -354,6 +374,10 @@
         </div>
     </div>
 
+    <div class="flex-1 px-4">
+        @include('components.global-search')
+    </div>
+
     <!-- Dark Mode Toggle & User Profile -->
     <div class="flex items-center gap-2">
         <button @click="darkMode = !darkMode" 
@@ -379,6 +403,13 @@
     </div>
     </div>
   </header>
+
+  <!-- Page Title Bar -->
+  <div class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-3 sticky top-16 z-20"
+       :class="{ 'md:ml-64': sidebarOpen, 'md:mr-64': rightSidebarOpen }"
+       :style="isDesktop && rightSidebarOpen ? 'margin-right: 16rem;' : ''">
+    <h2 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide" x-text="pageTitle()"></h2>
+  </div>
 
   <!-- Right Sidebar -->
   <aside class="fixed inset-y-0 right-0 w-64 bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 z-50 flex flex-col"

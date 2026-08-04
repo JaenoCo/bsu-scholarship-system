@@ -72,7 +72,7 @@
         <div class="viewer-header">
             <div>
                 <h1 class="text-xl font-bold">{{ $document->document_name }}</h1>
-                <p class="text-sm opacity-90">{{ $document->getFileTypeDisplayName() }} • {{ $document->getFileSizeFormatted() }}</p>
+                <p class="text-sm opacity-90">{{ $document->getFileTypeDisplayName() }} &bull; {{ $document->getFileSizeFormatted() }}</p>
             </div>
             <div class="flex gap-2">
                 <a href="{{ $downloadUrl }}" 

@@ -4,9 +4,27 @@
      x-transition:enter-end="opacity-100 transform scale-100"
      x-cloak 
     class="px-4 py-6"
-    x-data='sfaoApplicantsFilter({ activeTab: @json(str_replace("_", "-", $activeTab ?? "applicants")) })'
-    x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
-    
+     x-data='sfaoApplicantsFilter({
+        activeTab: @json(str_replace("_", "-", $activeTab ?? "applicants")),
+        routeUrl: @json(route("sfao.applicants.list")),
+        counts: {
+            total: {{ $studentsAll->total() }},
+            in_progress: {{ $studentsInProgress->total() }},
+            pending: {{ $studentsPending->total() }},
+            approved: {{ $studentsApproved->total() }},
+            rejected: {{ $studentsRejected->total() }}
+        },
+        campusOptions: @json($campusOptions),
+        colleges: @json($colleges),
+        programs: @json($programs),
+        tracks: @json($tracks),
+        academicYears: @json($academicYears),
+        campusCollegePrograms: @json($analytics['campus_college_programs'] ?? []),
+        programTracks: @json($analytics['program_tracks'] ?? []),
+        sfaoCampusName: @json($sfaoCampus->name),
+        extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck('name'))
+     })'
+     x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value));">
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             <span x-text="getHeaderTitle()" class="flex items-center gap-2"></span>
@@ -72,8 +90,7 @@
             <div class="flex-1 min-w-[140px]">
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Campus</label>
                 <div class="relative">
-                    <select x-model="filters.campus" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
-                        @foreach($campusOptions as $campus)
+                    <select x-model="filters.campus" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">                        <option value="all">All Campuses</option>                        @foreach($campusOptions as $campus)
                             <option value="{{ $campus['id'] }}">{{ $campus['name'] }}</option>
                         @endforeach
                     </select>
@@ -82,6 +99,94 @@
                     </div>
                 </div>
             </div>
+
+            <!-- College -->
+            <div class="flex-1 min-w-[180px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">College</label>
+                <div class="relative">
+                    <select x-model="filters.college" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                        <option value="all">All Colleges</option>
+                        @foreach($colleges ?? [] as $college)
+                            <option value="{{ $college['value'] }}">{{ $college['name'] }}</option>
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Program -->
+            <div class="flex-1 min-w-[180px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Program</label>
+                <div class="relative">
+                    <select x-model="filters.program" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                        <option value="all">All Programs</option>
+                        @foreach($programs ?? [] as $program)
+                            @if(!empty($program))
+                                <option value="{{ $program }}">{{ $program }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Track -->
+            <div class="flex-1 min-w-[140px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Track</label>
+                <div class="relative">
+                    <select x-model="filters.track" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                        <option value="all">All Tracks</option>
+                        @foreach($tracks ?? [] as $track)
+                            @if(!empty($track))
+                                <option value="{{ $track }}">{{ $track }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Academic Year -->
+            <div class="flex-1 min-w-[150px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Academic Year</label>
+                <div class="relative">
+                        <select x-model="filters.academic_year" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none">
+                            <option value="all">All Years</option>
+                            @foreach($academicYears ?? [] as $year)
+                                <option value="{{ $year }}">{{ $year }}</option>
+                            @endforeach
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                    <button type="button" @click="filters.academic_year = 'all'" class="mt-2 text-xs font-semibold text-bsu-red hover:text-red-700 focus:outline-none">Select All Years</button>
+            </div>
+
+            <!-- Status -->
+            <fieldset class="flex-[2] min-w-[280px]">
+                <legend class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Status</legend>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-lg border border-red-500 p-1 dark:border-red-500">
+                    <template x-for="option in [
+                        { value: 'all', label: 'All' },
+                        { value: 'pending', label: 'Pending' },
+                        { value: 'approved', label: 'Approved' },
+                        { value: 'rejected', label: 'Declined' }
+                    ]" :key="option.value">
+                        <label class="flex cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
+                               :class="filters.status === option.value ? 'bg-bsu-red text-white shadow-sm' : 'text-gray-700 hover:bg-red-50 dark:text-gray-200 dark:hover:bg-gray-700'">
+                            <input type="radio" class="sr-only" name="sfao_applicant_status_legacy" :value="option.value" x-model="filters.status">
+                            <span x-text="option.label"></span>
+                        </label>
+                    </template>
+                </div>
+            </fieldset>
 
             <!-- Actions -->
             <div class="flex flex-col items-center">
@@ -105,10 +210,16 @@
             Alpine.data('sfaoApplicantsFilter', () => ({
                 activeTab: @json(str_replace('_', '-', $activeTab ?? 'applicants')),
                 currentTab: @json(str_replace('_', '-', $activeTab ?? 'applicants')),
+                loading: false,
+                suspendFetch: false,
                 filters: {
                     sort_by: localStorage.getItem('sfaoApplicantsSortBy') || 'name',
                     sort_order: localStorage.getItem('sfaoApplicantsSortOrder') || 'asc',
                     campus: localStorage.getItem('sfaoApplicantsCampus') || 'all',
+                    college: localStorage.getItem('sfaoApplicantsCollege') || 'all',
+                    program: localStorage.getItem('sfaoApplicantsProgram') || 'all',
+                    track: localStorage.getItem('sfaoApplicantsTrack') || 'all',
+                    academic_year: localStorage.getItem('sfaoApplicantsAcademicYear') || 'all',
                     status: (@json(str_replace('_', '-', $activeTab ?? 'applicants')).startsWith('applicants-')
                         ? @json(str_replace('_', '-', $activeTab ?? 'applicants')).replace('applicants-', '').replace('in-progress', 'in_progress')
                         : (localStorage.getItem('sfaoApplicantsStatus') || 'all')),
@@ -128,14 +239,17 @@
 
                 init() {
                     this.$watch('filters.sort_by', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsSortBy', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.sort_order', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsSortOrder', value);
                         this.fetchApplicants();
                     });
                     this.$watch('filters.campus', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsCampus', value);
                         this.fetchApplicants();
                     });
@@ -147,7 +261,28 @@
                         }, 300);
                     });
                     this.$watch('filters.status', (value) => {
+                        if (this.suspendFetch) return;
                         localStorage.setItem('sfaoApplicantsStatus', value);
+                        this.fetchApplicants();
+                    });
+                    this.$watch('filters.college', (value) => {
+                        if (this.suspendFetch) return;
+                        localStorage.setItem('sfaoApplicantsCollege', value);
+                        this.fetchApplicants();
+                    });
+                    this.$watch('filters.program', (value) => {
+                        if (this.suspendFetch) return;
+                        localStorage.setItem('sfaoApplicantsProgram', value);
+                        this.fetchApplicants();
+                    });
+                    this.$watch('filters.track', (value) => {
+                        if (this.suspendFetch) return;
+                        localStorage.setItem('sfaoApplicantsTrack', value);
+                        this.fetchApplicants();
+                    });
+                    this.$watch('filters.academic_year', (value) => {
+                        if (this.suspendFetch) return;
+                        localStorage.setItem('sfaoApplicantsAcademicYear', value);
                         this.fetchApplicants();
                     });
 
@@ -156,17 +291,25 @@
                 },
 
                 fetchApplicants(page = 1) {
-                    const params = new URLSearchParams({
+                    const params = {
                         tab: this.currentTab,
                         sort_by: this.filters.sort_by,
                         sort_order: this.filters.sort_order,
                         campus_filter: this.filters.campus,
+                        college_filter: this.filters.college,
+                        program_filter: this.filters.program,
+                        track_filter: this.filters.track,
+                        academic_year_filter: this.filters.academic_year,
                         status_filter: this.filters.status,
                         search: this.filters.search ?? '',
                         page_applicants: page
-                    });
+                    };
+                    const queryString = Object.entries(params)
+                        .map(([key, value]) => encodeURIComponent(key) + '=' + encodeURIComponent(value))
+                        .join('&');
 
-                    fetch(`{{ route('sfao.applicants.list') }}?${params.toString()}`, {
+                    this.loading = true;
+                    fetch(`{{ route('sfao.applicants.list') }}?${queryString}`, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     })
                     .then(response => response.json())
@@ -175,26 +318,35 @@
                         this.counts = data.counts;
                         this.updatePaginationLinks();
                     })
-                    .catch(error => console.error('Error fetching applicants:', error));
+                    .catch(error => console.error('Error fetching applicants:', error))
+                    .finally(() => {
+                        this.loading = false;
+                    });
                 },
 
                 updatePaginationLinks() {
                     const container = document.getElementById('applicants-list-container');
-                    const links = container.querySelectorAll('a.page-link'); 
+                    const links = container.querySelectorAll('a.page-link');
                     links.forEach(link => {
                         link.addEventListener('click', (e) => {
                             e.preventDefault();
-                            const url = new URL(link.href);
-                            const page = url.searchParams.get('page_applicants') || 1;
+                            const href = link.getAttribute('href') || '';
+                            const match = href.match(/[?&]page_applicants=(\d+)/);
+                            const page = match ? Number(match[1]) : 1;
                             this.fetchApplicants(page);
                         });
                     });
                 },
 
                 resetFilters() {
+                    this.suspendFetch = true;
                     this.filters.sort_by = 'name';
                     this.filters.sort_order = 'asc';
                     this.filters.campus = 'all';
+                    this.filters.college = 'all';
+                    this.filters.program = 'all';
+                    this.filters.track = 'all';
+                    this.filters.academic_year = 'all';
                     this.filters.status = 'all';
                     this.filters.search = '';
                 },

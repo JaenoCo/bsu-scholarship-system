@@ -31,7 +31,7 @@ class AuthController extends Controller
             }
             return redirect(match (session('role')) {
                 'student' => route('student.dashboard'),
-                'sfao'    => '/sfao?tabs=overview',
+                'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
                 default   => '/'
             });
         }
@@ -74,8 +74,8 @@ class AuthController extends Controller
         ]);
 
         return redirect(match ($user->role) {
-            'student' => '/student',
-            'sfao'    => '/sfao?tabs=overview',
+            'student' => route('student.dashboard', ['tab' => 'announcements']),
+            'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
             default   => '/'
         });
     }
@@ -105,11 +105,11 @@ class AuthController extends Controller
 
         if (session()->has('user_id')) {
             if (session('role') === 'central') {
-                return redirect()->route('central.dashboard', ['tabs' => 'overview']);
+                return redirect()->route('central.dashboard', ['tabs' => 'all_statistics']);
             }
             return redirect(match (session('role')) {
                 'student' => route('student.dashboard'),
-                'sfao'    => '/sfao?tabs=overview',
+                'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
                 default   => '/'
             });
         }
@@ -146,7 +146,7 @@ class AuthController extends Controller
             'role' => $user->role,
         ]);
 
-        return redirect()->route('central.dashboard', ['tabs' => 'overview']);
+        return redirect()->route('central.dashboard', ['tabs' => 'all_statistics']);
     }
 
     /**

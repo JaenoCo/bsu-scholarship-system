@@ -4,10 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Scholar;
-use App\Models\User;
-use App\Models\Scholarship;
 use App\Models\Application;
-use Illuminate\Support\Facades\DB;
 
 class ScholarController extends Controller
 {
@@ -16,48 +13,7 @@ class ScholarController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Scholar::with(['user', 'scholarship', 'application']);
-
-        // Filter by type (new/old)
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by campus
-        if ($request->filled('campus_id')) {
-            $query->byCampus($request->campus_id);
-        }
-
-        // Filter by scholarship
-        if ($request->filled('scholarship_id')) {
-            $query->byScholarship($request->scholarship_id);
-        }
-
-        // Search by name
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->whereHas('user', function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%");
-            });
-        }
-
-        // Sort
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
-
-        $scholars = $query->paginate(20);
-
-        // Get filter options
-        $campuses = \App\Models\Campus::all();
-        $scholarships = Scholarship::all();
-
-        return view('scholars.index', compact('scholars', 'campuses', 'scholarships'));
+        return $this->redirectToCentralScholarsTab($request->get('type'));
     }
 
     /**
@@ -65,14 +21,7 @@ class ScholarController extends Controller
      */
     public function create()
     {
-        $users = User::where('role', 'student')->get();
-        $scholarships = Scholarship::where('is_active', true)->get();
-        $applications = Application::where('status', 'approved')
-            ->whereDoesntHave('scholar')
-            ->with(['user', 'scholarship'])
-            ->get();
-
-        return view('scholars.create', compact('users', 'scholarships', 'applications'));
+        return $this->redirectToCentralScholarsTab();
     }
 
     /**
@@ -101,7 +50,7 @@ class ScholarController extends Controller
 
         Scholar::create($request->all());
 
-        return redirect()->route('scholars.index')
+        return $this->redirectToCentralScholarsTab()
             ->with('success', 'Scholar record created successfully.');
     }
 
@@ -158,7 +107,7 @@ class ScholarController extends Controller
     {
         $scholar->delete();
 
-        return redirect()->route('scholars.index')
+        return $this->redirectToCentralScholarsTab()
             ->with('success', 'Scholar record deleted successfully.');
     }
 
@@ -182,32 +131,7 @@ class ScholarController extends Controller
      */
     public function statistics()
     {
-        $stats = [
-            'total_scholars' => Scholar::count(),
-            'new_scholars' => Scholar::new()->count(),
-            'old_scholars' => Scholar::old()->count(),
-            'active_scholars' => Scholar::active()->count(),
-            'inactive_scholars' => Scholar::where('status', 'inactive')->count(),
-            'suspended_scholars' => Scholar::where('status', 'suspended')->count(),
-            'completed_scholars' => Scholar::where('status', 'completed')->count(),
-        ];
-
-        // Scholars by campus
-        $scholarsByCampus = Scholar::with('user.campus')
-            ->get()
-            ->groupBy('user.campus.name')
-            ->map->count();
-
-        // Scholars by scholarship
-        $scholarsByScholarship = Scholar::with('scholarship')
-            ->get()
-            ->groupBy('scholarship.scholarship_name')
-            ->map->count();
-
-        // Total grants distributed
-        $totalGrantsDistributed = Scholar::sum('total_grant_received');
-
-        return view('scholars.statistics', compact('stats', 'scholarsByCampus', 'scholarsByScholarship', 'totalGrantsDistributed'));
+        return redirect()->route('central.dashboard', ['tabs' => 'all_statistics']);
     }
 
     /**
@@ -251,5 +175,16 @@ class ScholarController extends Controller
         ]);
 
         return back()->with('success', 'Scholar record created successfully from application.');
+    }
+
+    private function redirectToCentralScholarsTab(?string $type = null)
+    {
+        $tab = match ($type) {
+            'new' => 'new_scholars',
+            'old' => 'old_scholars',
+            default => 'all_scholars',
+        };
+
+        return redirect()->route('central.dashboard', ['tabs' => $tab]);
     }
 }

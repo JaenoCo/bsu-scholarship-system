@@ -24,7 +24,7 @@
         sfaoCampusName: @json($sfaoCampus->name),
         extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck("name"))
      })'
-      x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
+      x-init="handleTabChange(currentTab); $watch('tab', value => handleTabChange(value)); $watch('currentTab', value => handleTabChange(value))">
     
     <!-- Header removed -->
 
@@ -129,6 +129,8 @@
                     </div>
                 </div>
             </div>
+
+           
 
             <!-- Sort By -->
             <div class="flex-1 min-w-[140px]">

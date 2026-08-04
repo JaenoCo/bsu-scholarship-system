@@ -63,7 +63,7 @@
                 @endif
 
                 <!-- Password Setup Form -->
-                <form class="space-y-6" method="POST" action="{{ route('sfao.password.setup') }}">
+                <form class="space-y-6" method="POST" action="{{ route('sfao.password.setup.submit') }}">
                     @csrf
                     
                     <div>

@@ -17,7 +17,7 @@ class UsersTableSeeder extends Seeder
     public function run(): void
     {
         $faker = \Faker\Factory::create();
-        $targetStudentCount = 10;
+        $targetStudentCount = 550;
 
         $campus = \App\Models\Campus::query()->first();
         if (!$campus) {
@@ -42,7 +42,7 @@ class UsersTableSeeder extends Seeder
             $middleName = $faker->lastName();
 
             $campusDepartments = $campus->departments;
-            $randomDepartment = $campusDepartments->count() > 0
+            $randomDepartment = ($campusDepartments && $campusDepartments->count() > 0)
                 ? $campusDepartments->random()->short_name
                 : 'CICS';
 

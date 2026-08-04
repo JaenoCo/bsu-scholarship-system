@@ -111,7 +111,11 @@ class ScholarController extends Controller
     public function show(Scholar $scholar)
     {
         $scholar->load(['user', 'scholarship', 'application']);
-        return view('scholars.show', compact('scholar'));
+
+        $user = User::find(session('user_id'));
+        $campuses = \App\Models\Campus::all();
+
+        return view('central.scholars.show', compact('scholar', 'user', 'campuses'));
     }
 
     /**
@@ -119,8 +123,12 @@ class ScholarController extends Controller
      */
     public function edit(Scholar $scholar)
     {
+        $scholar->load(['user', 'scholarship']);
         $scholarships = Scholarship::where('is_active', true)->get();
-        return view('scholars.edit', compact('scholar', 'scholarships'));
+        $campuses = \App\Models\Campus::all();
+        $user = \App\Models\User::find(session('user_id'));
+
+        return view('central.scholars.edit', compact('scholar', 'scholarships', 'campuses', 'user'));
     }
 
     /**
@@ -139,7 +147,7 @@ class ScholarController extends Controller
 
         $scholar->update($request->all());
 
-        return redirect()->route('scholars.index')
+        return redirect()->route('central.scholars.show', $scholar)
             ->with('success', 'Scholar record updated successfully.');
     }
 

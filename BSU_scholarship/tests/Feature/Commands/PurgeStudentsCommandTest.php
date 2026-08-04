@@ -15,6 +15,8 @@ class PurgeStudentsCommandTest extends TestCase
     {
         $student = User::create([
             'name' => 'Student User',
+            'first_name' => 'Student',
+            'last_name' => 'User',
             'email' => 'student@example.com',
             'password' => Hash::make('password'),
             'role' => 'student',
@@ -22,9 +24,11 @@ class PurgeStudentsCommandTest extends TestCase
 
         $admin = User::create([
             'name' => 'Admin User',
+            'first_name' => 'Admin',
+            'last_name' => 'User',
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
-            'role' => 'admin',
+            'role' => 'sfao',
         ]);
 
         $this->artisan('students:purge', ['--force' => true])

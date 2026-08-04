@@ -14,8 +14,12 @@ class ScholarshipsTableSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get existing central admin
         $centralAdmin = \App\Models\User::where('role', 'central')->first();
+
+        if (! $centralAdmin) {
+            $this->command->warn('No central admin found; skipping scholarship seeding.');
+            return;
+        }
 
         $scholarships = [
             [
@@ -207,15 +211,19 @@ class ScholarshipsTableSeeder extends Seeder
 
         foreach ($scholarships as $data) {
             $conditions = $data['conditions'] ?? [];
-            unset($data['conditions']); // Remove conditions from scholarship data
-            
-            $scholarship = Scholarship::create($data);
-            
+            unset($data['conditions']);
+
+            $scholarship = Scholarship::updateOrCreate(
+                ['scholarship_name' => $data['scholarship_name']],
+                $data
+            );
+
             if ($campuses->count() > 0) {
-                $scholarship->campuses()->attach($campuses->pluck('id')->all());
+                $scholarship->campuses()->syncWithoutDetaching($campuses->pluck('id')->all());
             }
 
-            // Add multiple conditions for each scholarship
+            $scholarship->conditions()->delete();
+
             foreach ($conditions as $condition) {
                 ScholarshipRequiredCondition::create([
                     'scholarship_id' => $scholarship->id,

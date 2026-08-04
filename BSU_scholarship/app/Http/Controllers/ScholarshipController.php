@@ -303,6 +303,54 @@ class ScholarshipController extends Controller
     }
 
     /**
+     * Archive scholarship (Central)
+     */
+    public function centralArchive($id)
+    {
+        if (!session()->has('user_id') || session('role') !== 'central') {
+            return redirect('/login')->with('session_expired', true);
+        }
+
+        try {
+            $scholarship = Scholarship::findOrFail($id);
+            $scholarship->update(['is_active' => false]);
+
+            return redirect()
+                ->route('central.dashboard', ['tabs' => 'archived_scholarships'])
+                ->with('success', 'Scholarship archived successfully.');
+        } catch (\Exception $e) {
+            Log::error('Error archiving scholarship:', ['id' => $id, 'error' => $e->getMessage()]);
+            return redirect()
+                ->route('central.dashboard')
+                ->with('error', 'Failed to archive scholarship.');
+        }
+    }
+
+    /**
+     * Unarchive scholarship (Central)
+     */
+    public function centralUnarchive($id)
+    {
+        if (!session()->has('user_id') || session('role') !== 'central') {
+            return redirect('/login')->with('session_expired', true);
+        }
+
+        try {
+            $scholarship = Scholarship::findOrFail($id);
+            $scholarship->update(['is_active' => true]);
+
+            return redirect()
+                ->route('central.dashboard', ['tabs' => 'scholarships'])
+                ->with('success', 'Scholarship restored successfully.');
+        } catch (\Exception $e) {
+            Log::error('Error restoring scholarship:', ['id' => $id, 'error' => $e->getMessage()]);
+            return redirect()
+                ->route('central.dashboard')
+                ->with('error', 'Failed to restore scholarship.');
+        }
+    }
+
+    /**
      * Delete scholarship (Central)
      */
     public function destroy($id)

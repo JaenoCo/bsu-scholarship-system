@@ -110,7 +110,7 @@
                     sort_order: localStorage.getItem('sfaoApplicantsSortOrder') || 'asc',
                     campus: localStorage.getItem('sfaoApplicantsCampus') || 'all',
                     status: (@json(str_replace('_', '-', $activeTab ?? 'applicants')).startsWith('applicants-')
-                        ? @json(str_replace('_', '-', $activeTab ?? 'applicants')).replace('applicants-', '')
+                        ? @json(str_replace('_', '-', $activeTab ?? 'applicants')).replace('applicants-', '').replace('in-progress', 'in_progress')
                         : (localStorage.getItem('sfaoApplicantsStatus') || 'all')),
                     search: localStorage.getItem('sfaoApplicantsSearch') || ''
                 },
@@ -234,15 +234,19 @@
                 },
 
                 handleTabChange(tab) {
-                    const normalizedTab = tab.replace('applicants_', 'applicants-');
-                    this.currentTab = normalizedTab === 'applicants-not_applied' ? 'applicants' : normalizedTab;
+                    let normalizedTab = tab.replace(/_/g, '-');
+                    normalizedTab = normalizedTab === 'applicants-not-applied' ? 'applicants' : normalizedTab;
+                    this.currentTab = normalizedTab;
 
                     if (this.currentTab === 'applicants') {
                         if (this.filters.status !== 'all') {
                             this.filters.status = 'all';
                         }
                     } else if (this.currentTab.startsWith('applicants-')) {
-                        const status = this.currentTab.replace('applicants-', '');
+                        let status = this.currentTab.replace('applicants-', '');
+                        if (status === 'in-progress') {
+                            status = 'in_progress';
+                        }
                         if (this.filters.status !== status) {
                             this.filters.status = status;
                         }

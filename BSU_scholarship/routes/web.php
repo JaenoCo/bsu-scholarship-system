@@ -318,6 +318,8 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
             Route::post('/store', [ScholarshipController::class, 'store'])->name('store');
             Route::get('/{id}/edit', [ScholarshipController::class, 'edit'])->name('edit');
             Route::put('/{id}', [ScholarshipController::class, 'update'])->name('update');
+            Route::patch('/{id}/archive', [ScholarshipController::class, 'centralArchive'])->name('archive');
+            Route::patch('/{id}/unarchive', [ScholarshipController::class, 'centralUnarchive'])->name('unarchive');
             Route::delete('/{id}', [ScholarshipController::class, 'destroy'])->name('destroy');
         });
 

@@ -9,7 +9,7 @@
         </div>
         <h3 class="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">No Scholars Found</h3>
         <p class="text-gray-500 dark:text-gray-500 mb-4">No scholars found matching the selected filters.</p>
-        <button onclick="document.querySelector('[x-data]').__x.$data.resetFilters()" class="px-4 py-2 bg-bsu-red text-white text-sm rounded-lg hover:bg-red-700 transition shadow">
+        <button @click="resetFilters()" class="px-4 py-2 bg-bsu-red text-white text-sm rounded-lg hover:bg-red-700 transition shadow">
             Reset Filters
         </button>
     </div>

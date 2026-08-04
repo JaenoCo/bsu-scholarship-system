@@ -86,6 +86,11 @@ class Campus extends Model
         return $this->belongsToMany(College::class, 'campus_college');
     }
 
+    public function departments()
+    {
+        return $this->belongsToMany(Department::class, 'campus_department');
+    }
+
     public function scholars()
     {
         return $this->hasManyThrough(Scholar::class, User::class);

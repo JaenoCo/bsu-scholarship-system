@@ -2591,12 +2591,13 @@ window.sfaoApplicantsFilter = function (config) {
         },
 
         handleTabChange(tab) {
-            this.currentTab = tab;
+            const normalizedTab = String(tab || 'applicants').replace(/_/g, '-');
+            this.currentTab = normalizedTab;
 
-            if (tab === 'applicants') {
+            if (normalizedTab === 'applicants') {
                 this.filters.status = 'all';
-            } else if (tab.startsWith('applicants-')) {
-                this.filters.status = tab.replace('applicants-', '');
+            } else if (normalizedTab.startsWith('applicants-')) {
+                this.filters.status = normalizedTab.replace('applicants-', '');
             }
 
             this.fetchApplicants();

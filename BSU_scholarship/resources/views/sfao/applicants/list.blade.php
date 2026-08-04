@@ -7,7 +7,7 @@
         </div>
         <h3 class="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">No Students Found</h3>
         <p class="text-gray-500 dark:text-gray-500 mb-4">No students found matching the selected filters.</p>
-        <button onclick="document.querySelector('[x-data]').__x.$data.resetFilters()" class="px-4 py-2 bg-bsu-red text-white text-sm rounded-lg hover:bg-red-700 transition shadow">
+        <button @click="resetFilters()" class="px-4 py-2 bg-bsu-red text-white text-sm rounded-lg hover:bg-red-700 transition shadow">
             Reset Filters
         </button>
     </div>
@@ -71,15 +71,15 @@
                                         <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full {{ $statusClasses }}">{{ $statusLabel }}</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        @if($student->has_documents)
+                                        @if($application->documents_count > 0)
                                             <div class="flex items-center">
                                                 <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                                 </svg>
-                                                <span class="text-sm text-green-600 dark:text-green-400 font-medium">{{ $student->documents_count }} uploaded</span>
+                                                <span class="text-sm text-green-600 dark:text-green-400 font-medium">{{ $application->documents_count }} uploaded</span>
                                             </div>
-                                            @if($student->last_uploaded)
-                                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ \Carbon\Carbon::parse($student->last_uploaded)?->format('M d, Y') }}</div>
+                                            @if($application->last_uploaded)
+                                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ \Carbon\Carbon::parse($application->last_uploaded)?->format('M d, Y') }}</div>
                                             @endif
                                         @else
                                             <div class="flex items-center">
@@ -102,7 +102,7 @@
                                             @if($status === 'pending')
                                                 @php $evalUserId = $student->student_id ?? $student->id ?? $student->user_id ?? null; @endphp
                                                 @if($evalUserId)
-                                                    <a href="{{ route('sfao.evaluation.show', ['user_id' => $evalUserId]) }}" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">Evaluate</a>
+                                                    <a href="{{ route('sfao.evaluation.sfao-documents', ['user_id' => $evalUserId, 'scholarship_id' => $application->scholarship_id]) }}" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">Evaluate</a>
                                                 @else
                                                     <span class="px-3 py-1.5 bg-blue-600 text-white rounded-lg opacity-60 cursor-not-allowed text-sm font-semibold">Evaluate</span>
                                                 @endif

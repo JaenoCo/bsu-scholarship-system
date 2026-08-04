@@ -19,18 +19,23 @@ class UsersTableSeeder extends Seeder
         $faker = \Faker\Factory::create();
         $targetStudentCount = 10;
 
-        // Keep the dataset focused on exactly 10 student users for this seeding run.
-        User::where('role', 'student')->delete();
-
-        // Use the first available campus for the generated users.
         $campus = \App\Models\Campus::query()->first();
         if (!$campus) {
             return;
         }
 
+        $existingStudentEmails = User::where('role', 'student')->pluck('email')->all();
+
         for ($i = 0; $i < $targetStudentCount; $i++) {
             $studentId = $faker->unique()->numberBetween(100000, 999999);
             $studentEmail = sprintf("99-%06d@g.batstate-u.edu.ph", $studentId);
+
+            while (in_array($studentEmail, $existingStudentEmails, true)) {
+                $studentId = $faker->unique()->numberBetween(100000, 999999);
+                $studentEmail = sprintf("99-%06d@g.batstate-u.edu.ph", $studentId);
+            }
+
+            $existingStudentEmails[] = $studentEmail;
 
             $firstName = $faker->firstName();
             $lastName = $faker->lastName();
@@ -41,7 +46,9 @@ class UsersTableSeeder extends Seeder
                 ? $campusDepartments->random()->short_name
                 : 'CICS';
 
-            User::create([
+            User::firstOrCreate(
+                ['email' => $studentEmail],
+                [
                 'name' => "$firstName $middleName $lastName",
                 'first_name' => $firstName,
                 'middle_name' => $middleName,
@@ -59,7 +66,8 @@ class UsersTableSeeder extends Seeder
                 'password' => Hash::make('password123'),
                 'role' => 'student',
                 'campus_id' => $campus->id,
-            ]);
+                ]
+            );
         }
 
         // Admin accounts are seeded separately by AdminSeeder to avoid duplicate role/email entries.

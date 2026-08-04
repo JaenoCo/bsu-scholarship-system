@@ -11,7 +11,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // 1. Structure / Static Data
             CampusSeeder::class,
+            DepartmentSeeder::class,
             CollegeSeeder::class,
+            CampusDepartmentSeeder::class,
             CampusCollegeSeeder::class,
             ProgramSeeder::class,
             ProgramTrackSeeder::class,

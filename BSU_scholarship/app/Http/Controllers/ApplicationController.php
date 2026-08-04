@@ -297,7 +297,6 @@ class ApplicationController extends Controller
             default => 'name',
         };
         $query->orderBy($orderCol, $sortOrder);
-    }
 
         // 7. Paginate
         $paginatedStudents = $query->paginate(10, ['*'], 'page_applicants');
@@ -2870,7 +2869,6 @@ class ApplicationController extends Controller
         NotificationService::notifyApplicationStatusChange($application, 'approved');
 
         return redirect()->route('central.dashboard', ['tabs' => 'endorsed_applicants'])
-        return redirect()->route('central.dashboard', ['tabs' => 'endorsed_applicants'])
             ->with('success', 'Application has been accepted successfully. Scholar record has been created.');
     }
 
@@ -2913,7 +2911,6 @@ class ApplicationController extends Controller
         // Create notification for student
         NotificationService::notifyApplicationStatusChange($application, 'rejected');
 
-        return redirect()->route('central.dashboard', ['tabs' => 'rejected_applicants'])
         return redirect()->route('central.dashboard', ['tabs' => 'rejected_applicants'])
             ->with('success', 'Application has been rejected. The student will not be able to apply to this scholarship again.');
     }

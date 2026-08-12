@@ -9,8 +9,8 @@ use App\Http\Controllers\FormController;
 use App\Http\Controllers\FormPrintController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\StudentApplicationController;
-use App\Http\Controllers\CentralApplicationController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\AnnouncementController;
 use Illuminate\Http\Request;
 
 // =================================================================

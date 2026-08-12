@@ -1,5 +1,5 @@
 <!-- Upload Application Form Tab -->
-<div x-show="tab === 'up-app-form'" x-cloak>
+<div x-show="['up-app-form', 'up_app_form', 'upload-app-form', 'upload_app_form'].includes(tab)" x-cloak>
     <div class="container mx-auto px-4 py-8">
         
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">

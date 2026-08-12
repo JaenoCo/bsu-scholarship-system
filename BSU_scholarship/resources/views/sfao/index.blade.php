@@ -50,17 +50,7 @@
            @include('sfao.application-forms.index')  <!-- Application Forms -->
            @include('sfao.import.scholarships') <!-- Scholarship Import -->
            
-           <!-- Account Settings (Conditional rendering managed by x-show in parent or inner logic?) 
-                Wait, SFAO dashboard uses `activeTab` variable in x-data.
-                The includes are just dumped in the div. 
-                Wait, checking sfao/index.blade.php (Step 103), the includes are just stacked in a div.
-                Are they NOT wrapped in x-show there? 
-                Let's check `sfao/scholarships/index.blade.php` etc. They likely have x-show inside them.
-                If so, I should wrap settings in x-show here or inside settings partial?
-                The settings partial I made has NO x-show. 
-                So I MUST wrap it here.
-           -->
-           <div x-show="tab === 'account' || tab.startsWith('account-')" x-transition>
+           <div>
                 @include('sfao.settings.index')
            </div>
         </div>

@@ -117,16 +117,21 @@ class DashboardController extends Controller
             ->get();
 
         // 3. Scholars Data
-        $scholars = Scholar::with(['user', 'scholarship'])
-            ->whereHas('user', function($query) use ($campusIds) {
-                $query->whereIn('campus_id', $campusIds);
-            })->get();
+        $scholars = $this->getApprovedScholarRows($campusIds);
+        $scholarCounts = $this->getApprovedScholarCounts($campusIds);
 
         // 4. Reports
         $reports = Report::where('sfao_user_id', session('user_id'))->latest()->paginate(5);
 
         // View Parameters
         $activeTab = str_replace('_', '-', strtolower($request->get('tabs', $request->get('tab', 'analytics'))));
+        $activeTab = match ($activeTab) {
+            'all-app-forms', 'application-forms' => 'all-app-forms',
+            'up-app-form', 'upload-app-form' => 'up-app-form',
+            'account', 'account-info' => 'account-info',
+            'account-security', 'login-security', 'login-and-security' => 'account-security',
+            default => $activeTab,
+        };
         $campusOptions = $monitoredCampuses->map(function($c) { return ['id' => $c->id, 'name' => $c->name]; })->values();
 
         // Pass empty collections for the "Detailed Lists" that are handled by AJAX or specific tabs
@@ -215,86 +220,14 @@ class DashboardController extends Controller
                  return response()->json(['error' => 'Endpoint moved to sfao.applicants.list'], 404);
 
             } elseif ($activeTab === 'scholars' || str_starts_with($activeTab, 'scholars-')) {
-                // Handle Scholar Filtering
-                $query = Scholar::with(['user', 'scholarship'])
-                    ->whereHas('user', function($q) use ($campusIds) {
-                        $q->whereIn('campus_id', $campusIds);
-                    });
-                    
-                if ($request->get('campus_filter') && $request->get('campus_filter') !== 'all') {
-                    $query->whereHas('user', function($q) use ($request) {
-                        $q->where('campus_id', $request->get('campus_filter'));
-                    });
-                }
-                
-                // College Filter
-                $collegeFilter = $request->get('college_filter', 'all');
-                if ($collegeFilter !== 'all') {
-                     $variations = explode('|', $collegeFilter);
-                     if (in_array('CABE', $variations) || in_array('CABEIHM', $variations)) {
-                          $variations = array_merge($variations, [
-                              'CABE', 'CABEIHM', 
-                              'College of Accountancy, Business, Economics, International Hospitality Management'
-                          ]);
-                     }
-                     $query->whereHas('user', function($q) use ($variations) {
-                         $q->whereIn('college', array_unique($variations));
-                     });
-                }
-
-                // Program Filter
-                $programFilter = $request->get('program_filter', 'all');
-                if ($programFilter !== 'all') {
-                     $query->whereHas('user', function($q) use ($programFilter) {
-                         $q->where('program', $programFilter);
-                     });
-                }
-
-                // Track Filter
-                $trackFilter = $request->get('track_filter', 'all');
-                if ($trackFilter !== 'all') {
-                     $query->whereHas('user', function($q) use ($trackFilter) {
-                         $q->where('track', $trackFilter);
-                     });
-                }
-
-                // Academic Year Filter
-                $academicYearFilter = $request->get('academic_year_filter', 'all');
-                if ($academicYearFilter !== 'all') {
-                     $parts = explode('-', $academicYearFilter);
-                     if (count($parts) === 2) {
-                         $startYear = (int)$parts[0];
-                         $endYear = (int)$parts[1];
-                         $startDate = "$startYear-08-01";
-                         $endDate = "$endYear-07-31";
-                         $query->whereBetween('created_at', [$startDate, $endDate]);
-                     }
-                }
-                
-                if ($request->get('scholarship_filter') && $request->get('scholarship_filter') !== 'all') {
-                    $query->where('scholarship_id', $request->get('scholarship_filter'));
-                }
-                
-                if ($request->get('type_filter') && $request->get('type_filter') !== 'all') {
-                    $query->where('type', $request->get('type_filter'));
-                }
-
-                $scholarsList = $query->get();
+                $scholarsList = $this->getApprovedScholarRows($campusIds, $request);
                 $scholarsList = $this->paginate($scholarsList, 5, $request->get('page_scholarships', 1), 'page_scholarships');
                 
                 $view = 'sfao.scholars.list';
                 $data = ['scholars' => $scholarsList];
                 
                 
-                // Get filtered scholars for accurate counts
-                $filteredScholars = $query->get();
-                
-                $counts = [
-                    'total' => $filteredScholars->count(),
-                    'active' => $filteredScholars->where('status', 'active')->count(),
-                    'new' => $filteredScholars->where('type', 'new')->count(),
-                    'old' => $filteredScholars->where('type', 'old')->count()
-                ];
+                $counts = $this->getApprovedScholarCounts($campusIds, $request);
 
                 return response()->json([
                     'html' => view($view, $data)->render(),
@@ -394,6 +327,7 @@ class DashboardController extends Controller
             'scholarshipsGov' => $scholarshipsGov,
             'activeScholarshipsList' => $activeScholarshipsList,
             'scholars' => $scholars,
+            'scholarCounts' => $scholarCounts,
             'reports' => $reports,
             'forms' => $forms,
             'activeTab' => $activeTab,
@@ -622,6 +556,7 @@ class DashboardController extends Controller
                 'scholarships.scholarship_name as scholarship_name', 
                 'applications.status', 
                 'applications.created_at', 
+                'applications.updated_at',
                 'scholars.id as scholar_id', 
                 'scholars.status as scholar_status', 
                 'scholars.type as scholar_type',
@@ -753,6 +688,167 @@ class DashboardController extends Controller
             'studentsRejected' => $studentsRejected,
             'applications' => $applications,
         ];
+    }
+
+    private function getApprovedScholarRows($campusIds, $filters = null)
+    {
+        $value = function (string $key, string $default = 'all') use ($filters) {
+            if ($filters instanceof Request) {
+                return $filters->get($key, $default);
+            }
+
+            return is_array($filters) ? ($filters[$key] ?? $default) : $default;
+        };
+
+        $query = Application::with(['user.campus', 'scholarship', 'scholar'])
+            ->where('status', 'approved')
+            ->whereHas('user', function ($q) use ($campusIds, $value) {
+                $q->where('role', 'student')
+                    ->whereIn('campus_id', $campusIds);
+
+                if ($value('campus_filter') !== 'all') {
+                    $q->where('campus_id', $value('campus_filter'));
+                }
+
+                if ($value('college_filter') !== 'all') {
+                    $q->whereIn('college', explode('|', $value('college_filter')));
+                }
+
+                if ($value('program_filter') !== 'all') {
+                    $q->where('program', $value('program_filter'));
+                }
+
+                if ($value('track_filter') !== 'all') {
+                    $q->where('track', $value('track_filter'));
+                }
+            });
+
+        if ($value('scholarship_filter') !== 'all') {
+            $query->where('scholarship_id', $value('scholarship_filter'));
+        }
+
+        if ($value('academic_year_filter') !== 'all') {
+            $parts = explode('-', $value('academic_year_filter'));
+            if (count($parts) === 2) {
+                $query->whereBetween('updated_at', [$parts[0] . '-08-01', $parts[1] . '-07-31']);
+            }
+        }
+
+        $typeFilter = $value('type_filter');
+        if ($typeFilter === 'new') {
+            $query->whereBetween('updated_at', [now()->startOfYear(), now()->endOfYear()]);
+        } elseif ($typeFilter === 'old') {
+            $query->whereNotBetween('updated_at', [now()->startOfYear(), now()->endOfYear()]);
+        }
+
+        $rows = $query->get()->map(function ($application) {
+            $scholar = $application->scholar;
+
+            if (!$scholar) {
+                $scholar = Scholar::where('user_id', $application->user_id)
+                    ->where('scholarship_id', $application->scholarship_id)
+                    ->first();
+            }
+
+            $row = new \stdClass();
+            $row->id = $scholar ? $scholar->id : $application->id;
+            $row->application_id = $application->id;
+            $row->can_mark = (bool) $scholar;
+            $row->user = $application->user;
+            $row->scholarship = $application->scholarship;
+            $row->type = $application->updated_at && $application->updated_at->isCurrentYear() ? 'new' : 'old';
+            $row->status = $scholar->status ?? 'active';
+            $row->grant_count = $scholar->grant_count ?? $application->grant_count ?? 0;
+            $row->total_grant_received = $scholar->total_grant_received ?? 0;
+            $row->updated_at = $application->updated_at;
+
+            return $row;
+        });
+
+        $sortBy = $value('scholars_sort_by', $value('sort_by', 'name'));
+        $sortOrder = strtolower($value('scholars_sort_order', $value('sort_order', 'asc'))) === 'desc' ? 'desc' : 'asc';
+
+        $rows = $rows->sortBy(function ($row) use ($sortBy) {
+            return match ($sortBy) {
+                'email' => strtolower($row->user->email ?? ''),
+                'scholarship' => strtolower($row->scholarship->scholarship_name ?? ''),
+                'status' => $row->status ?? '',
+                'type' => $row->type ?? '',
+                'created_at' => optional($row->updated_at)->timestamp ?? 0,
+                default => strtolower($row->user->name ?? ''),
+            };
+        }, SORT_REGULAR, $sortOrder === 'desc')->values();
+
+        return $rows;
+    }
+
+    private function getApprovedScholarCounts($campusIds, $filters = []): array
+    {
+        $value = function (string $key, string $default = 'all') use ($filters) {
+            if ($filters instanceof Request) {
+                return $filters->get($key, $default);
+            }
+
+            return $filters[$key] ?? $default;
+        };
+
+        $campusFilter = $value('campus_filter');
+        $collegeFilter = $value('college_filter');
+        $programFilter = $value('program_filter');
+        $trackFilter = $value('track_filter');
+        $academicYearFilter = $value('academic_year_filter');
+        $scholarshipFilter = $value('scholarship_filter');
+        $typeFilter = $value('type_filter');
+
+        $baseQuery = Application::where('status', 'approved')
+            ->whereHas('user', function ($query) use ($campusIds, $campusFilter, $collegeFilter, $programFilter, $trackFilter) {
+                $query->where('role', 'student')
+                    ->whereIn('campus_id', $campusIds);
+
+                if ($campusFilter !== 'all') {
+                    $query->where('campus_id', $campusFilter);
+                }
+
+                if ($collegeFilter !== 'all') {
+                    $query->whereIn('college', explode('|', $collegeFilter));
+                }
+
+                if ($programFilter !== 'all') {
+                    $query->where('program', $programFilter);
+                }
+
+                if ($trackFilter !== 'all') {
+                    $query->where('track', $trackFilter);
+                }
+            });
+
+        if ($scholarshipFilter !== 'all') {
+            $baseQuery->where('scholarship_id', $scholarshipFilter);
+        }
+
+        if ($academicYearFilter !== 'all') {
+            $parts = explode('-', $academicYearFilter);
+            if (count($parts) === 2) {
+                $baseQuery->whereBetween('updated_at', [$parts[0] . '-08-01', $parts[1] . '-07-31']);
+            }
+        }
+
+        $total = (clone $baseQuery)->distinct('user_id')->count('user_id');
+        $new = (clone $baseQuery)
+            ->whereBetween('updated_at', [now()->startOfYear(), now()->endOfYear()])
+            ->distinct('user_id')
+            ->count('user_id');
+        $old = max(0, $total - $new);
+
+        if ($typeFilter === 'new') {
+            return ['total' => $new, 'active' => $new, 'new' => $new, 'old' => 0];
+        }
+
+        if ($typeFilter === 'old') {
+            return ['total' => $old, 'active' => $old, 'new' => 0, 'old' => $old];
+        }
+
+        return ['total' => $total, 'active' => $total, 'new' => $new, 'old' => $old];
     }
 
     private function paginate($items, $perPage, $page, $pageName)
@@ -1120,6 +1216,7 @@ class DashboardController extends Controller
                 'scholarships.scholarship_name as scholarship_name', 
                 'applications.status', 
                 'applications.created_at', 
+                'applications.updated_at',
                 'scholars.id as scholar_id', 
                 'scholars.status as scholar_status', 
                 'scholars.type as scholar_type',

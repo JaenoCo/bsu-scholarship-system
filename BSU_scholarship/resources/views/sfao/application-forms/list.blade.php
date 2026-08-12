@@ -1,5 +1,8 @@
 <!-- Application Forms Tab -->
-<div x-show="tab === 'all-app-forms'" x-cloak x-data="{ deleteModalOpen: false, deleteAction: '' }">
+<div x-show="['all-app-forms', 'all_app_forms', 'application-forms', 'application_forms'].includes(tab)" x-cloak x-data="{
+    deleteModalOpen: false,
+    deleteAction: ''
+}">
     <div class="container mx-auto px-4 py-8">
         
         <!-- Main Card container -->

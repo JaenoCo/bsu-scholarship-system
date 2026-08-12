@@ -7,10 +7,10 @@
      x-data='sfaoScholarsFilter({
         routeUrl: @json(route("sfao.dashboard")),
         counts: {
-            total: {{ $scholars->count() }},
-            active: {{ $scholars->where("status", "active")->count() }},
-            new: {{ $scholars->where("type", "new")->count() }},
-            old: {{ $scholars->where("type", "old")->count() }}
+            total: {{ $scholarCounts["total"] ?? $scholars->count() }},
+            active: {{ $scholarCounts["active"] ?? $scholars->where("status", "active")->count() }},
+            new: {{ $scholarCounts["new"] ?? $scholars->where("type", "new")->count() }},
+            old: {{ $scholarCounts["old"] ?? $scholars->where("type", "old")->count() }}
         },
         campusOptions: @json($campusOptions),
         colleges: [], 

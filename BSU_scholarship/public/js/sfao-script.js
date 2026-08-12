@@ -54,6 +54,7 @@ window.sfaoStatisticsTab = function (config = {}) {
         scholarshipType: null,
         comparison: null,
         trend: null,
+        scholarshipRanking: null,
     };
 
     return {
@@ -139,7 +140,6 @@ window.sfaoStatisticsTab = function (config = {}) {
                     this.campusOptions = window.sfaoCampusOptions;
                 }
 
-                // Initial Filters
                 // Initial Filters
                 if (this.campusOptions.length === 1) {
                     this.filters.campus = this.campusOptions[0].id;
@@ -698,56 +698,145 @@ window.sfaoStatisticsTab = function (config = {}) {
                 inProgress: 0,
                 pending: 0,
                 active: 0,
+                newScholars: 0,
+                oldScholars: 0,
                 applicantsCount: 0,
                 scholarsCount: 0,
+                applicantsUserIds: new Set(),
+                scholarsUserIds: new Set(),
+                allUserIds: new Set(),
+            };
+
+            const applicantStatusByUser = new Map();
+            const scholarTypeByUser = new Map();
+            const uniqueScholarIds = new Set();
+            const validApplicantStatuses = new Set([
+                "pending",
+                "approved",
+                "rejected",
+                "in_progress",
+            ]);
+            const studentGroups = [];
+
+            const getOrCreateStudentGroup = (item) => {
+                let group = studentGroups.find((entry) =>
+                    this.areSameStudent(entry.representative, item),
+                );
+                if (!group) {
+                    group = {
+                        representative: item,
+                        hasScholar: false,
+                        hasApplicant: false,
+                        applicantStatuses: new Set(),
+                        scholarTypes: new Set(),
+                    };
+                    studentGroups.push(group);
+                }
+                return group;
             };
 
             allApplications.forEach((app) => {
+                const identity = this.getStudentIdentity(app);
                 const isScholarVal =
                     Number(app.is_global_scholar) || (app.scholar_id ? 1 : 0);
                 const isScholar = isScholarVal > 0;
-                const isApplicant = !isScholar;
+                const hasApplicantStatus = validApplicantStatuses.has(app.status);
 
-                // View Mode Filtering for Counts
-                if (this.viewMode === "scholars" && !isScholar) return;
-                if (this.viewMode === "applicants" && isScholar) return;
+                if (!identity) return;
 
-                if (
-                    isApplicant &&
-                    ![
-                        "pending",
-                        "approved",
-                        "rejected",
-                        "in_progress",
-                    ].includes(app.status)
-                )
-                    return;
-
-                // Aggregating Counts
-                summaryCounts.total++;
-
-                if (this.viewMode === "comparison") {
-                    if (isScholar) summaryCounts.scholarsCount++;
-                    else summaryCounts.applicantsCount++;
-                } else {
-                    // Standard Counts
-                    if (app.status === "approved") summaryCounts.approved++;
-                    if (app.status === "rejected") summaryCounts.rejected++;
-                    if (app.status === "in_progress")
-                        summaryCounts.inProgress++;
-                    if (app.status === "pending") summaryCounts.pending++;
+                const group = getOrCreateStudentGroup(app);
+                if (isScholar) {
+                    group.hasScholar = true;
+                    group.scholarTypes.add(this.getScholarRecordType(app));
+                }
+                if (hasApplicantStatus) {
+                    group.hasApplicant = true;
+                    group.applicantStatuses.add(app.status);
                 }
             });
 
-            // Calculate "Active"
-            summaryCounts.active =
-                summaryCounts.total -
-                summaryCounts.approved -
-                summaryCounts.rejected;
+            studentGroups.forEach((group) => {
+                const identity = this.getStudentIdentity(group.representative);
+                if (!identity) return;
 
-            if (summaryCounts.total > 0 && this.viewMode === "applicants") {
+                if (this.viewMode === "scholars") {
+                    if (!group.hasScholar) return;
+                    uniqueScholarIds.add(identity);
+                    // "New" wins if the student has any new-scholar record;
+                    // otherwise they're counted as a continuing/old scholar.
+                    scholarTypeByUser.set(
+                        identity,
+                        group.scholarTypes.has("new") ? "new" : "old",
+                    );
+                    return;
+                }
+
+                if (this.viewMode === "applicants") {
+                    if (!group.hasApplicant) return;
+
+                    // A student can simultaneously have multiple applications in
+                    // different states (e.g. approved for one scholarship while
+                    // still in_progress/pending for another). Resolve to a single
+                    // "highest status wins" bucket per student, consistent with the
+                    // priority rule used elsewhere: approved > in_progress > pending > rejected.
+                    const statuses = group.applicantStatuses;
+                    let resolvedStatus = "rejected";
+                    if (statuses.has("approved")) {
+                        resolvedStatus = "approved";
+                    } else if (
+                        statuses.has("in_progress") ||
+                        statuses.has("pending")
+                    ) {
+                        resolvedStatus = "active"; // In Progress + Pending are merged for display
+                    } else if (statuses.has("rejected")) {
+                        resolvedStatus = "rejected";
+                    }
+
+                    applicantStatusByUser.set(identity, resolvedStatus);
+                    return;
+                }
+
+                if (this.viewMode === "comparison") {
+                    summaryCounts.allUserIds.add(identity);
+                    if (group.hasScholar) summaryCounts.scholarsUserIds.add(identity);
+                    if (group.hasApplicant) summaryCounts.applicantsUserIds.add(identity);
+                }
+            });
+
+            if (this.viewMode === "comparison") {
+                summaryCounts.total = summaryCounts.allUserIds.size;
+            } else if (this.viewMode === "applicants") {
+                summaryCounts.total = applicantStatusByUser.size;
+                for (const status of applicantStatusByUser.values()) {
+                    if (status === "approved") summaryCounts.approved++;
+                    else if (status === "rejected") summaryCounts.rejected++;
+                    else if (status === "active") summaryCounts.active++;
+                }
+                summaryCounts.pending = summaryCounts.active;
+            } else if (this.viewMode === "scholars") {
+                summaryCounts.total = uniqueScholarIds.size;
+                for (const type of scholarTypeByUser.values()) {
+                    if (type === "new") summaryCounts.newScholars++;
+                    else summaryCounts.oldScholars++;
+                }
+            }
+
+            // Convert unique user sets into counts for the metric cards
+            summaryCounts.applicantsCount = summaryCounts.applicantsUserIds.size;
+            summaryCounts.scholarsCount = summaryCounts.scholarsUserIds.size;
+
+            // NOTE: summaryCounts.active/pending were already tallied above from
+            // applicantStatusByUser, so total === approved + rejected + active by
+            // construction. No need to (and we should not) recompute it here.
+
+            // Approval Rate = approved / decided applications (approved + rejected).
+            // Applicants still Pending/In Progress haven't been decided yet, so
+            // including them in the denominator would understate the rate while a
+            // decision is still outstanding.
+            const decided = summaryCounts.approved + summaryCounts.rejected;
+            if (decided > 0 && this.viewMode === "applicants") {
                 summaryCounts.approvalRate = (
-                    (summaryCounts.approved / summaryCounts.total) *
+                    (summaryCounts.approved / decided) *
                     100
                 ).toFixed(1);
             } else {
@@ -756,6 +845,9 @@ window.sfaoStatisticsTab = function (config = {}) {
 
             // Assign to data.counts
             data.counts = summaryCounts;
+
+            // Scholarship Status Distribution metrics (used by the "Scholarships" sub-tab)
+            data.scholarshipDistribution = this.computeScholarshipDistribution();
 
             // ANIMATION TRIGGER:
             // Update with full data after a micro-delay to allow DOM to register changes
@@ -773,6 +865,114 @@ window.sfaoStatisticsTab = function (config = {}) {
         applyFilters() {
             this.updateFilteredData();
             // Charts update is now chained inside updateFilteredData to handle async delay
+        },
+
+        // Scholarship Status Distribution Metrics (Scholarships sub-tab summary cards)
+        // - applicantsInCampus: unique applicants, respecting all active filters
+        //   (campus, search, time period, college, program, track)
+        // - approvedApplicants: unique students with at least one approved application (i.e. scholars)
+        // - ranking: scholarships sorted by number of unique applicants, highest first
+        computeScholarshipDistribution() {
+            const all =
+                this.analyticsData.all_applications_data ||
+                this.analyticsData.applications ||
+                [];
+
+            let filtered = all;
+
+            if (this.filters.campus !== "all") {
+                filtered = filtered.filter(
+                    (a) => a.campus_id == this.filters.campus,
+                );
+            }
+
+            if (this.filters.search && this.filters.search.trim() !== "") {
+                const term = this.filters.search.toLowerCase().trim();
+                filtered = filtered.filter(
+                    (item) =>
+                        (item.scholarship_name || "").toLowerCase() === term,
+                );
+            }
+
+            if (this.filters.timePeriod !== "all") {
+                filtered = filtered.filter((a) => {
+                    if (!a.created_at) return false;
+                    const date = new Date(a.created_at);
+                    const year = date.getFullYear();
+                    const month = date.getMonth();
+                    const startYear = month >= 7 ? year : year - 1;
+                    const ay = `${startYear}-${startYear + 1}`;
+                    return ay === this.filters.timePeriod;
+                });
+            }
+
+            if (this.localFilters.college !== "all") {
+                filtered = filtered.filter(
+                    (item) => item.college === this.localFilters.college,
+                );
+            }
+            if (this.localFilters.program !== "all") {
+                filtered = filtered.filter(
+                    (item) => item.program === this.localFilters.program,
+                );
+            }
+            if (this.localFilters.track !== "all") {
+                filtered = filtered.filter(
+                    (item) => item.track === this.localFilters.track,
+                );
+            }
+
+            const isScholarItem = (item) => {
+                const val =
+                    Number(item.is_global_scholar) ||
+                    (item.scholar_id ? 1 : 0);
+                return val > 0;
+            };
+
+            // Unique students who are applicants (not already a global scholar)
+            const countApplicants = (list) => {
+                const ids = new Set();
+                list.forEach((item) => {
+                    if (isScholarItem(item)) return;
+                    const id = this.getStudentIdentity(item);
+                    if (id) ids.add(id);
+                });
+                return ids.size;
+            };
+
+            // Unique students with at least one approved application (= scholars)
+            const countApprovedApplicants = (list) => {
+                const ids = new Set();
+                list.forEach((item) => {
+                    if (item.status === "approved") {
+                        const id = this.getStudentIdentity(item);
+                        if (id) ids.add(id);
+                    }
+                });
+                return ids.size;
+            };
+
+            // Rank scholarships by unique applicant count, highest first
+            const buildRanking = (list) => {
+                const byScholarship = {};
+                list.forEach((item) => {
+                    if (isScholarItem(item)) return;
+                    const name = item.scholarship_name || "Unknown";
+                    if (!byScholarship[name])
+                        byScholarship[name] = new Set();
+                    const id = this.getStudentIdentity(item);
+                    if (id) byScholarship[name].add(id);
+                });
+                return Object.entries(byScholarship)
+                    .map(([name, ids]) => ({ name, count: ids.size }))
+                    .sort((a, b) => b.count - a.count);
+            };
+
+            return {
+                applicantsInCampus: countApplicants(filtered),
+                approvedApplicants: countApprovedApplicants(filtered),
+                ranking: buildRanking(filtered),
+            };
         },
 
         getStatisticsHeader() {
@@ -855,19 +1055,22 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.applyFilters();
         },
 
-        async openStudentDetails(scope, type) {
+        async openStudentDetails(scope, type = null) {
+            const metricType = type ?? scope;
+            const scopeContext = type !== null ? scope : "summary";
+
             this.isAnonymized = false;
-            this.activeView = `${scope}:${type}`;
+            this.activeView = `${scopeContext}:${metricType}`;
             this.studentDetails = {
                 open: true,
-                title: this.getStudentDetailsTitle(scope, type),
+                title: this.getStudentDetailsTitle(scopeContext, metricType),
                 rows: [],
             };
 
-            const rows = await this.getStudentDetailRows(scope, type);
+            const rows = await this.getStudentDetailRows(scopeContext, metricType);
             this.studentDetails = {
                 open: true,
-                title: this.getStudentDetailsTitle(scope, type),
+                title: this.getStudentDetailsTitle(scopeContext, metricType),
                 rows,
             };
         },
@@ -876,48 +1079,154 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.studentDetails.open = false;
         },
 
+        getStudentIdentityCandidates(item) {
+            const candidates = [
+                item.user_id,
+                item.userId,
+                item.student_id,
+                item.student_number,
+                item.student_no,
+                item.sr_code,
+                item.id,
+                item.application_id,
+            ];
+
+            return candidates
+                .filter(
+                    (value) =>
+                        value !== undefined && value !== null && value !== "",
+                )
+                .map((value) => String(value).trim())
+                .filter(Boolean);
+        },
+
+        getStudentIdentity(item) {
+            const candidates = this.getStudentIdentityCandidates(item);
+            const resolved = candidates[0];
+
+            return resolved !== undefined
+                ? resolved
+                : `${item.scholarship_name || "student"}-${item.status || "status"}`;
+        },
+
+        areSameStudent(itemA, itemB) {
+            if (!itemA || !itemB) return false;
+
+            const candidatesA = this.getStudentIdentityCandidates(itemA);
+            const candidatesB = this.getStudentIdentityCandidates(itemB);
+
+            if (!candidatesA.length || !candidatesB.length) {
+                return this.getStudentIdentity(itemA) === this.getStudentIdentity(itemB);
+            }
+
+            const matchingValues = candidatesA.filter((value) =>
+                candidatesB.includes(value),
+            );
+
+            return matchingValues.length > 0;
+        },
+
         async getStudentDetailRows(scope, type) {
             const source = this.filteredData.all_applications_data || [];
-            const validApplicantStatuses = [
+            const metricType = type ?? scope;
+            const validApplicantStatuses = new Set([
                 "pending",
                 "approved",
                 "rejected",
                 "in_progress",
-            ];
+            ]);
 
-            const rows = source
-                .filter((item) => {
-                    const isScholar = this.isScholarRecord(item);
-                    const isApplicant = !isScholar;
-                    const hasValidApplicantStatus =
-                        validApplicantStatuses.includes(item.status);
+            const getStatusPriority = (item) => {
+                if (this.viewMode === "applicants") {
+                    if (item.status === "approved") return 4;
+                    if (["pending", "in_progress"].includes(item.status)) return 3;
+                    if (item.status === "rejected") return 2;
+                    return 1;
+                }
 
-                    if (scope === "comparison") {
-                        if (type === "applicants")
-                            return isApplicant && hasValidApplicantStatus;
-                        if (type === "scholars") return isScholar;
-                        return (
+                if (this.isScholarRecord(item)) return 5;
+                if (item.status === "approved") return 4;
+                if (["pending", "in_progress"].includes(item.status))
+                    return 3;
+                if (item.status === "rejected") return 2;
+                return 1;
+            };
+
+            const studentGroups = [];
+
+            source.forEach((item) => {
+                const identity = this.getStudentIdentity(item);
+                if (!identity) return;
+
+                const isScholar = this.isScholarRecord(item);
+                const hasValidApplicantStatus = validApplicantStatuses.has(item.status);
+
+                let include = false;
+                if (scope === "comparison") {
+                    if (metricType === "applicants")
+                        include = hasValidApplicantStatus;
+                    else if (metricType === "scholars") include = isScholar;
+                    else
+                        include =
                             isScholar ||
-                            (isApplicant && hasValidApplicantStatus)
-                        );
-                    }
-
-                    if (this.viewMode === "scholars" && !isScholar)
-                        return false;
+                            hasValidApplicantStatus;
+                } else {
+                    if (this.viewMode === "scholars" && !isScholar) return;
                     if (
                         this.viewMode === "applicants" &&
-                        (!isApplicant || !hasValidApplicantStatus)
+                        !hasValidApplicantStatus
                     )
-                        return false;
+                        return;
 
-                    if (type === "approved" || type === "approvalRate")
-                        return item.status === "approved";
-                    if (type === "rejected") return item.status === "rejected";
-                    if (type === "active")
-                        return ["pending", "in_progress"].includes(item.status);
-                    return true;
+                    if (metricType === "approved" || metricType === "approvalRate") {
+                        include = this.viewMode === "applicants" && item.status === "approved";
+                    } else if (metricType === "rejected") {
+                        include = this.viewMode === "applicants" && item.status === "rejected";
+                    } else if (metricType === "active") {
+                        include =
+                            this.viewMode === "applicants" &&
+                            ["pending", "in_progress"].includes(item.status);
+                    } else if (metricType === "newScholars") {
+                        include =
+                            this.viewMode === "scholars" &&
+                            this.getScholarRecordType(item) === "new";
+                    } else if (metricType === "oldScholars") {
+                        include =
+                            this.viewMode === "scholars" &&
+                            this.getScholarRecordType(item) === "old";
+                    } else {
+                        include = true;
+                    }
+                }
+
+                if (!include) return;
+
+                let group = studentGroups.find((entry) =>
+                    this.areSameStudent(entry.representative, item),
+                );
+                if (!group) {
+                    group = {
+                        representative: item,
+                        items: [],
+                    };
+                    studentGroups.push(group);
+                }
+                group.items.push(item);
+            });
+
+            const rows = studentGroups
+                .map((group, index) => {
+                    const representative = group.items.reduce((best, current) => {
+                        if (!best) return current;
+                        const existingPriority = getStatusPriority(best);
+                        const currentPriority = getStatusPriority(current);
+                        return currentPriority > existingPriority ? current : best;
+                    }, null);
+
+                    if (!representative) return null;
+                    return this.formatStudentDetailRow(representative, index);
                 })
-                .map((item, index) => this.formatStudentDetailRow(item, index))
+                .filter(Boolean)
                 .sort((a, b) => a.studentNumber.localeCompare(b.studentNumber));
 
             return Promise.all(
@@ -932,9 +1241,26 @@ window.sfaoStatisticsTab = function (config = {}) {
 
         isScholarRecord(item) {
             return (
+                item.status === "approved" ||
                 (Number(item.is_global_scholar) || (item.scholar_id ? 1 : 0)) >
                 0
             );
+        },
+
+        getScholarRecordType(item) {
+            if (!item) return "old";
+
+            if (item.status === "approved") {
+                const rawDate = item.updated_at || item.approved_at || item.created_at;
+                const approvedDate = rawDate ? new Date(rawDate) : null;
+                if (approvedDate && !Number.isNaN(approvedDate.getTime())) {
+                    return approvedDate.getFullYear() === new Date().getFullYear()
+                        ? "new"
+                        : "old";
+                }
+            }
+
+            return item.scholar_type === "old" ? "old" : "new";
         },
 
         formatStudentDetailRow(item, index) {
@@ -950,13 +1276,15 @@ window.sfaoStatisticsTab = function (config = {}) {
                 (c) => String(c.id) === String(item.campus_id),
             );
 
+            const identity = this.getStudentIdentity(item);
+
             return {
-                key: `${item.user_id || "student"}-${item.scholarship_name || "scholarship"}-${item.status || "status"}-${index}`,
+                key: `${identity}-${item.scholarship_name || "scholarship"}-${item.status || "status"}-${index}`,
                 studentNumber:
                     item.sr_code ||
                     item.student_number ||
                     item.student_no ||
-                    `ID ${item.user_id || "N/A"}`,
+                    `ID ${identity || "N/A"}`,
                 name:
                     item.student_name ||
                     nameParts.join(" ") ||
@@ -998,6 +1326,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                 rejected: "Rejected",
                 active: "Pending/In Progress",
                 approvalRate: "Approval Rate - Approved",
+                newScholars: "New Scholars",
+                oldScholars: "Continuing Scholars",
             };
 
             return `${labels[type] || "Students"}: ${context}`;
@@ -1055,14 +1385,14 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                 if (mode === "scholars") {
                     if (!isScholar) return;
-                    if (item.scholar_type === "new")
+                    if (this.getScholarRecordType(item) === "new")
                         statusCounts.new_scholars++;
                     else statusCounts.old_scholars++;
                     return;
                 }
 
                 if (mode === "applicants") {
-                    if (isScholar || !isValidApplicant) return;
+                    if (!isValidApplicant) return;
                     statusCounts[item.status]++;
                     return;
                 }
@@ -1270,6 +1600,7 @@ window.sfaoStatisticsTab = function (config = {}) {
 
             if (this.subTab === "scholarships") {
                 this.createComparisonChart();
+                this.createScholarshipRankingChart();
             } else {
                 this.createCollegeChart();
                 this.createTrendChart();
@@ -1283,6 +1614,7 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.createComparisonChart();
             this.createTrendChart();
             this.createScholarshipStatusChart();
+            this.createScholarshipRankingChart();
         },
 
         createCollegeChart() {
@@ -1384,8 +1716,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                         groupedData[groupKey].inProgress.add(item.user_id);
                 } else {
                     // Scholars Mode
-                    if (item.status === "approved" && item.scholar_id) {
-                        if (item.scholar_type === "new")
+                    if (this.isScholarRecord(item)) {
+                        if (this.getScholarRecordType(item) === "new")
                             groupedData[groupKey].newScholars.add(item.user_id);
                         else
                             groupedData[groupKey].oldScholars.add(item.user_id);
@@ -1765,8 +2097,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     // The user asked for "Approved, Rejected, Pending, In Progress" lines for application trend.
                     // If viewMode is 'scholars', these statuses don't apply similarly (all are Approved).
                     // So for Scholars, we keep "New" vs "Old".
-                    if (item.status === "approved" && item.scholar_id) {
-                        if (item.scholar_type === "new") groupedData[key].new++;
+                    if (this.isScholarRecord(item)) {
+                        if (this.getScholarRecordType(item) === "new") groupedData[key].new++;
                         else groupedData[key].old++;
                     }
                 }
@@ -2058,7 +2390,12 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                 // Always populate High-Level Sets
                 if (isScholar) groupedData[name].scholarsSet.add(item.user_id);
-                else groupedData[name].applicantsSet.add(item.user_id);
+                if (
+                    ["pending", "approved", "rejected", "in_progress"].includes(
+                        item.status,
+                    )
+                )
+                    groupedData[name].applicantsSet.add(item.user_id);
 
                 // Always populate Detailed Status Sets
                 if (item.status === "pending")
@@ -2072,7 +2409,7 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                 // Always populate Scholar Types
                 if (isScholar) {
-                    if (item.scholar_type === "new")
+                    if (this.getScholarRecordType(item) === "new")
                         groupedData[name].newScholars.add(item.user_id);
                     else groupedData[name].oldScholars.add(item.user_id);
                 }
@@ -2298,6 +2635,61 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.createComparisonChart();
         },
 
+        createScholarshipRankingChart() {
+            const ctx = document.getElementById("sfaoScholarshipRankingChart");
+            if (!ctx) return;
+            if (chartInstances.scholarshipRanking) {
+                chartInstances.scholarshipRanking.destroy();
+                chartInstances.scholarshipRanking = null;
+            }
+
+            const ranking =
+                (this.filteredData.scholarshipDistribution &&
+                    this.filteredData.scholarshipDistribution.ranking) ||
+                [];
+            const top = ranking.slice(0, 5);
+            if (top.length === 0) return;
+
+            chartInstances.scholarshipRanking = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: top.map((item) => item.name),
+                    datasets: [
+                        {
+                            label: "Applicants",
+                            data: top.map((item) => item.count),
+                            backgroundColor: "#B91C1C",
+                            borderRadius: 4,
+                        },
+                    ],
+                },
+                options: {
+                    indexAxis: "y", // Horizontal bars, easiest to scan for a ranking
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            precision: 0,
+                            ticks: { color: this.getTextColor() },
+                        },
+                        y: {
+                            ticks: { color: this.getTextColor() },
+                        },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) =>
+                                    `${context.parsed.x} applicant${context.parsed.x === 1 ? "" : "s"}`,
+                            },
+                        },
+                    },
+                },
+            });
+        },
+
         updateDepartmentChart() {
             // this.createDepartmentChart();
             // Note: createDepartmentChart might not exist or be named createCollegeChart?
@@ -2483,30 +2875,110 @@ window.sfaoDashboardState = function (config) {
 
         urlMapping: {
             analytics_scholarships: "analytics_scholarships",
+            "analytics-scholarships": "analytics_scholarships",
             analytics_applications: "analytics_applications",
+            "analytics-applications": "analytics_applications",
             analytics_scholars: "analytics_scholars",
+            "analytics-scholars": "analytics_scholars",
+            analytics: "analytics",
             overview: "analytics",
+            scholarships: "scholarships",
+            "scholarships-private": "scholarships-private",
+            "scholarships-government": "scholarships-government",
             all_scholarships: "scholarships",
             private_scholarships: "scholarships-private",
             government_scholarships: "scholarships-government",
+            applicants: "applicants",
+            "applicants-not_applied": "applicants-not_applied",
+            "applicants-in_progress": "applicants-in_progress",
             all_applicants: "applicants",
             applicants_not_applied: "applicants-not_applied",
             applicants_in_progress: "applicants-in_progress",
+            "applicants-in-progress": "applicants-in_progress",
             applicants_pending: "applicants-pending",
+            "applicants-pending": "applicants-pending",
             applicants_approved: "applicants-approved",
+            "applicants-approved": "applicants-approved",
             applicants_rejected: "applicants-rejected",
+            "applicants-rejected": "applicants-rejected",
+            scholars: "scholars",
+            "scholars-new": "scholars-new",
+            "scholars-old": "scholars-old",
             all_scholars: "scholars",
             new_scholars: "scholars-new",
             old_scholars: "scholars-old",
+            "reports-applicant_summary": "reports-applicant_summary",
             reports_applicant_summary: "reports-applicant_summary",
+            "reports-scholar_summary": "reports-scholar_summary",
             reports_scholar_summary: "reports-scholar_summary",
+            "reports-grant_summary": "reports-grant_summary",
             reports_grant_summary: "reports-grant_summary",
+            "all-app-forms": "all-app-forms",
+            all_app_forms: "all-app-forms",
+            "application-forms": "all-app-forms",
+            application_forms: "all-app-forms",
+            "up-app-form": "up-app-form",
+            up_app_form: "up-app-form",
+            "upload-app-form": "up-app-form",
+            upload_app_form: "up-app-form",
+            "import-scholarships": "import-scholarships",
+            account_settings: "account-info",
+            account: "account-info",
+            "account-info": "account-info",
+            account_info: "account-info",
+            "account-security": "account-security",
+            account_security: "account-security",
+            "login-security": "account-security",
+            login_security: "account-security",
+            "login-and-security": "account-security",
+            login_and_security: "account-security",
+        },
+
+        canonicalUrlKeys: {
+            analytics: "overview",
+            analytics_scholarships: "analytics_scholarships",
+            analytics_applications: "analytics_applications",
+            analytics_scholars: "analytics_scholars",
+            scholarships: "all_scholarships",
+            "scholarships-private": "private_scholarships",
+            "scholarships-government": "government_scholarships",
+            applicants: "all_applicants",
+            "applicants-not_applied": "applicants_not_applied",
+            "applicants-in_progress": "applicants_in_progress",
+            "applicants-pending": "applicants_pending",
+            "applicants-approved": "applicants_approved",
+            "applicants-rejected": "applicants_rejected",
+            scholars: "all_scholars",
+            "scholars-new": "new_scholars",
+            "scholars-old": "old_scholars",
+            "reports-applicant_summary": "reports_applicant_summary",
+            "reports-scholar_summary": "reports_scholar_summary",
+            "reports-grant_summary": "reports_grant_summary",
             "all-app-forms": "all-app-forms",
             "up-app-form": "up-app-form",
             "import-scholarships": "import-scholarships",
-            account_settings: "account",
             "account-info": "account-info",
             "account-security": "account-security",
+        },
+
+        normalizeTab(rawTab) {
+            if (!rawTab) return null;
+
+            const raw = String(rawTab).trim();
+            if (!raw) return null;
+
+            if (this.urlMapping[raw]) return this.urlMapping[raw];
+
+            const lower = raw.toLowerCase();
+            if (this.urlMapping[lower]) return this.urlMapping[lower];
+
+            const hyphenated = lower.replace(/_/g, "-");
+            if (this.urlMapping[hyphenated]) return this.urlMapping[hyphenated];
+
+            const underscored = lower.replace(/-/g, "_");
+            if (this.urlMapping[underscored]) return this.urlMapping[underscored];
+
+            return null;
         },
 
         init() {
@@ -2538,14 +3010,15 @@ window.sfaoDashboardState = function (config) {
 
             // Watch Tab Change
             this.$watch("tab", (val) => {
-                if (val === "account_settings") {
-                    this.tab = "account";
+                const normalized = this.normalizeTab(val);
+                if (normalized && normalized !== val) {
+                    this.tab = normalized;
                     return; // Let the next watch trigger handle the rest
                 }
                 localStorage.setItem("sfaoTab", val);
                 this.updateUrl(val);
                 this.syncDropdowns(val);
-                this.$dispatch("tab-changed", val);
+                this.broadcastTabChange(val);
             });
 
             // Listen for Sidebar Tab Switch Events
@@ -2568,22 +3041,26 @@ window.sfaoDashboardState = function (config) {
                 matchedCampus = this.campusList.find((c) => c.slug === urlTab);
             }
 
-            if (urlTab && this.urlMapping[urlTab]) {
-                this.tab = this.urlMapping[urlTab];
+            const normalizedUrlTab = this.normalizeTab(urlTab);
+
+            if (urlTab && normalizedUrlTab) {
+                this.tab = normalizedUrlTab;
             } else if (matchedCampus) {
                 this.tab = "analytics";
                 this.statsCampus = matchedCampus.id;
             } else {
                 // Fallback favoring Analytics ("Overview") if no specific tab
-                let savedTab = localStorage.getItem("sfaoTab");
+                let savedTab = this.normalizeTab(localStorage.getItem("sfaoTab"));
+                let configuredTab = this.normalizeTab(config.activeTab);
                 // Ensure valid tab
                 this.tab =
-                    savedTab || config.activeTab || "analytics_scholarships";
+                    savedTab || configuredTab || "analytics_scholarships";
 
                 // Cleanup legacy values
                 if (this.tab === "statistics" || this.tab === "dashboard")
                     this.tab = "analytics";
-                if (this.tab === "account_settings") this.tab = "account";
+                if (this.tab === "account_settings" || this.tab === "account")
+                    this.tab = "account-info";
             }
 
             // Ensure correct dropdown is open
@@ -2592,19 +3069,31 @@ window.sfaoDashboardState = function (config) {
             }
 
             this.updateUrl(this.tab);
+            this.$nextTick(() => this.broadcastTabChange(this.tab));
         },
 
         switchTab(nextTab) {
-            nextTab = this.urlMapping[nextTab] || nextTab;
+            nextTab = this.normalizeTab(nextTab) || nextTab;
 
+            const previousTab = this.tab;
             this.tab = nextTab;
-            localStorage.setItem("sfaoTab", nextTab);
-            this.updateUrl(nextTab);
-            this.syncDropdowns(nextTab);
-            this.$dispatch("tab-changed", nextTab);
+            if (previousTab === nextTab) {
+                localStorage.setItem("sfaoTab", nextTab);
+                this.updateUrl(nextTab);
+                this.syncDropdowns(nextTab);
+                this.broadcastTabChange(nextTab);
+            }
+        },
+
+        broadcastTabChange(tab) {
+            window.dispatchEvent(
+                new CustomEvent("tab-changed", {
+                    detail: tab,
+                }),
+            );
             window.dispatchEvent(
                 new CustomEvent("sfao-filter-tab-selected", {
-                    detail: nextTab,
+                    detail: tab,
                 }),
             );
         },
@@ -2624,15 +3113,18 @@ window.sfaoDashboardState = function (config) {
             } else if (currentTab.startsWith("analytics_")) {
                 key = currentTab;
             } else {
+                key = this.canonicalUrlKeys[currentTab] || null;
+            }
+
+            if (!key) {
                 key = Object.keys(this.urlMapping).find(
                     (k) => this.urlMapping[k] === currentTab,
                 );
             }
 
             if (key) {
-                const url = new URL(window.location);
+                const url = new URL(window.location.origin + window.location.pathname);
                 url.searchParams.set("tabs", key);
-                url.searchParams.delete("tab");
                 window.history.pushState({}, "", url);
             }
         },
@@ -2807,10 +3299,20 @@ window.sfaoScholarshipsFilter = function (config) {
 
 // SFAO Applicants Filter
 window.sfaoApplicantsFilter = function (config) {
-    const initialTab = config.activeTab || "applicants";
+    const normalizeApplicantStatus = (status) =>
+        String(status || "all").replace("in-progress", "in_progress");
+    const normalizeApplicantTab = (tab) =>
+        String(tab || "applicants")
+            .toLowerCase()
+            .replace("applicants-in-progress", "applicants-in_progress");
+    const initialTab = normalizeApplicantTab(config.activeTab || "applicants");
+    const initialStatus = initialTab === "applicants"
+        ? "all"
+        : initialTab.startsWith("applicants-")
+            ? normalizeApplicantStatus(initialTab.replace("applicants-", ""))
+            : null;
 
     return {
-        tab: initialTab,
         activeTab: initialTab,
         filters: {
             sort_by: localStorage.getItem("sfaoApplicantsSortBy") || "name",
@@ -2824,7 +3326,7 @@ window.sfaoApplicantsFilter = function (config) {
                 localStorage.getItem("sfaoApplicantsAcademicYear") || "all",
             scholarship:
                 localStorage.getItem("sfaoApplicantsScholarship") || "all",
-            status: localStorage.getItem("sfaoApplicantsStatus") || "all",
+            status: initialStatus || localStorage.getItem("sfaoApplicantsStatus") || "all",
         },
         counts: config.counts || {},
         campusOptions: config.campusOptions || [],
@@ -2840,6 +3342,7 @@ window.sfaoApplicantsFilter = function (config) {
         showModal: false,
         selectedApplicant: null,
         loading: false,
+        syncingStatusFromTab: false,
         // Status Modal State
         showStatusModal: false,
         statusModalLoading: false,
@@ -2850,49 +3353,56 @@ window.sfaoApplicantsFilter = function (config) {
         init() {
             this.$watch("filters.sort_by", (value) => {
                 localStorage.setItem("sfaoApplicantsSortBy", value);
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.sort_order", (value) => {
                 localStorage.setItem("sfaoApplicantsSortOrder", value);
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.campus", (value) => {
                 localStorage.setItem("sfaoApplicantsCampus", value);
                 this.updateColleges();
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.college", (value) => {
                 localStorage.setItem("sfaoApplicantsCollege", value);
                 this.updatePrograms();
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.program", (value) => {
                 localStorage.setItem("sfaoApplicantsProgram", value);
                 this.updateTracks();
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.track", (value) => {
                 localStorage.setItem("sfaoApplicantsTrack", value);
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.academic_year", (value) => {
                 localStorage.setItem("sfaoApplicantsAcademicYear", value);
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.scholarship", (value) => {
                 localStorage.setItem("sfaoApplicantsScholarship", value);
-                this.updateQueryParams();
                 this.fetchApplicants();
             });
             this.$watch("filters.status", (value) => {
-                localStorage.setItem("sfaoApplicantsStatus", value);
+                const normalizedStatus = this.normalizeApplicantStatus(value);
+                if (value !== normalizedStatus) {
+                    this.filters.status = normalizedStatus;
+                    return;
+                }
+
+                if (this.syncingStatusFromTab) {
+                    this.syncingStatusFromTab = false;
+                    return;
+                }
+
+                this.currentTab =
+                    normalizedStatus === "all"
+                        ? "applicants"
+                        : `applicants-${normalizedStatus}`;
+                localStorage.setItem("sfaoApplicantsStatus", this.filters.status);
                 this.updateQueryParams();
                 this.fetchApplicants();
             });
@@ -2904,12 +3414,6 @@ window.sfaoApplicantsFilter = function (config) {
             });
 
             window.addEventListener("sfao-filter-tab-selected", (event) => {
-                if (event.detail && event.detail.startsWith("applicants")) {
-                    this.handleTabChange(event.detail);
-                }
-            });
-
-            window.addEventListener("tab-changed", (event) => {
                 if (event.detail && event.detail.startsWith("applicants")) {
                     this.handleTabChange(event.detail);
                 }
@@ -3161,9 +3665,10 @@ window.sfaoApplicantsFilter = function (config) {
             this.filters.program = "all";
             this.filters.track = "all";
             this.filters.academic_year = "all";
+            this.filters.scholarship = "all";
             this.filters.status = "all";
             localStorage.setItem("sfaoApplicantsStatus", "all");
-            this.updateQueryParams();
+            localStorage.setItem("sfaoApplicantsScholarship", "all");
             this.fetchApplicants();
         },
 
@@ -3226,32 +3731,46 @@ window.sfaoApplicantsFilter = function (config) {
 
         updateQueryParams() {
             const url = new URL(window.location);
-
-            url.searchParams.set("tab", this.currentTab);
-            url.searchParams.set("sort_by", this.filters.sort_by);
-            url.searchParams.set("sort_order", this.filters.sort_order);
-            url.searchParams.set("campus_filter", this.filters.campus);
-            url.searchParams.set("college_filter", this.filters.college);
-            url.searchParams.set("program_filter", this.filters.program);
-            url.searchParams.set("track_filter", this.filters.track);
-            url.searchParams.set("academic_year_filter", this.filters.academic_year);
-            url.searchParams.set("scholarship_filter", this.filters.scholarship);
-            url.searchParams.set("status_filter", this.filters.status);
+            [
+                "tab",
+                "sort_by",
+                "sort_order",
+                "campus_filter",
+                "college_filter",
+                "program_filter",
+                "track_filter",
+                "academic_year_filter",
+                "scholarship_filter",
+                "status_filter",
+                "page_applicants",
+            ].forEach((key) => url.searchParams.delete(key));
 
             window.history.replaceState({}, "", url);
         },
 
-        handleTabChange(tab) {
-            const normalizedTab = String(tab || 'applicants').replace(/_/g, '-');
-            this.currentTab = normalizedTab;
+        normalizeApplicantStatus(status) {
+            return normalizeApplicantStatus(status);
+        },
 
-            if (normalizedTab === 'applicants') {
-                this.filters.status = 'all';
-            } else if (normalizedTab.startsWith('applicants-')) {
-                this.filters.status = normalizedTab.replace('applicants-', '');
+        normalizeApplicantTab(tab) {
+            return normalizeApplicantTab(tab);
+        },
+
+        handleTabChange(tab) {
+            const normalizedTab = this.normalizeApplicantTab(tab);
+            this.currentTab = normalizedTab;
+            const nextStatus = normalizedTab === 'applicants'
+                ? 'all'
+                : normalizedTab.startsWith('applicants-')
+                    ? this.normalizeApplicantStatus(normalizedTab.replace('applicants-', ''))
+                    : this.filters.status;
+
+            if (this.filters.status !== nextStatus) {
+                this.syncingStatusFromTab = true;
+                this.filters.status = nextStatus;
             }
 
-            localStorage.setItem("sfaoApplicantsStatus", this.filters.status);
+            localStorage.setItem("sfaoApplicantsStatus", nextStatus);
             this.updateQueryParams();
             this.fetchApplicants();
         },
@@ -3376,7 +3895,7 @@ window.sfaoScholarsFilter = function (config) {
                 page_scholarships: page,
             });
 
-            fetch(`${config.routeUrl}?${params.toString()} `, {
+            fetch(`${config.routeUrl}?${params.toString()}`, {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
             })
                 .then((response) => response.json())
@@ -3502,7 +4021,7 @@ window.sfaoScholarsFilter = function (config) {
             this.filters.scholarship = "all";
             //this.filters.type = 'all';
             // Always sync on load, not just when type differs from 'all'
-            this.fetchScholarships();
+            this.fetchScholars();
         },
 
         toggleSelectAll() {
@@ -3706,9 +4225,9 @@ window.sfaoScholarsFilter = function (config) {
             if (this.filters.type === "all") {
                 desc = `All students who have been accepted as scholars from ${campusName}`;
             } else if (this.filters.type === "new") {
-                desc = `Scholars who have not yet received any grant from ${campusName}`;
+                desc = `Scholars approved this year from ${campusName}`;
             } else if (this.filters.type === "old") {
-                desc = `Continuing scholars with one or more grants from ${campusName}`;
+                desc = `Scholars approved before this year from ${campusName}`;
             }
 
             if (this.extensionCampuses.length > 0) {

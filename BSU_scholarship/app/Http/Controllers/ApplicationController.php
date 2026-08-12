@@ -20,14 +20,18 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * =====================================================
  * APPLICATION MANAGEMENT CONTROLLER
  * =====================================================
- * 
- * This controller handles all application-related functionality
- * including student applications, applicant management, and
- * application processing for both SFAO and Central roles.
- * 
+ *
+ * ANNOTATED COPY — every method has an explanation block above it.
+ * The goal of these annotations is to help you (Jaeno) quickly find
+ * where to apply your per-student status-priority dedup rule
+ * (approved > in_progress/pending > rejected) across the codebase,
+ * and to flag exactly which data structures are "one row per
+ * application" (safe to double count) vs "one row per student"
+ * (already deduped).
+ *
  * Combined functionality from:
  * - ApplicationController
- * - ApplicantsController  
+ * - ApplicantsController
  * - StudentController (application methods)
  * - SFAOController (application management)
  * - CentralController (application management)
@@ -35,10 +39,21 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class ApplicationController extends Controller
 {
     /**
-     * Shared status sort priority used whenever we need a single
-     * representative status for a student who may have multiple
-     * applications. Mirrors the "highest status wins" rule used
-     * for badge counts elsewhere in this controller.
+     * ANNOTATION: This is the canonical priority map. Anywhere you need
+     * to collapse a student's multiple applications down to ONE
+     * representative status, you should be calling this helper (or the
+     * literal array ['approved','in_progress','pending','rejected'] in
+     * the same order) rather than re-inventing the order inline.
+     * Lower number = higher priority = wins.
+     *
+     * Currently used by: sfaoDashboard() for the sort-by-status column.
+     * NOT currently used by: sfaoApplicantsList() (uses an equivalent
+     * literal array instead — functionally fine, but a duplicate source
+     * of truth), and NOT used at all by the analytics/chart-building
+     * data (generateAnalyticsData(), $analytics['all_applications_data']
+     * in sfaoDashboard()) — THIS is where your donut-chart bug lives,
+     * because those datasets are flat "one row per application" and
+     * nothing downstream collapses them per student before charting.
      *
      * @return array<string,int>
      */
@@ -53,7 +68,15 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Helper method to handle application status updates for both SFAO and Central roles.
+     * ANNOTATION: Generic single-application status mutator, shared by
+     * the simple SFAO/Central approve & reject action endpoints further
+     * down (sfaoApproveApplication, sfaoRejectApplication,
+     * centralApproveApplication, centralRejectApplication). Operates on
+     * exactly one Application row — no multi-application dedup concerns
+     * here since it's a single record mutation, not a read/aggregate.
+     *
+     * Flow: auth check -> load application -> set status -> save ->
+     * notify student -> flash a human-readable success message.
      */
     private function updateApplicationStatus($id, $status, $role)
     {
@@ -81,7 +104,10 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Show student's applications
+     * ANNOTATION: Student-facing "my applications" list. Scoped to the
+     * logged-in student only, so there's no cross-student aggregation
+     * or dedup to worry about — a student naturally only sees their own
+     * (possibly multiple) applications, each shown individually.
      */
     public function studentApplications()
     {
@@ -100,7 +126,14 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Apply for a scholarship (Student)
+     * ANNOTATION: Student applies (or re-applies) to a single
+     * scholarship. Note the upsert-like pattern: if an Application row
+     * already exists for this (user_id, scholarship_id) pair it's
+     * reset to 'pending' rather than duplicated. This is actually part
+     * of why a student can never have TWO applications to the SAME
+     * scholarship — but they CAN have applications to DIFFERENT
+     * scholarships in different statuses simultaneously, which is
+     * exactly the scenario your dedup rule needs to handle downstream.
      */
     public function apply(Request $request)
     {
@@ -135,7 +168,10 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Withdraw from a scholarship (Student)
+     * ANNOTATION: Student withdraws from a single scholarship — deletes
+     * the Application row and any submitted documents/files tied to
+     * that (user_id, scholarship_id) pair. Single-record operation, no
+     * dedup concerns.
      */
     public function withdraw(Request $request)
     {
@@ -176,7 +212,12 @@ class ApplicationController extends Controller
     // =====================================================
 
     /**
-     * View all applicants (Central Admin) - Only SFAO-approved (in_progress) applications
+     * ANNOTATION: Central Admin's queue of SFAO-endorsed (in_progress)
+     * applications. This intentionally shows one row PER APPLICATION,
+     * not per student — it's a work queue, not a headcount metric, so
+     * a student with two in_progress applications SHOULD legitimately
+     * appear twice here (once per scholarship they're being reviewed
+     * for). No dedup needed/wanted in this method.
      */
     public function viewApplicants()
     {
@@ -196,20 +237,47 @@ class ApplicationController extends Controller
     /**
      * SFAO Applicants List (AJAX)
      * Handles fetching and filtering of applicant data for SFAO Dashboard
+     *
+     * ANNOTATION: This is the AJAX-backed table behind the SFAO
+     * dashboard's "Applicants" tab (separate from sfaoDashboard()'s own
+     * applicants tabs — this looks like a newer/alternate implementation
+     * of roughly the same feature, worth confirming with your routes
+     * file which one is actually wired to the current UI).
+     *
+     * Structure:
+     *   1. Auth check
+     *   2. Resolve the SFAO admin's campus + all campuses under it
+     *      (multi-campus jurisdiction support)
+     *   3. Read filter/sort/tab params from the request
+     *   4. Build base User query with eager-loaded `applications`
+     *      (filtered by status/scholarship inside the `with()` closure —
+     *      careful, this only filters which applications are LOADED,
+     *      not which students are RETURNED)
+     *   5-6. Apply the various dropdown filters + sorting
+     *   7. Paginate — one row per STUDENT here (good, this is a
+     *      genuinely per-student list)
+     *   8. Post-process each paginated student to compute a single
+     *      `display_status` — THIS is where your priority rule is
+     *      already correctly applied (see below)
+     *   9. Compute tab badge counts using whereHas() per status, scoped
+     *      to unique students
      */
     public function sfaoApplicantsList(Request $request)
-{
-    // 1. Authorization
-    if (!session()->has('user_id') || session('role') !== 'sfao') {
-        return response()->json(['error' => 'Unauthorized'], 401);
-    }
+    {
+        // 1. Authorization
+        if (!session()->has('user_id') || session('role') !== 'sfao') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-    // 2. Setup Context
-    $user = User::with('campus')->find(session('user_id'));
-    if (!$user) {
-        return response()->json(['error' => 'User not found'], 404);
-    }
-    $campusIds = $user->campus->getAllCampusesUnder()->pluck('id');
+        // 2. Setup Context
+        $user = User::with('campus')->find(session('user_id'));
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+        if (!$user->campus) {
+            return response()->json(['error' => 'User campus not assigned'], 400);
+        }
+        $campusIds = $user->campus->getAllCampusesUnder()->pluck('id');
 
         $tab = str_replace('_', '-', $request->get('tab', 'applicants'));
         $sortBy = $request->get('sort_by', 'name');
@@ -220,8 +288,12 @@ class ApplicationController extends Controller
         $programFilter = $request->get('program_filter', 'all');
         $trackFilter = $request->get('track_filter', 'all');
         $academicYearFilter = $request->get('academic_year_filter', 'all');
-        $statusFilter = $request->get('status_filter', 'all');
+        $statusFilter = str_replace('-', '_', $request->get('status_filter', 'all'));
 
+        // Resolve the effective application-status filter: an explicit
+        // status_filter query param wins; otherwise fall back to
+        // inferring it from a status-specific tab name (e.g.
+        // "applicants-pending" -> pending).
         $applicationStatusFilter = $statusFilter !== 'all' ? $statusFilter : null;
         if ($applicationStatusFilter === null && str_starts_with($tab, 'applicants-')) {
             $tabStatus = str_replace('applicants-', '', $tab);
@@ -233,62 +305,77 @@ class ApplicationController extends Controller
             }
         }
 
+        $applyApplicationFilters = function ($q, string $status = '__current__') use ($applicationStatusFilter, $scholarshipFilter, $academicYearFilter) {
+            $effectiveStatus = $status === '__current__' ? $applicationStatusFilter : $status;
+
+            if ($effectiveStatus && $effectiveStatus !== 'all') {
+                $q->where('status', $effectiveStatus);
+            }
+
+            if ($scholarshipFilter !== 'all') {
+                $q->where('scholarship_id', $scholarshipFilter);
+            }
+
+            if ($academicYearFilter !== 'all') {
+                $parts = explode('-', $academicYearFilter);
+                if (count($parts) === 2) {
+                    $q->whereBetween('created_at', [$parts[0] . '-08-01', $parts[1] . '-07-31']);
+                }
+            }
+        };
+
         // 3. Base Query - flat string columns (college/program/track live on users, no join tables)
+        // NOTE: college/program/track are plain string columns on `users`,
+        // NOT foreign keys into separate lookup tables — confirmed
+        // elsewhere in your project notes, so no join tables needed here.
         $query = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds)
-            ->with(['applications.scholarship', 'documents', 'form', 'campus']);
+            ->with([
+                'applications' => function ($q) use ($applyApplicationFilters) {
+                    // NOTE: this only constrains which application rows
+                    // get eager-loaded onto each student, it does NOT
+                    // filter which students are returned by the outer
+                    // query — that's handled separately below via
+                    // whereHas().
+                    $applyApplicationFilters($q);
+                },
+                'applications.scholarship',
+                'documents',
+                'form',
+                'campus'
+            ]);
 
         // 4. Apply Filters
         if ($campusFilter !== 'all') {
             $query->where('campus_id', $campusFilter);
         }
 
-        if ($scholarshipFilter !== 'all') {
-            $query->whereHas('applications', function ($q) use ($scholarshipFilter) {
-                $q->where('scholarship_id', $scholarshipFilter);
-            });
+        $query->whereHas('applications', $applyApplicationFilters);
+
+        if ($collegeFilter !== 'all') {
+            // collegeFilter can be a pipe-delimited set of variant labels
+            // (see the CABEIHM merging logic further down in
+            // sfaoDashboard()) — whereIn handles all variants at once.
+            $variations = explode('|', $collegeFilter);
+            $query->whereIn('college', $variations);
         }
 
-        if ($applicationStatusFilter !== null) {
-            $query->whereHas('applications', function ($q) use ($applicationStatusFilter) {
-                $q->where('status', $applicationStatusFilter);
-            });
+        if ($programFilter !== 'all') {
+            $query->where('program', $programFilter);
         }
 
-    if ($collegeFilter !== 'all') {
-        $variations = explode('|', $collegeFilter);
-        $query->whereIn('college', $variations);
-    }
-
-    if ($programFilter !== 'all') {
-        $query->where('program', $programFilter);
-    }
-
-    if ($trackFilter !== 'all') {
-        $query->where('track', $trackFilter);
-    }
-
-    if ($academicYearFilter !== 'all') {
-        $parts = explode('-', $academicYearFilter);
-        if (count($parts) === 2) {
-            $startDate = $parts[0] . "-08-01";
-            $endDate = $parts[1] . "-07-31";
-            $query->whereHas('applications', function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate]);
-            });
+        if ($trackFilter !== 'all') {
+            $query->where('track', $trackFilter);
         }
-    }
 
-        // 5. Tab-Based Filtering
-        if ($tab === 'applicants-in_progress') {
-            $query->whereHas('applications', fn($q) => $q->whereIn('status', ['in_progress']));
-        } elseif ($tab === 'applicants-pending') {
-            $query->whereHas('applications', fn($q) => $q->where('status', 'pending'));
-        } elseif ($tab === 'applicants-approved') {
-            $query->whereHas('applications', fn($q) => $q->where('status', 'approved'));
-        } elseif ($tab === 'applicants-rejected') {
-            $query->whereHas('applications', fn($q) => $q->where('status', 'rejected'));
+        if ($academicYearFilter !== 'all') {
+            // Academic year assumed to start August 1 and end July 31
+            // of the following year — same assumption used elsewhere
+            // (see sfaoDashboard()'s $academicYears computation).
+            // Handled by the application-scoped filter above.
         }
+
+        // 5. Tab-based status is resolved into $applicationStatusFilter above.
 
         // 6. Sorting
         $orderCol = match ($sortBy) {
@@ -299,15 +386,32 @@ class ApplicationController extends Controller
         $query->orderBy($orderCol, $sortOrder);
 
         // 7. Paginate
+        // ANNOTATION: paginated at the STUDENT level (one row per user),
+        // which is correct/safe — a student won't appear twice in this
+        // list purely because they have multiple applications.
         $paginatedStudents = $query->paginate(10, ['*'], 'page_applicants');
 
         // 8. Post-process for Blade template
-        $paginatedStudents->getCollection()->transform(function ($student) {
+        $paginatedStudents->getCollection()->transform(function ($student) use ($scholarshipFilter) {
             $statuses = $student->applications->pluck('status')->filter()->unique()->toArray();
 
             if (empty($statuses)) {
                 $student->display_status = 'not_applied';
             } else {
+                // ANNOTATION: *** THIS is your priority-rule dedup logic,
+                // already correctly implemented for this table. ***
+                // It walks the priority list (approved -> in_progress ->
+                // pending -> rejected) and picks the first one the
+                // student actually has, guaranteeing exactly one
+                // display_status per student regardless of how many
+                // applications they have.
+                //
+                // Minor suggestion: this literal array duplicates
+                // statusSortPriority()'s ordering. Consider replacing
+                // with:
+                //   foreach (array_keys($this->statusSortPriority()) as $status) { ... }
+                // so there's a single source of truth for the priority
+                // order going forward.
                 foreach (['approved', 'in_progress', 'pending', 'rejected'] as $status) {
                     if (in_array($status, $statuses)) {
                         $student->display_status = $status;
@@ -319,9 +423,22 @@ class ApplicationController extends Controller
             $student->has_applications = $student->applications->count() > 0;
             $student->has_documents = $student->documents->count() > 0;
             $student->documents_count = $student->documents->count();
-            $student->applied_scholarships = $student->applications->pluck('scholarship.scholarship_name')->filter()->unique()->values()->toArray();
+            $student->applied_scholarships = $student->applications
+                ->filter(function ($a) use ($scholarshipFilter) {
+                    return $scholarshipFilter === 'all' || $a->scholarship_id == $scholarshipFilter;
+                })
+                ->pluck('scholarship.scholarship_name')
+                ->filter()->unique()->values()->toArray();
 
-            $student->applications_with_types = $student->applications->map(function ($app) {
+            // Per-application detail array for the modal drill-down —
+            // note this stays as one entry PER APPLICATION (correct,
+            // since the modal needs to show each application
+            // individually, not a collapsed status).
+            $student->applications_with_types = $student->applications->map(function ($app) use ($student) {
+                $applicationDocuments = $student->documents->where('scholarship_id', $app->scholarship_id);
+                $app->documents_count = $applicationDocuments->count();
+                $app->last_uploaded = $applicationDocuments->max('updated_at');
+
                 return [
                     'id' => $app->id,
                     'scholarship_name' => $app->scholarship?->scholarship_name ?? 'Unknown',
@@ -332,10 +449,24 @@ class ApplicationController extends Controller
                 ];
             });
 
-        return $student;
-    });
+            return $student;
+        });
 
         // 9. Counts - apply the SAME non-tab filters used for the list
+        // ANNOTATION: each of these counts is independently scoped via
+        // whereHas() to STUDENTS (not applications), so no student is
+        // double-counted WITHIN a single bucket. However, since each
+        // bucket is computed independently, a student with both a
+        // pending AND an approved application will legitimately
+        // contribute to BOTH the 'pending' and 'approved' counts here.
+        // That's fine for "how many students currently have a pending
+        // application" style badges, but these counts will NOT sum to
+        // `total` — don't be surprised if pending+in_progress+approved+
+        // rejected > total for that reason. If you want mutually
+        // exclusive counts (i.e. one bucket per student using the
+        // display_status priority above), you'd need to compute them
+        // client-side from display_status, or restructure this to
+        // group by a computed representative status server-side.
         $countsBase = User::where('role', 'student')->whereIn('campus_id', $campusIds);
 
         if ($campusFilter !== 'all') {
@@ -354,30 +485,34 @@ class ApplicationController extends Controller
             $countsBase->where('track', $trackFilter);
         }
         if ($academicYearFilter !== 'all') {
-            $parts = explode('-', $academicYearFilter);
-            if (count($parts) === 2) {
-                $startDate = $parts[0] . "-08-01";
-                $endDate = $parts[1] . "-07-31";
-                $countsBase->whereHas('applications', fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]));
-            }
+            // Applied in the application-scoped count filters below.
         }
 
-    $counts = [
-        'total' => (clone $countsBase)->whereHas('applications')->count(),
-        'in_progress' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'in_progress'))->count(),
-        'pending' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'pending'))->count(),
-        'approved' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'approved'))->count(),
-        'rejected' => (clone $countsBase)->whereHas('applications', fn($q) => $q->where('status', 'rejected'))->count(),
-    ];
+        $counts = [
+            'total' => (clone $countsBase)->whereHas('applications', fn($q) => $applyApplicationFilters($q, 'all'))->count(),
+            'in_progress' => (clone $countsBase)->whereHas('applications', fn($q) => $applyApplicationFilters($q, 'in_progress'))->count(),
+            'pending' => (clone $countsBase)->whereHas('applications', fn($q) => $applyApplicationFilters($q, 'pending'))->count(),
+            'approved' => (clone $countsBase)->whereHas('applications', fn($q) => $applyApplicationFilters($q, 'approved'))->count(),
+            'rejected' => (clone $countsBase)->whereHas('applications', fn($q) => $applyApplicationFilters($q, 'rejected'))->count(),
+        ];
 
         return response()->json([
-            'html' => view('sfao.partials.tabs.applicants_list', ['students' => $paginatedStudents])->render(),
+            'html' => view('sfao.applicants.list', ['students' => $paginatedStudents])->render(),
             'counts' => $counts
         ]);
     }
 
     /**
      * SFAO Dashboard - Only shows applicants (students with applications), not scholars
+     *
+     * ANNOTATION: This is the big one — it builds essentially every
+     * section of the SFAO dashboard in a single request: the per-status
+     * applicant tabs, the scholarships tabs, the scholars tabs, reports,
+     * filter dropdown option lists, AND the analytics payload that
+     * feeds your Chart.js charts (including the donut chart you're
+     * debugging). Read the inline notes below closely — the "one row
+     * per application" vs "one row per student" distinction is called
+     * out at each relevant block.
      */
     public function sfaoDashboard(Request $request)
     {
@@ -420,6 +555,14 @@ class ApplicationController extends Controller
         // Build the query - SFAO sees all students in their domain
         // Exclude students who are already scholars (they will be shown in Scholars tab)
         // Build the query - SFAO sees all students in their domain
+        //
+        // ANNOTATION: base query joins in student_submitted_documents
+        // (left join, filtered to sfao_required docs) so downstream
+        // aggregates (MAX(updated_at), COUNT(DISTINCT id)) can be
+        // computed per student/application. The commented-out
+        // whereDoesntHave('scholars') shows a past design decision —
+        // existing scholars ARE allowed to show up here if they have a
+        // new/separate application.
         $query = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds)
             // Removed: whereDoesntHave('scholars') to allow existing scholars to appear if they have new applications
@@ -438,14 +581,14 @@ class ApplicationController extends Controller
         // Clone query for tabs
         $queryAll = (clone $query)->whereHas('applications'); // Exclude students who haven't applied
 
-        $queryNotApplied = clone $query;
+        //$queryNotApplied = clone $query;
         $queryInProgress = clone $query;
         $queryPending = clone $query;
         $queryApproved = clone $query;
         $queryRejected = clone $query;
 
         // Apply filters to clones
-        $queryNotApplied->doesntHave('applications');
+        //$queryNotApplied->doesntHave('applications');
 
         $queryInProgress->whereHas('applications', function ($q) {
             $q->where('status', 'in_progress');
@@ -469,30 +612,70 @@ class ApplicationController extends Controller
         // status-based sort request had nothing to sort by and silently fell
         // back to sorting by name. Priority mirrors the "highest status wins"
         // rule used for badge counts elsewhere: approved > in_progress > pending > rejected.
+        //
+        // ANNOTATION: this IS your dedup/priority rule, correctly applied
+        // — but scoped ONLY to sorting. It has no effect on counting or
+        // charting; it just determines row order when sortBy=status.
         $statusPriority = $this->statusSortPriority();
         $sortStatusMap = Application::whereHas('user', function ($q) use ($campusIds) {
-                $q->whereIn('campus_id', $campusIds);
-            })
+            $q->whereIn('campus_id', $campusIds);
+        })
             ->get(['user_id', 'status'])
             ->groupBy('user_id')
             ->map(function ($apps) use ($statusPriority) {
                 return $apps->pluck('status')
-                    ->sortBy(fn ($status) => $statusPriority[$status] ?? 999)
+                    ->sortBy(fn($status) => $statusPriority[$status] ?? 999)
                     ->first();
             });
 
         // Helper to process (fetch, sort, paginate)
-        $processStudents = function ($query, $pageName) use ($sortBy, $sortOrder, $request, $sortStatusMap, $statusPriority) {
+        //
+        // ANNOTATION: $processStudents builds ONE OF THE FIVE tabs
+        // (All/InProgress/Pending/Approved/Rejected). Each row here is
+        // really an APPLICATION joined with its student — grouped by
+        // (user, application) so a student legitimately appears once
+        // per matching application within a given tab. That's correct
+        // for "All" (which should show every application) but note
+        // that the per-tab queries ($queryInProgress etc.) already
+        // whereHas-filtered to the relevant status before this runs,
+        // so within e.g. the Pending tab a student only shows once per
+        // pending application they have (usually just one, since
+        // apply() prevents duplicate applications to the same
+        // scholarship).
+        $processStudents = function ($query, $pageName, $statusFilter = null) use ($sortBy, $sortOrder, $request, $sortStatusMap, $statusPriority) {
             $students = $query->select(
                 'users.id as student_id',
                 'users.name',
                 'users.email',
                 'users.created_at',
                 'users.campus_id',
+                'applications.id as application_id',
+                'applications.scholarship_id',
+                'applications.status',
                 DB::raw('MAX(student_submitted_documents.updated_at) as last_uploaded'),
                 DB::raw('COUNT(DISTINCT student_submitted_documents.id) as documents_count')
             )
-                ->groupBy('users.id', 'users.name', 'users.email', 'users.created_at', 'users.campus_id')
+                ->join('applications', function ($join) use ($statusFilter) {
+                    $join->on('users.id', '=', 'applications.user_id');
+
+                    if ($statusFilter !== null) {
+                        $join->where('applications.status', $statusFilter);
+                    }
+                })
+                ->leftJoin('student_submitted_documents', function ($join) {
+                    $join->on('applications.user_id', '=', 'student_submitted_documents.user_id')
+                        ->on('applications.scholarship_id', '=', 'student_submitted_documents.scholarship_id');
+                })
+                ->groupBy(
+                    'users.id',
+                    'users.name',
+                    'users.email',
+                    'users.created_at',
+                    'users.campus_id',
+                    'applications.id',
+                    'applications.scholarship_id',
+                    'applications.status'
+                )
                 ->get();
 
             $students = $students->sortBy(function ($student) use ($sortBy, $sortStatusMap, $statusPriority) {
@@ -508,6 +691,10 @@ class ApplicationController extends Controller
                     case 'documents_count':
                         return $student->documents_count;
                     case 'status':
+                        // Uses the priority map for ordering only — a
+                        // student's SORT POSITION reflects their best
+                        // status, even though the row itself may
+                        // represent a lower-priority application.
                         $status = $sortStatusMap->get($student->student_id);
                         return $statusPriority[$status] ?? 999;
                     default:
@@ -520,7 +707,6 @@ class ApplicationController extends Controller
             }
 
             $perPage = 10;
-            // Use generic page param for AJAX, specific for normal load
             $page = $request->ajax() ? $request->get('page_applicants', 1) : $request->get($pageName, 1);
 
             return new LengthAwarePaginator(
@@ -532,15 +718,29 @@ class ApplicationController extends Controller
             );
         };
 
-        $studentsAll = $processStudents($queryAll, 'page_applicants');
-        $studentsNotApplied = $processStudents($queryNotApplied, 'page_applicants_not_applied');
-        $studentsInProgress = $processStudents($queryInProgress, 'page_applicants_in_progress');
-        $studentsPending = $processStudents($queryPending, 'page_applicants_pending');
-        $studentsApproved = $processStudents($queryApproved, 'page_applicants_approved');
-        $studentsRejected = $processStudents($queryRejected, 'page_applicants_rejected');
+        $studentsAll = $processStudents($queryAll, 'page_applicants'); // no status filter — "All" legitimately shows every application
+        $studentsInProgress = $processStudents($queryInProgress, 'page_applicants_in_progress', 'in_progress');
+        $studentsPending = $processStudents($queryPending, 'page_applicants_pending', 'pending');
+        $studentsApproved = $processStudents($queryApproved, 'page_applicants_approved', 'approved');
+        $studentsRejected = $processStudents($queryRejected, 'page_applicants_rejected', 'rejected');
+
+        // Placeholder paginator for "Not Applied" tab to avoid undefined variable in views
+        $perPage = 10;
+        $studentsNotApplied = new LengthAwarePaginator(
+            collect(),
+            0,
+            $perPage,
+            1,
+            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'page_applicants_not_applied']
+        );
 
         // Collect IDs for data loading from ALL collections
-        $allCollections = [$studentsAll, $studentsNotApplied, $studentsInProgress, $studentsPending, $studentsApproved, $studentsRejected];
+        //
+        // ANNOTATION: gathers every student_id appearing in ANY of the
+        // five paginated tabs (deduped via ->unique()) so the next
+        // block can batch-load full application/document data once
+        // instead of N+1 querying per student.
+        $allCollections = [$studentsAll, $studentsInProgress, $studentsPending, $studentsApproved, $studentsRejected];
         $studentIds = collect();
         foreach ($allCollections as $c)
             $studentIds = $studentIds->merge($c->getCollection()->pluck('student_id'));
@@ -573,9 +773,22 @@ class ApplicationController extends Controller
 
 
         // Add application status information to each student in ALL collections
+        //
+        // ANNOTATION: for every already-paginated row (which, remember,
+        // represents one student+one application), this attaches the
+        // FULL set of that student's applications scoped down to the
+        // SAME scholarship_id as the row's own application — i.e. it's
+        // enriching each row with document/status info for that
+        // specific application, not aggregating across all the
+        // student's applications. `application_status` here ends up
+        // being an array of ONE status (since it's filtered to a
+        // single scholarship_id), which is a bit misleadingly named as
+        // if it could hold multiple statuses.
         foreach ($allCollections as $collection) {
             $collection->each(function ($student) use ($applicationsData, $documentsData, $documentSummaries) {
-                $studentApplications = $applicationsData->get($student->student_id, collect());
+                $studentApplications = $applicationsData
+                    ->get($student->student_id, collect())
+                    ->where('scholarship_id', $student->scholarship_id);
                 $studentDocuments = $documentsData->get($student->student_id, collect());
 
                 $student->applications = $studentApplications;
@@ -611,6 +824,12 @@ class ApplicationController extends Controller
         $students = $studentsAll;
 
         // Get applications only from students under this SFAO admin's jurisdiction
+        //
+        // ANNOTATION: raw flat list of Application rows (one per
+        // application, NOT deduped per student) — used for whatever the
+        // Blade view does with `$applications` directly. If this feeds
+        // any headcount-style summary in the view/JS, it has the same
+        // double-count risk as the analytics data further below.
         $applications = Application::with('user', 'scholarship')
             ->whereHas('user', function ($query) use ($campusIds) {
                 $query->whereIn('campus_id', $campusIds);
@@ -702,6 +921,12 @@ class ApplicationController extends Controller
         $reports = $reportsQuery->orderBy('created_at', 'desc')->paginate(10);
 
         // Get scholars data for the scholars tab (students who have scholar records)
+        //
+        // ANNOTATION: `Scholar` is its own table with one row per
+        // scholar record (created in acceptEndorsed() below), so this
+        // is INHERENTLY safe from the "multiple applications" double
+        // count problem — a student either has a Scholar row or not,
+        // regardless of how many Application rows they have.
         $scholarsQuery = Scholar::with(['user', 'scholarship', 'user.campus'])
             ->whereHas('user', function ($query) use ($campusIds) {
                 $query->whereIn('campus_id', $campusIds);
@@ -791,6 +1016,17 @@ class ApplicationController extends Controller
         $analytics = [];
 
         // 1. Basic Counts
+        //
+        // ANNOTATION: $studentsWithApplications correctly uses
+        // ->distinct('user_id')->count('user_id') to count UNIQUE
+        // students, not applications — good pattern to replicate
+        // elsewhere. But $pendingApplications / $approvedApplications /
+        // $rejectedApplications below are raw ->count() on Application
+        // rows — i.e. these are "number of applications in status X",
+        // NOT "number of students with status X". A student with both
+        // a pending and approved application contributes to BOTH counts.
+        // Fine if the UI labels them as application counts; misleading
+        // if displayed as "students".
         $countQuery = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds);
 
@@ -856,6 +1092,12 @@ class ApplicationController extends Controller
         $analytics['campus_departments'] = $campusDepartments;
 
         // Calculate stats per department
+        //
+        // ANNOTATION: same pattern as above, all counts here are raw
+        // Application::where(...)->count() — application-level, not
+        // student-level. $deptApprovedCount + $deptPendingCount +
+        // $deptRejectedCount can legitimately exceed $deptStudentsCount
+        // if students have multiple applications in different statuses.
         $departmentStats = [];
         foreach ($allDepartments as $dept) {
             // Count students in this department (assuming users.college stores short_name)
@@ -908,6 +1150,9 @@ class ApplicationController extends Controller
         $analytics['department_stats'] = $departmentStats;
 
         // 3. All Students Data for Client-side Filtering (Gender Chart)
+        //
+        // ANNOTATION: one row per STUDENT (safe, no application-level
+        // fan-out) — used for the gender breakdown chart client-side.
         $allStudentsData = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds)
             ->select('campus_id', 'college', 'sex')
@@ -916,6 +1161,32 @@ class ApplicationController extends Controller
         $analytics['all_students_data'] = $allStudentsData;
 
         // 4. All Applications Data for Client-side Filtering (Scholarship Type Chart & Stacked Bar)
+        //
+        // *** ANNOTATION: THIS IS LIKELY WHERE YOUR DONUT-CHART BUG
+        // COMES FROM. ***
+        // This is a flat SQL JOIN of applications x users x scholarships
+        // — i.e. ONE ROW PER APPLICATION, not per student. It is NOT
+        // deduped by user_id, and it does NOT apply the
+        // approved>in_progress/pending>rejected priority rule anywhere.
+        // If createCollegeChart() / createGranularDonutChart() in
+        // sfao-script.js count "scholars" or "students" by iterating
+        // this array and tallying by status, a student with a pending
+        // application to Scholarship A and an approved application to
+        // Scholarship B will produce TWO rows here and get counted
+        // TWICE in the chart. This is your bug.
+        //
+        // Two ways to fix, pick one:
+        //   (a) Backend: dedupe this collection by user_id here,
+        //       keeping only the highest-priority row per student
+        //       (using $this->statusSortPriority()), before assigning
+        //       it to $analytics['all_applications_data'].
+        //   (b) Frontend: in sfao-script.js, group these rows by a
+        //       student identifier (note: this select does NOT include
+        //       user_id currently — you'd need to add
+        //       'users.id as user_id' to the select list below to do
+        //       this reliably) and pick one row per student using the
+        //       same priority order before tallying into the donut
+        //       chart.
         $allApplicationsData = Application::join('users', 'applications.user_id', '=', 'users.id')
             ->join('scholarships', 'applications.scholarship_id', '=', 'scholarships.id')
             ->whereIn('users.campus_id', $campusIds)
@@ -931,9 +1202,9 @@ class ApplicationController extends Controller
                 $studentsList = $studentsAll; // Default
 
                 switch ($statusFilter) {
-                    case 'not_applied':
-                        $studentsList = $studentsNotApplied;
-                        break;
+                    //case 'not_applied':
+                    // $studentsList = $studentsNotApplied;
+                    // break;
                     case 'in_progress':
                         $studentsList = $studentsInProgress;
                         break;
@@ -955,7 +1226,7 @@ class ApplicationController extends Controller
                         'pending' => $studentsPending->total(),
                         'in_progress' => $studentsInProgress->total(),
                         'rejected' => $studentsRejected->total(),
-                        'not_applied' => $studentsNotApplied->total(),
+                        //'not_applied' => $studentsNotApplied->total(),
                         'approved' => $studentsApproved->total()
                     ]
                 ]);
@@ -1008,6 +1279,12 @@ class ApplicationController extends Controller
 
 
         // Fetch Filter Options for Applicants Tab
+        //
+        // ANNOTATION: merges known "alias" labels for the same college
+        // (e.g. the old long name, 'CABE', 'CABEIHM') into a single
+        // filter option whose `value` is a pipe-delimited list of all
+        // the raw variants — this is what $collegeFilter's explode('|')
+        // handling elsewhere in the controller is designed to consume.
         $rawColleges = User::where('role', 'student')
             ->whereIn('campus_id', $campusIds)
             ->whereNotNull('college')
@@ -1044,6 +1321,12 @@ class ApplicationController extends Controller
         $tracks = $filterOptions->pluck('track')->filter()->unique()->values();
 
         // Academic Years (from Applications)
+        //
+        // ANNOTATION: driver-aware SQL (Postgres vs MySQL syntax) to
+        // extract year/month from created_at, then maps each
+        // application's created_at into an "AY YYYY-YYYY" label
+        // assuming the academic year starts in August. Same August-start
+        // assumption used in the academicYearFilter handling above.
         $yearExpression = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql'
             ? 'EXTRACT(YEAR FROM created_at)::integer'
             : 'YEAR(created_at)';
@@ -1100,6 +1383,13 @@ class ApplicationController extends Controller
 
     /**
      * View applicants for SFAO (Campus-specific)
+     *
+     * ANNOTATION: an older/simpler alternative applicants view, keyed
+     * off `student_submitted_documents` rather than `applications` —
+     * lists students who've uploaded at least one sfao_required
+     * document, one row per student (grouped by user id/name/email/
+     * campus_id). No application-status dedup concerns since this
+     * isn't status-based at all.
      */
     public function sfaoApplicants()
     {
@@ -1126,20 +1416,14 @@ class ApplicationController extends Controller
             ->groupBy('users.id', 'users.name', 'users.email', 'users.campus_id')
             ->get();
 
-        return view('sfao.partials.tabs.applicants', compact(
-            'students',
-            'studentsAll',
-            'studentsNotApplied',
-            'studentsInProgress',
-            'studentsPending',
-            'studentsApproved',
-            'studentsRejected',
-            'sfaoCampus'
-        ));
+        return view('sfao.partials.tabs.applicants', compact('students', 'sfaoCampus'));
     }
 
     /**
      * View student documents (SFAO)
+     *
+     * ANNOTATION: simple lookup, one student's sfao_required documents.
+     * No dedup concerns.
      */
     public function viewDocuments($user_id)
     {
@@ -1161,6 +1445,12 @@ class ApplicationController extends Controller
 
     /**
      * Approve application (SFAO) - Sets to in_progress for admin final review
+     *
+     * ANNOTATION: SFAO "approving" doesn't actually set status to
+     * 'approved' — it moves it to 'in_progress' so Central can do the
+     * final approval (see acceptEndorsed() below, which is what
+     * actually sets 'approved'). Important distinction if you're ever
+     * tracing "why isn't this application showing as approved yet."
      */
     public function sfaoApproveApplication($id)
     {
@@ -1177,6 +1467,11 @@ class ApplicationController extends Controller
 
     /**
      * Mark application as claimed (SFAO)
+     *
+     * ANNOTATION: only allowed from 'approved' status. grant_count is
+     * computed via Application::getNextGrantCount() (defined on the
+     * model, not shown here) — presumably counts prior claimed grants
+     * for this (user, scholarship) pair and increments.
      */
     public function sfaoClaimGrant($id)
     {
@@ -1203,6 +1498,13 @@ class ApplicationController extends Controller
 
     /**
      * Approve application (Central)
+     *
+     * ANNOTATION: unlike SFAO's version, Central approval DOES set
+     * status to 'approved' directly. (Though note acceptEndorsed()
+     * below is the more fully-featured accept flow that also creates a
+     * Scholar record — this simple method looks like it may be a
+     * legacy/alternate path that bypasses Scholar creation. Worth
+     * checking your routes to see if this is still wired to anything.)
      */
     public function centralApproveApplication($id)
     {
@@ -1249,6 +1551,10 @@ class ApplicationController extends Controller
 
     /**
      * Get application tracking data for student
+     *
+     * ANNOTATION: simple helper, all of a single student's applications
+     * in reverse chronological order. No dedup needed — the student
+     * legitimately wants to see every application they've made.
      */
     public function getApplicationTracking($userId)
     {
@@ -1260,6 +1566,10 @@ class ApplicationController extends Controller
 
     /**
      * Get applications for SFAO dashboard
+     *
+     * ANNOTATION: unused-looking utility method (sfaoDashboard() builds
+     * its own $applications inline rather than calling this) — flat,
+     * one row per application, scoped to campus jurisdiction.
      */
     public function getSfaoApplications($campusIds)
     {
@@ -1272,6 +1582,14 @@ class ApplicationController extends Controller
 
     /**
      * Central Dashboard - Only shows scholars (selected students), not applicants
+     *
+     * ANNOTATION: Central Admin's equivalent of sfaoDashboard(). Builds
+     * the applications table, scholarships tabs, reports tabs, scholars
+     * tabs (scholarsAll/scholarsNew/scholarsOld — Scholar-table-backed,
+     * inherently deduped), qualifiedApplicants, endorsedApplicants, and
+     * rejectedApplicants sections, then calls generateAnalyticsData()
+     * for the big chart/stat payload (see that method for the other
+     * half of your donut-chart bug).
      */
     public function centralDashboard(Request $request)
     {
@@ -1296,6 +1614,10 @@ class ApplicationController extends Controller
         $campusFilter = $request->get('campus_filter', $request->get('campus', 'all'));
 
         // Override campus filter if tab implies a specific campus statistics page
+        //
+        // ANNOTATION: lets a URL like ?tabs=main_campus_statistics
+        // implicitly scope everything to that one campus by matching
+        // the slugified campus name against the tab name.
         if (str_ends_with($tab, '_statistics') && $tab !== 'all_statistics') {
             $campusSlug = str_replace('_statistics', '', $tab);
             foreach ($campuses as $campus) {
@@ -1309,6 +1631,12 @@ class ApplicationController extends Controller
         $scholarshipFilter = $request->get('scholarship_filter', 'all');
 
         // Build applications query with filtering
+        //
+        // ANNOTATION: flat Application list (one row per application),
+        // filtered by status/campus/scholarship and sorted — feeds
+        // whatever the Central "Applications" tab table shows. Since
+        // this is meant to be a literal applications table (not a
+        // student headcount), one row per application is correct here.
         $applicationsQuery = Application::with(['user', 'scholarship', 'user.campus'])
             ->whereHas('user', function ($query) {
                 $query->where('role', 'student');
@@ -1504,6 +1832,11 @@ class ApplicationController extends Controller
         ];
 
         // Generate comprehensive analytics data
+        //
+        // ANNOTATION: delegates to generateAnalyticsData() below — see
+        // that method's inline notes for the other half of your
+        // donut-chart bug (its own $allApplicationsData is likewise
+        // application-level, not deduped per student).
         $analytics = $this->generateAnalyticsData(['campus' => $campusFilter]);
 
         // Get all campuses for filter (Moved to top)
@@ -1537,6 +1870,9 @@ class ApplicationController extends Controller
 
         // Scholars Query - Base
         // Get scholars data for the scholars tab (students who have scholar records)
+        //
+        // ANNOTATION: again, Scholar-table-backed — inherently one row
+        // per scholar, safe from the multi-application dedup issue.
         $scholarsQuery = Scholar::with(['user', 'scholarship', 'user.campus']);
 
         // Apply filters (shared filters like campus, status, etc.)
@@ -1604,6 +1940,12 @@ class ApplicationController extends Controller
         $scholars = $scholarsAll;
 
         // Get qualified applicants (approved by SFAO but not yet selected as scholars)
+        //
+        // ANNOTATION: "qualified" = has at least one approved
+        // application AND is not already a Scholar. This is a
+        // per-STUDENT list (whereHas/whereDoesntHave on User), so a
+        // student won't appear twice here just for having multiple
+        // approved applications.
         $qualifiedApplicantsQuery = User::with(['applications.scholarship', 'campus'])
             ->where('role', 'student')
             ->whereHas('applications', function ($query) {
@@ -1626,7 +1968,7 @@ class ApplicationController extends Controller
         // Apply sorting for qualified applicants
         switch ($sortBy) {
             case 'name':
-                $qualifiedApplicantsQuery->orderBy('first_name', $sortOrder);
+                $qualifiedApplicantsQuery->orderBy('users.name', $sortOrder);
                 break;
             case 'campus':
                 $qualifiedApplicantsQuery->join('campuses', 'users.campus_id', '=', 'campuses.id')
@@ -1653,6 +1995,13 @@ class ApplicationController extends Controller
         }
 
         // Get endorsed applicants (approved by SFAO and ready for scholar selection)
+        //
+        // ANNOTATION: "endorsed" = Application-level (status in_progress,
+        // no linked Scholar yet), one row per APPLICATION rather than
+        // per student — since this is Central's action queue for
+        // deciding accept/reject per application, one row per
+        // application is the correct shape here (mirrors viewApplicants()
+        // above).
         $endorsedApplicantsQuery = Application::with(['user', 'scholarship', 'user.campus'])
             ->where('status', 'in_progress')
             ->whereDoesntHave('scholar'); // Not already converted into a scholar record
@@ -1698,6 +2047,10 @@ class ApplicationController extends Controller
         }
 
         // Get rejected applicants (rejected by Central Admin)
+        //
+        // ANNOTATION: RejectedApplicant is its own audit-trail table
+        // (populated by rejectEndorsed() below) — one row per rejection
+        // event, not derived from Application.status directly.
         $rejectedApplicants = \App\Models\RejectedApplicant::with(['user', 'scholarship', 'rejectedByUser'])
             ->where('rejected_by', 'central')
             ->orderBy('rejected_at', 'desc')
@@ -1706,6 +2059,13 @@ class ApplicationController extends Controller
         return view('central.analytics.index', compact('user', 'applications', 'scholarshipsAll', 'scholarshipsPrivate', 'scholarshipsGov', 'reportStats', 'analytics', 'reportsSubmitted', 'reportsReviewed', 'reportsApproved', 'reportsRejected', 'campuses', 'campusOptions', 'scholarshipOptions', 'statusOptions', 'sortBy', 'sortOrder', 'statusFilter', 'campusFilter', 'scholarshipFilter', 'scholars', 'scholarsAll', 'scholarsNew', 'scholarsOld', 'qualifiedApplicants', 'endorsedApplicants', 'rejectedApplicants', 'totalReports', 'academicYearOptions', 'academicYearFilter'));
     }
 
+    /**
+     * ANNOTATION: AJAX endpoint used when the Central analytics filters
+     * (campus/college/program/track/scholarship/time period) change
+     * without a full page reload — just re-runs generateAnalyticsData()
+     * with the new filters and returns JSON. Any dedup fix you make
+     * inside generateAnalyticsData() automatically applies here too.
+     */
     public function getFilteredAnalytics(Request $request)
     {
         if (!session()->has('user_id') || session('role') !== 'central') {
@@ -1724,6 +2084,21 @@ class ApplicationController extends Controller
 
     /**
      * Generate comprehensive analytics data for the statistics dashboard
+     *
+     * ANNOTATION: shared by centralDashboard() (server-rendered) and
+     * getFilteredAnalytics() (AJAX). This is the single largest method
+     * in the file. General pattern to watch for as you read through:
+     *   - Anything built from `Scholar::` / `$scholarQuery` is
+     *     inherently per-scholar (one row per scholar record) → safe.
+     *   - Anything built from `Application::` counts/collections is
+     *     per-APPLICATION → a student with N applications in different
+     *     statuses contributes to N different status buckets. Fine for
+     *     "how many applications" metrics, NOT fine if displayed/used
+     *     as "how many students."
+     *   - The one exception worth flagging in bold: $allApplicationsData
+     *     near the bottom, which is the flat join used for client-side
+     *     chart building — same issue as sfaoDashboard()'s
+     *     $analytics['all_applications_data'].
      */
     private function generateAnalyticsData($filters = [])
     {
@@ -1742,6 +2117,15 @@ class ApplicationController extends Controller
         $scholarQuery = Scholar::query();
 
         // Apply time period filter
+        //
+        // ANNOTATION: getDateCondition() below only recognizes
+        // 'this_month' / 'last_3_months' / 'this_year' — any other
+        // value (including academic-year-style strings like
+        // "2023-2024") falls through to `default => null`, silently
+        // skipping the date filter. Worth confirming the frontend never
+        // actually sends an academic-year string here expecting it to
+        // work, since $filters['academicYear'] is explicitly read above
+        // as a possible source for $timePeriod.
         $dateCondition = null;
         if ($timePeriod !== 'all') {
             $dateCondition = $this->getDateCondition($timePeriod);
@@ -1797,6 +2181,11 @@ class ApplicationController extends Controller
         $pendingReviews = $reportQuery->where('status', 'submitted')->count();
 
         // Get comprehensive application statistics
+        //
+        // ANNOTATION: these are raw APPLICATION counts (not deduped per
+        // student) — same caveat as everywhere else: sum of
+        // approved+rejected+pending+in_progress+claimed can exceed the
+        // number of unique applicants.
         $totalApplications = $applicationQuery->count();
         $approvedApplications = (clone $applicationQuery)->where('status', 'approved')->count();
         $rejectedApplications = (clone $applicationQuery)->where('status', 'rejected')->count();
@@ -1820,10 +2209,16 @@ class ApplicationController extends Controller
         $totalCentralUsers = User::where('role', 'central')->count();
 
         // Get scholar statistics (New vs Old)
+        //
+        // ANNOTATION: Scholar-table-backed — safe, one row per scholar.
         $newScholars = (clone $scholarQuery)->where('type', 'new')->count();
         $oldScholars = (clone $scholarQuery)->where('type', 'old')->count();
 
         // Get demographic statistics from scholars
+        //
+        // ANNOTATION: also Scholar-table-backed — safe. Note these are
+        // "scholar" counts, i.e. only students who've been formally
+        // accepted as scholars, not all applicants.
         $maleStudents = (clone $scholarQuery)->whereHas('user', function ($q) {
             $q->where('sex', 'male');
         })->count();
@@ -1836,6 +2231,10 @@ class ApplicationController extends Controller
         $studentsWithoutApplications = $totalStudents - $studentsWithApplications;
 
         // Get application status by gender (using users table)
+        //
+        // ANNOTATION: back to raw Application counts — same
+        // per-application (not per-student) caveat applies to all of
+        // the male/female application counts below.
         $maleApplications = Application::whereHas('user', function ($query) {
             $query->where('sex', 'male');
         })->count();
@@ -1865,6 +2264,9 @@ class ApplicationController extends Controller
         })->where('status', 'pending')->count();
 
         // Get year level distribution from scholars
+        //
+        // ANNOTATION: Scholar-backed via whereHas('scholars') on User —
+        // safe, one row per student-with-a-scholar-record.
         $scholarUserQuery = User::whereHas('scholars');
 
         // Apply filters to scholar user query
@@ -1883,6 +2285,11 @@ class ApplicationController extends Controller
             ->get();
 
         // Normalize year level labels to standard format
+        //
+        // ANNOTATION: same normalization pattern repeated later inside
+        // the per-campus loop ($campusYearLevelMapping) — collapses
+        // inconsistent historical data entry ("1st", "First Year",
+        // "1st Year") into one canonical label per year level.
         $yearLevelMapping = [
             '1st Year' => '1st Year',
             'First Year' => '1st Year',
@@ -1921,6 +2328,8 @@ class ApplicationController extends Controller
         $yearLevelCounts = array_values($sortedYearLevels);
 
         // Get program distribution from scholars
+        //
+        // ANNOTATION: Scholar-backed, top 10 by count — safe.
         $programStats = (clone $scholarUserQuery)
             ->selectRaw('program, COUNT(*) as count')
             ->groupBy('program')
@@ -1932,6 +2341,14 @@ class ApplicationController extends Controller
         $programCounts = $programStats->pluck('count')->toArray();
 
         // Get application status by year level (using forms table)
+        //
+        // ANNOTATION: for each standardized year level, pulls every
+        // Application whose user's `year_level` matches ANY of the raw
+        // variant labels that normalize to that standard level, then
+        // tallies statuses. Again, per-APPLICATION not per-student —
+        // approved+rejected+pending+claimed can exceed total unique
+        // students in that year level if some have multiple
+        // applications.
         $yearLevelApplicationStats = [];
         $standardYearLevels = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 
@@ -1960,6 +2377,17 @@ class ApplicationController extends Controller
         }
 
         // Get monthly trends (last 6 months)
+        //
+        // ANNOTATION: builds 6 parallel arrays (one entry per of the
+        // last 6 months) for reports/applications/approved/rejected —
+        // this is the data behind whatever monthly trend line chart
+        // exists in the Central analytics view. All Application-based
+        // counts here, so again per-application granularity, but a
+        // monthly trend of "applications submitted" is arguably the
+        // CORRECT metric to show as application-level (you generally do
+        // want to count every application submission event, not
+        // collapse them per student) — flagging this one as probably
+        // fine as-is, unlike the donut/pie chart use case.
         $monthlyLabels = [];
         $monthlyReports = [];
         $monthlyApplications = [];
@@ -2002,13 +2430,28 @@ class ApplicationController extends Controller
         $campusStudents = $campuses->pluck('users_count')->toArray();
 
         // Get campus application statistics
+        //
+        // ANNOTATION: big per-campus loop, computing an entire nested
+        // analytics block (applications, scholars, gender, year level,
+        // program, monthly trends, per-scholarship new/old scholar
+        // counts) for EACH campus. Watch for the note further down
+        // about $campusStudentsCount — this is the variable that used
+        // to be named $campusStudents and shadowed the outer
+        // $campusStudents array (already fixed, per your project
+        // history — the comment below documents that fix).
         $campusApplicationStats = [];
         foreach ($campuses as $campus) {
+            // ANNOTATION: $campusApplications is a flat, per-application
+            // collection (not deduped per student) — every count
+            // derived from it below (approved/rejected/pending/claimed)
+            // is an application count, not a student count.
             $campusApplications = Application::whereHas('user', function ($query) use ($campus) {
                 $query->where('campus_id', $campus->id);
             })->get();
 
             // Get scholar stats for campus
+            //
+            // ANNOTATION: Scholar-backed — safe.
             $campusScholarsQuery = Scholar::whereHas('user', function ($query) use ($campus) {
                 $query->where('campus_id', $campus->id);
             });
@@ -2018,6 +2461,12 @@ class ApplicationController extends Controller
             // Get total students for this campus (uses a locally scoped variable so it
             // no longer overwrites the outer $campusStudents array used for the
             // overall campus chart above).
+            //
+            // ANNOTATION: this comment documents the fix for the
+            // variable-shadowing bug mentioned in your project history
+            // — $campusStudentsCount is now local to this loop
+            // iteration and no longer clobbers the outer $campusStudents
+            // array (plural, built above from ->pluck('users_count')).
             $campusStudentsCount = User::where('role', 'student')
                 ->where('campus_id', $campus->id)
                 ->count();
@@ -2162,6 +2611,13 @@ class ApplicationController extends Controller
         $scholarshipTypeCounts = $scholarshipTypes->pluck('count')->toArray();
 
         // Get scholarship performance data
+        //
+        // ANNOTATION: per-scholarship rollup using withCount() — this is
+        // scoped by scholarship, so "applications_count" here means
+        // "how many applications exist for this scholarship", which is
+        // a legitimate application-level metric (a scholarship's fill
+        // rate naturally cares about every application to it, not
+        // unique students across ALL scholarships).
         $scholarshipPerformance = Scholarship::withCount([
             'applications',
             'applications as approved_applications_count' => function ($query) {
@@ -2183,6 +2639,15 @@ class ApplicationController extends Controller
         });
 
         // Get application status distribution
+        //
+        // ANNOTATION: this is the raw application-level status
+        // breakdown used to feed whatever "overall status" pie/donut
+        // chart exists in the Central analytics view — same caveat as
+        // sfaoDashboard()'s equivalent: these four numbers ($approved +
+        // $rejected + $pending + $claimed) don't collapse per student,
+        // so if this specific object is what feeds a "students by
+        // status" style chart (as opposed to an "applications by
+        // status" chart), it has the same double-count risk.
         $applicationStatusData = [
             'approved' => $approvedApplications,
             'rejected' => $rejectedApplications,
@@ -2213,6 +2678,9 @@ class ApplicationController extends Controller
 
         // Data required by the Alpine.js frontend for dropdowns, charts, and
         // client-side fallback counting.
+        //
+        // ANNOTATION: $allStudentsData below is one row per student —
+        // safe.
         $rawStudentQuery = User::where('role', 'student');
         if ($campusId !== 'all') {
             $rawStudentQuery->where('campus_id', $campusId);
@@ -2222,6 +2690,32 @@ class ApplicationController extends Controller
             ->select('campus_id', 'college', 'sex')
             ->get();
 
+        // *** ANNOTATION: THE OTHER HALF OF YOUR DONUT-CHART BUG. ***
+        // Same shape as sfaoDashboard()'s $allApplicationsData — a flat
+        // join of applications x users x scholarships (plus a left join
+        // to scholars here), ONE ROW PER APPLICATION, not deduped by
+        // user. This version DOES include 'users.id as user_id' in its
+        // select list (good — that makes a frontend dedup-by-user_id
+        // fix straightforward here, unlike the SFAO version which is
+        // missing user_id). If createCollegeChart() /
+        // createGranularDonutChart() consume this array (via
+        // all_applications_data below) for the Central dashboard's
+        // donut chart, the same "student with pending + approved
+        // applications counted twice" bug applies here too.
+        //
+        // Recommended fix: before returning this array, group by
+        // user_id and keep only the row whose `status` has the highest
+        // priority per $this->statusSortPriority(), e.g.:
+        //   $priority = $this->statusSortPriority();
+        //   $allApplicationsData = $allApplicationsData
+        //       ->groupBy('user_id')
+        //       ->map(fn($rows) => $rows->sortBy(fn($r) => $priority[$r->status] ?? 999)->first())
+        //       ->values();
+        // (Do this AFTER the query, since a student's applications can
+        // span different scholarships/colleges which are also columns
+        // in the same select — decide whether you want the winning
+        // row's scholarship/college context, which this approach
+        // preserves correctly.)
         $allApplicationsData = Application::join('users', 'applications.user_id', '=', 'users.id')
             ->join('scholarships', 'applications.scholarship_id', '=', 'scholarships.id')
             ->leftJoin('scholars', function ($join) {
@@ -2252,6 +2746,9 @@ class ApplicationController extends Controller
         $availableScholarships = Scholarship::select('id', 'scholarship_name')->get();
         $allColleges = \App\Models\Department::select('id', 'short_name')->get();
 
+        // ANNOTATION: builds two lookup structures for cascading
+        // dropdowns in the frontend filters: which colleges exist per
+        // campus, and which programs exist per (campus, college) pair.
         $campusColleges = [];
         $campusCollegePrograms = [];
         foreach (Campus::with('departments')->get() as $camp) {
@@ -2272,6 +2769,8 @@ class ApplicationController extends Controller
             $campusCollegePrograms[$camp->id] = $programsByCollege;
         }
 
+        // ANNOTATION: builds a program -> [tracks] lookup for another
+        // cascading dropdown (program picked -> track options narrow).
         $programTracks = [];
         foreach (
             User::where('role', 'student')
@@ -2284,6 +2783,12 @@ class ApplicationController extends Controller
             $programTracks[$program] = array_values(array_unique($tracks));
         }
 
+        // ANNOTATION: final assembled payload returned to both
+        // centralDashboard() (as $analytics, passed to the Blade view)
+        // and getFilteredAnalytics() (as JSON for AJAX filter updates).
+        // If you add a dedup step for all_applications_data per the
+        // note above, just reassign $allApplicationsData before this
+        // return array is built — no other changes needed here.
         return [
             // Report Statistics
             'total_reports' => $totalReports,
@@ -2397,6 +2902,12 @@ class ApplicationController extends Controller
 
     /**
      * Sort scholarships based on various criteria
+     *
+     * ANNOTATION: generic in-memory sort helper used by both
+     * sfaoDashboard() and centralDashboard() for their scholarships
+     * tabs. Operates on an already-fetched Collection (not a query
+     * builder), sorting by whichever field name is passed in. Unrelated
+     * to application/student dedup.
      */
     private function sortScholarships($scholarships, $sortBy, $sortOrder)
     {
@@ -2428,6 +2939,10 @@ class ApplicationController extends Controller
 
     /**
      * Get applications for Central dashboard
+     *
+     * ANNOTATION: unused-looking utility (centralDashboard() builds its
+     * own $applications inline) — flat list, all applications globally,
+     * no campus scoping (unlike getSfaoApplications() above).
      */
     public function getCentralApplications()
     {
@@ -2442,6 +2957,10 @@ class ApplicationController extends Controller
 
     /**
      * Get date condition for time period filter
+     *
+     * ANNOTATION: only handles 3 named time periods; anything else
+     * (including 'all', or an unrecognized string) returns null, which
+     * generateAnalyticsData() treats as "no date filter applied."
      */
     private function getDateCondition($timePeriod)
     {
@@ -2469,6 +2988,12 @@ class ApplicationController extends Controller
     }
     /**
      * Show evaluation - Stage 1: Select student and scholarship
+     *
+     * ANNOTATION: first step of the 4-stage SFAO document evaluation
+     * workflow. Loads one student + all their applications so the SFAO
+     * user can pick which application (scholarship) to evaluate next.
+     * Includes a jurisdiction check (student's campus must be within
+     * this SFAO admin's monitored campuses).
      */
     public function showEvaluation($userId)
     {
@@ -2480,6 +3005,9 @@ class ApplicationController extends Controller
 
         // Get SFAO admin's campus to verify jurisdiction
         $sfaoAdmin = User::with('campus')->find(session('user_id'));
+        if (!$sfaoAdmin || !$sfaoAdmin->campus) {
+            return redirect('/login')->with('error', 'User campus not assigned.');
+        }
         $campusIds = $sfaoAdmin->campus->getAllCampusesUnder()->pluck('id')->toArray();
 
         if (!in_array($student->campus_id, $campusIds)) {
@@ -2494,6 +3022,11 @@ class ApplicationController extends Controller
 
     /**
      * Show SFAO documents evaluation - Stage 2
+     *
+     * ANNOTATION: loads only the 'sfao_required' category documents for
+     * a specific (student, scholarship) pair — scoped to a single
+     * application, not aggregated across the student's other
+     * applications.
      */
     public function evaluateSfaoDocuments($userId, $scholarshipId)
     {
@@ -2506,6 +3039,9 @@ class ApplicationController extends Controller
 
         // Verify SFAO has jurisdiction
         $sfaoAdmin = User::with('campus')->find(session('user_id'));
+        if (!$sfaoAdmin || !$sfaoAdmin->campus) {
+            return redirect('/login')->with('error', 'User campus not assigned.');
+        }
         $campusIds = $sfaoAdmin->campus->getAllCampusesUnder()->pluck('id')->toArray();
 
         if (!in_array($student->campus_id, $campusIds)) {
@@ -2528,6 +3064,10 @@ class ApplicationController extends Controller
 
     /**
      * Submit SFAO documents evaluation
+     *
+     * ANNOTATION: bulk-updates evaluation_status/evaluated_by/
+     * evaluated_at for a batch of sfao_required documents belonging to
+     * one (student, scholarship) pair, then redirects to Stage 3.
      */
     public function submitSfaoEvaluation(Request $request, $userId, $scholarshipId)
     {
@@ -2562,6 +3102,9 @@ class ApplicationController extends Controller
 
     /**
      * Show scholarship documents evaluation - Stage 3
+     *
+     * ANNOTATION: same as Stage 2 but for the 'scholarship_required'
+     * document category instead of 'sfao_required'.
      */
     public function evaluateScholarshipDocuments($userId, $scholarshipId)
     {
@@ -2574,6 +3117,9 @@ class ApplicationController extends Controller
 
         // Verify SFAO has jurisdiction
         $sfaoAdmin = User::with('campus')->find(session('user_id'));
+        if (!$sfaoAdmin || !$sfaoAdmin->campus) {
+            return redirect('/login')->with('error', 'User campus not assigned.');
+        }
         $campusIds = $sfaoAdmin->campus->getAllCampusesUnder()->pluck('id')->toArray();
 
         if (!in_array($student->campus_id, $campusIds)) {
@@ -2597,6 +3143,17 @@ class ApplicationController extends Controller
     /**
      * Determine automatic decision based on document evaluation statuses
      * Priority: Reject > Pending > Approve
+     *
+     * ANNOTATION: IMPORTANT — this is a DIFFERENT priority rule than
+     * statusSortPriority() above. This one is about DOCUMENT evaluation
+     * statuses within a single application (reject beats pending beats
+     * approve, i.e. "any bad document sinks the whole application"),
+     * whereas statusSortPriority() is about APPLICATION statuses across
+     * a student's multiple applications (approved beats in_progress
+     * beats pending beats rejected, i.e. "best outcome wins for
+     * display"). Don't conflate the two when refactoring — they're
+     * intentionally inverted in spirit (one is "worst wins", the other
+     * is "best wins") because they answer different questions.
      */
     private function determineAutoDecision($documents)
     {
@@ -2621,6 +3178,13 @@ class ApplicationController extends Controller
     /**
      * Map the SFAO review action to the application status shown in the workflow.
      * SFAO moves an application to in progress; only the admin can mark it approved.
+     *
+     * ANNOTATION: this helper doesn't appear to be called anywhere else
+     * in this file — submitFinalEvaluation() below inlines its own
+     * equivalent match() expression instead of calling this. Possibly
+     * dead code, or called from a route/view not shown here — worth
+     * grepping your codebase for resolveSfaoApplicationStatus( to
+     * confirm before removing it.
      */
     private function resolveSfaoApplicationStatus(string $action, ?string $fallbackStatus = null): string
     {
@@ -2633,6 +3197,12 @@ class ApplicationController extends Controller
 
     /**
      * Show final review - Stage 4
+     *
+     * ANNOTATION: loads ALL documents (both categories) for a
+     * (student, scholarship) pair, splits them into sfaoDocuments /
+     * scholarshipDocuments collections for display, and computes the
+     * suggested autoDecision using determineAutoDecision() so the SFAO
+     * reviewer sees a pre-filled recommendation before submitting.
      */
     public function finalEvaluation($userId, $scholarshipId)
     {
@@ -2645,6 +3215,9 @@ class ApplicationController extends Controller
 
         // Verify SFAO has jurisdiction
         $sfaoAdmin = User::with('campus')->find(session('user_id'));
+        if (!$sfaoAdmin || !$sfaoAdmin->campus) {
+            return redirect('/login')->with('error', 'User campus not assigned.');
+        }
         $campusIds = $sfaoAdmin->campus->getAllCampusesUnder()->pluck('id')->toArray();
 
         if (!in_array($student->campus_id, $campusIds)) {
@@ -2683,6 +3256,16 @@ class ApplicationController extends Controller
     /**
      * Submit final evaluation with remarks
      * Now automatically determines decision based on document statuses
+     *
+     * ANNOTATION: the actual state-changing step of the 4-stage
+     * workflow. Re-runs determineAutoDecision() (document-level
+     * priority: reject > pending > approve) to decide the application's
+     * new status, updates the Application row, then builds and sends a
+     * student-facing Notification with a decision-specific title and
+     * message (including a rundown of any pending/rejected document
+     * names when the outcome is 'pending'). This is where an
+     * application transitions from SFAO's queue into either 'rejected',
+     * 'pending', or 'in_progress' (forwarded to Central).
      */
     public function submitFinalEvaluation(Request $request, $userId, $scholarshipId)
     {
@@ -2734,6 +3317,10 @@ class ApplicationController extends Controller
         $pendingDocuments = $documents->where('evaluation_status', 'pending')->pluck('document_name')->toArray();
         $rejectedDocuments = $documents->where('evaluation_status', 'rejected')->pluck('document_name')->toArray();
 
+        // Ensure scholarship relationship is loaded for notification text
+        $application->load('scholarship');
+        $scholarshipName = $application->scholarship->scholarship_name ?? 'the scholarship';
+
         // Create notification for student
         $notificationTitle = match ($action) {
             'approve' => 'Application Forwarded for Central Review',
@@ -2743,9 +3330,9 @@ class ApplicationController extends Controller
         };
 
         $notificationMessage = match ($action) {
-            'approve' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been approved by SFAO. It is now forwarded to Central Administration for final review.',
-            'reject' => 'Your application for ' . $application->scholarship->scholarship_name . ' has been rejected based on document evaluation.',
-            'pending' => 'Your application for ' . $application->scholarship->scholarship_name . ' is now in progress after SFAO evaluation.',
+            'approve' => 'Your application for ' . $scholarshipName . ' has been approved by SFAO. It is now forwarded to Central Administration for final review.',
+            'reject' => 'Your application for ' . $scholarshipName . ' has been rejected based on document evaluation.',
+            'pending' => 'Your application for ' . $scholarshipName . ' is now in progress after SFAO evaluation.',
             default => 'Your application status has been updated.'
         };
 
@@ -2769,7 +3356,7 @@ class ApplicationController extends Controller
             'data' => [
                 'application_id' => $application->id,
                 'scholarship_id' => $scholarshipId,
-                'scholarship_name' => $application->scholarship->scholarship_name,
+                'scholarship_name' => $scholarshipName,
                 'status' => $newStatus,
                 'remarks' => $request->remarks,
                 'document_status' => $documentStatus,
@@ -2792,6 +3379,12 @@ class ApplicationController extends Controller
 
     /**
      * Show validation page for an endorsed (approved) application for Central admin.
+     *
+     * ANNOTATION: loads a single Application plus its student, scholarship,
+     * and submitted documents so Central can review before accepting or
+     * rejecting it (see acceptEndorsed / rejectEndorsed below). Uses
+     * Laravel route-model binding (Application $application) instead of
+     * a raw $id, unlike most other methods in this file.
      */
     public function showEndorsedValidation(Request $request, Application $application)
     {
@@ -2817,6 +3410,18 @@ class ApplicationController extends Controller
     /**
      * Accept an endorsed application (Central)
      * @param Application $application
+     *
+     * ANNOTATION: THIS is the "real" Central approval flow (contrast
+     * with the thin centralApproveApplication() wrapper above). Only
+     * works on 'in_progress' applications (i.e. ones SFAO already
+     * endorsed). Guards against creating a duplicate Scholar record for
+     * the same (user, scholarship) pair. Sets application status to
+     * 'approved', THEN creates a new Scholar record with type='new' and
+     * computed start/end dates (1 year if renewal_allowed, else 6
+     * months). This is the single place in the whole controller where
+     * a Scholar row gets created from the applicant pipeline (the other
+     * creation path would be direct seeding/admin tools not shown
+     * here).
      */
     public function acceptEndorsed(Application $application)
     {
@@ -2876,6 +3481,14 @@ class ApplicationController extends Controller
      * Reject an endorsed application (Central)
      * @param Request $request
      * @param Application $application
+     *
+     * ANNOTATION: counterpart to acceptEndorsed(). Requires a
+     * rejection_reason. Sets application status to 'rejected' AND
+     * writes a permanent audit record into RejectedApplicant (with the
+     * reason, optional remarks, who rejected it, and when) — this table
+     * is what prevents the student from re-applying to the same
+     * scholarship in the future (referenced by name in the success
+     * message).
      */
     public function rejectEndorsed(Request $request, Application $application)
     {
@@ -2917,6 +3530,11 @@ class ApplicationController extends Controller
 
     /**
      * View rejected applicants list (Central)
+     *
+     * ANNOTATION: simple listing of the RejectedApplicant audit table,
+     * scoped to rejections made by Central (as opposed to any other
+     * rejection source, though this controller only ever writes
+     * 'central' as the rejected_by value).
      */
     public function viewRejectedApplicants()
     {
@@ -2933,6 +3551,16 @@ class ApplicationController extends Controller
     }
     /**
      * Submit Scholarship Specific documents evaluation - Stage 3
+     *
+     * ANNOTATION: bulk-updates evaluation_status for a batch of
+     * documents in the (student, scholarship) pair — notably this one
+     * does NOT filter by document_category (unlike submitSfaoEvaluation()
+     * which explicitly scopes to 'sfao_required'), so it will update
+     * ANY matching document_id regardless of category. Given the method
+     * name and its place in the Stage 3 flow, it's presumably only ever
+     * called with scholarship_required document IDs from the frontend,
+     * but the query itself doesn't enforce that — worth double-checking
+     * if you ever see cross-category evaluation status bleed.
      */
     public function submitScholarshipEvaluation(Request $request, $userId, $scholarshipId)
     {

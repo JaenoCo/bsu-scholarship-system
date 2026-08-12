@@ -24,13 +24,30 @@
         sfaoCampusName: @json($sfaoCampus->name),
         extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck("name"))
      })'
-      x-init="handleTabChange(currentTab); $watch('tab', value => handleTabChange(value)); $watch('currentTab', value => handleTabChange(value))">
+>
     
     <!-- Header removed -->
 
     <!-- Sorting and Filtering Controls -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
         <div class="flex flex-wrap gap-4 items-end">
+
+            <!-- Status -->
+            <div class="flex-1 min-w-[140px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Status</label>
+                <div class="relative">
+                    <select x-model="filters.status" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none cursor-pointer">
+                        <option value="all">All Statuses</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
 
             <!-- Scholarship -->
             <div class="flex-1 min-w-[140px]">

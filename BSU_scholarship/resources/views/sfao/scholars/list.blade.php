@@ -38,7 +38,9 @@
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     @foreach($scholars as $index => $scholar)
                         @php
-                            $isEligible = !($scholar->scholarship->grant_type === 'one_time' && $scholar->grant_count > 0);
+                            $canMarkScholar = $scholar->can_mark ?? true;
+                            $isEligible = $canMarkScholar && !(($scholar->scholarship->grant_type ?? null) === 'one_time' && $scholar->grant_count > 0);
+                            $isActive = ($scholar->status ?? 'active') === 'active';
                         @endphp
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td class="px-4 py-4 whitespace-nowrap">
@@ -76,7 +78,7 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold {{ $scholar->isActive() ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold {{ $isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' }}">
                                     {{ ucfirst($scholar->status) }}
                                 </span>
                             </td>
@@ -88,7 +90,11 @@
                                 <div class="text-xs text-gray-400 mt-1">Updated: {{ $scholar->updated_at->diffForHumans() }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                @if($scholar->scholarship->grant_type === 'one_time' && $scholar->grant_count > 0)
+                                @if(!$canMarkScholar)
+                                    <button disabled class="px-4 py-2 bg-green-100 text-green-700 rounded-lg cursor-not-allowed text-sm font-semibold border border-green-200">
+                                        Approved
+                                    </button>
+                                @elseif(($scholar->scholarship->grant_type ?? null) === 'one_time' && $scholar->grant_count > 0)
                                     <button disabled class="px-4 py-2 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed text-sm font-semibold border border-gray-300">
                                         Claimed
                                     </button>

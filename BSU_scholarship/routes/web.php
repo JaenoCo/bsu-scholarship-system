@@ -188,6 +188,15 @@ Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')
     
     // Scholarships
     Route::get('/scholarships', [UserController::class, 'scholarships'])->name('scholarships');
+    Route::get('/scholarships/{category}', function (string $category) {
+        $tab = match ($category) {
+            'private' => 'private_scholarships',
+            'government' => 'government_scholarships',
+            default => 'all_scholarships',
+        };
+
+        return redirect()->route('student.dashboard', ['tab' => $tab]);
+    })->whereIn('category', ['all', 'private', 'government'])->name('scholarships.category');
     
     // Application Form
     Route::get('/sfao-form', [UserController::class, 'showApplicationForm'])->name('forms.application_form');

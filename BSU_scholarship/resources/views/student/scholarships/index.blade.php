@@ -67,7 +67,9 @@
     <!-- Scholarships List -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         @forelse($scholarships as $scholarship)
-            <div x-show="subTab !== 'my_scholarships'" class="col-span-1">
+            <div x-show="subTab !== 'my_scholarships' && (subTab === 'all' || subTab === @js(strtolower($scholarship->scholarship_type ?? '')))"
+                 x-cloak
+                 class="col-span-1">
                 @php
                     // Use the controller-passed variable for pending application check
                     // Logic: User has active application if controller says so, AND they are not applying to THIS scholarship (which would be 'applied' state)
@@ -95,7 +97,10 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                     </svg>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900">No scholarships found</h3>
+                <h3 class="text-lg font-medium text-gray-900"
+                    x-text="subTab === 'private' ? 'No private scholarships found' : (subTab === 'government' ? 'No government scholarships found' : 'No scholarships found')">
+                    No scholarships found
+                </h3>
                 <p class="text-gray-500">Try adjusting your filters or check back later.</p>
             </div>
         @endforelse

@@ -1790,15 +1790,33 @@ class DashboardController extends Controller
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
         $type = $request->get('type', 'all');
+        $activeScholarshipTab = $request->get('tab', $request->get('tabs', 'all_scholarships'));
+        $scholarshipTypeFilter = match ($activeScholarshipTab) {
+            'private_scholarships' => 'private',
+            'government_scholarships' => 'government',
+            default => null,
+        };
 
-        $scholarshipsQuery = $this->scopeScholarshipCampusAvailability(
+        $baseScholarshipsQuery = $this->scopeScholarshipCampusAvailability(
             \App\Models\Scholarship::where('is_active', true),
             collect([$user->campus_id])
-        )->withCount('applications');
+        );
+
+        $allScholarshipsCount = (clone $baseScholarshipsQuery)->count();
+        $privateScholarshipsCount = $this->scopeScholarshipType(clone $baseScholarshipsQuery, 'private')->count();
+        $governmentScholarshipsCount = $this->scopeScholarshipType(clone $baseScholarshipsQuery, 'government')->count();
+
+        $scholarshipsQuery = (clone $baseScholarshipsQuery)->withCount('applications');
+
+        if ($scholarshipTypeFilter) {
+            $this->scopeScholarshipType($scholarshipsQuery, $scholarshipTypeFilter);
+        }
 
         if ($type !== 'all') {
             if (in_array($type, ['private', 'government'])) {
-                $this->scopeScholarshipType($scholarshipsQuery, $type);
+                if (!$scholarshipTypeFilter) {
+                    $this->scopeScholarshipType($scholarshipsQuery, $type);
+                }
             } else {
                  $scholarshipsQuery->whereHas('conditions', function($q) use ($type) {
                     $q->where('name', $type);
@@ -1856,29 +1874,25 @@ class DashboardController extends Controller
         $unreadCountStatus = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'application_status')->count();
         $unreadCountComments = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'sfao_comment')->count();
 
-        // 5. Scholarship Counts for Empty States
-        $privateScholarshipsCount = $this->scopeScholarshipType(\App\Models\Scholarship::where('is_active', true), 'private')->count();
-        $governmentScholarshipsCount = $this->scopeScholarshipType(\App\Models\Scholarship::where('is_active', true), 'government')->count();
-
-        // 6. User's Filled Application Form (for SFAO/TDP tabs)
+        // 5. User's Filled Application Form (for SFAO/TDP tabs)
         $form = \App\Models\Form::where('user_id', $user->id)->first();
 
-        // 7. Student Applications
+        // 6. Student Applications
         $applications = \App\Models\Application::where('user_id', $user->id)
             ->with('scholarship')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // 8. Notifications
+        // 7. Notifications
         $notifications = \App\Models\Notification::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // 9. My Scholarships
+        // 8. My Scholarships
         $scholarshipIds = \App\Models\Scholar::where('user_id', $user->id)->pluck('scholarship_id');
         $myScholarships = \App\Models\Scholarship::whereIn('id', $scholarshipIds)->get();
 
-        // 10. Scholarship Announcements
+        // 9. Scholarship Announcements
         $announcements = $this->scopeScholarshipCampusAvailability(
             \App\Models\Scholarship::where('is_active', true)
                 ->whereNotNull('announcement_title')
@@ -1905,6 +1919,7 @@ class DashboardController extends Controller
             'unreadCountComments',
             'privateScholarshipsCount',
             'governmentScholarshipsCount',
+            'allScholarshipsCount',
             'form'
         ));
     }

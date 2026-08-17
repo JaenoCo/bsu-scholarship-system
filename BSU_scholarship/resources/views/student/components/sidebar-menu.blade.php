@@ -41,7 +41,7 @@
 
     sectionForTab(tab) {
         const normalized = this.normalizeTab(tab);
-        if (['all_scholarships', 'private_scholarships', 'government_scholarships'].includes(normalized)) return 'scholarships';
+        if (['all_scholarships', 'private_scholarships', 'government_scholarships', 'my_scholarships'].includes(normalized)) return 'scholarships';
         if (['sfao_form', 'all-app-forms'].includes(normalized)) return 'application_forms';
         if (['applied_scholarships', 'application_tracking', 'announcements'].includes(normalized)) return 'applications';
         if (['all_notifications', 'scholarship_notifications', 'status_updates', 'comments'].includes(normalized)) return 'notifications';
@@ -80,7 +80,7 @@
         });
     }
 }"
-x-on:switch-tab.window="activeTab = normalizeTab($event.detail); openMenu = sectionForTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))"
+x-on:switch-tab.window="activeTab = normalizeTab($event.detail); openMenu = sectionForTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail)); if (window.innerWidth < 768) sidebarOpen = false"
 @notification-changed.window="
     const status = $event.detail.status;
     const type = $event.detail.type;

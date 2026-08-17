@@ -58,6 +58,8 @@
         'all-app-forms': { tab: 'all-app-forms', subTab: 'all' },
         'account_settings': { tab: 'account', subTab: 'all' }
     },
+    scholarshipTabKeys: ['all_scholarships', 'private_scholarships', 'government_scholarships'],
+    dashboardPath: @js(route('student.dashboard', [], false)),
 
     normalizeTabKey(key) {
         const aliases = {
@@ -73,6 +75,34 @@
         };
 
         return aliases[key] || key;
+    },
+
+    scholarshipTabUrl(key) {
+        const current = new URL(window.location.href);
+        const target = new URL(this.dashboardPath, window.location.origin);
+
+        ['sort_by', 'sort_order'].forEach((param) => {
+            if (current.searchParams.has(param)) {
+                target.searchParams.set(param, current.searchParams.get(param));
+            }
+        });
+
+        target.searchParams.set('tab', key);
+        return target;
+    },
+
+    shouldReloadScholarshipTab(key) {
+        if (!this.scholarshipTabKeys.includes(key)) {
+            return false;
+        }
+
+        const current = new URL(window.location.href);
+        const target = this.scholarshipTabUrl(key);
+
+        return current.pathname !== target.pathname ||
+            current.searchParams.get('tab') !== key ||
+            current.searchParams.has('page') ||
+            current.searchParams.has('type');
     },
 
     init() {
@@ -126,6 +156,11 @@
 
   x-on:switch-tab.window="
       const key = normalizeTabKey($event.detail);
+      if (shouldReloadScholarshipTab(key)) {
+          window.location.href = scholarshipTabUrl(key).toString();
+          return;
+      }
+
       if (tabMapping[key]) {
           tab = tabMapping[key].tab;
           subTab = tabMapping[key].subTab;

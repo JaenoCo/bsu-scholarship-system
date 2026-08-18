@@ -1,3 +1,9 @@
+@include('reports.partials.visual-summary', [
+    'reportData' => $reportData,
+    'recordLabel' => ($studentType ?? 'applicants') === 'applicants' ? 'applicants' : 'scholars',
+    'visualizationScope' => $visualizationScope ?? 'sfao',
+])
+
 @foreach($reportData as $data)
     <div class="break-inside-avoid">
         <!-- Campus Header -->

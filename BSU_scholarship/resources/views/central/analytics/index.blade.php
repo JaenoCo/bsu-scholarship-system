@@ -105,6 +105,12 @@
     $centralApplicationRows = $centralApplicationRows ?? collect();
     $centralStaffRows = $centralStaffRows ?? collect();
     $allReportsForReportsTab = $allReportsForReportsTab ?? collect();
+    $centralStatusReport = $centralStatusReport ?? [];
+    $statusSummary = $centralStatusReport['summary'] ?? [];
+    $campusStatusRows = collect($centralStatusReport['campus_rows'] ?? []);
+    $scholarshipStatusRows = collect($centralStatusReport['scholarship_rows'] ?? []);
+    $selectedStatusCampus = $centralStatusReport['selected_campus'] ?? null;
+    $statusReportScope = $selectedStatusCampus['name'] ?? 'All Campuses';
 @endphp
 
 <!doctype html>
@@ -660,6 +666,177 @@
                 </div>
             </div>
 
+            <section class="bsu-card mb-4">
+                <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                    <div>
+                        <h2 class="bsu-card-title">Overall Scholarship Status</h2>
+                        <p class="bsu-card-subtitle">University-wide status for all campuses, with campus-level drilldown for detailed scholarship performance.</p>
+                    </div>
+                    <form method="GET" action="{{ route('central.dashboard') }}" class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto">
+                        <input type="hidden" name="tabs" value="all_statistics">
+                        <select name="campus" class="form-select" aria-label="Filter scholarship status by campus">
+                            <option value="all">All Campuses</option>
+                            @foreach($campuses as $campus)
+                                <option value="{{ $campus->id }}" @selected((string) $campusFilter === (string) $campus->id)>{{ $campus->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="btn btn-bsu">View</button>
+                        @if($selectedStatusCampus)
+                            <a href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}" class="btn btn-outline-secondary">Reset</a>
+                        @endif
+                    </form>
+                </div>
+
+                <div class="p-3 p-lg-4 border-bottom">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
+                        <div>
+                            <div class="small text-secondary text-uppercase fw-bold">Current Scope</div>
+                            <div class="h5 mb-0">{{ $statusReportScope }}</div>
+                        </div>
+                        <div class="small text-secondary">
+                            Generated {{ $centralStatusReport['generated_at'] ?? $lastUpdated }}
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Students</div>
+                                <div class="h4 mb-0">{{ number_format($statusSummary['total_students'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Applicants</div>
+                                <div class="h4 mb-0">{{ number_format($statusSummary['unique_applicants'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Applications</div>
+                                <div class="h4 mb-0">{{ number_format($statusSummary['total_applications'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Scholars</div>
+                                <div class="h4 mb-0">{{ number_format($statusSummary['total_scholars'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Approval Rate</div>
+                                <div class="h4 mb-0">{{ number_format($statusSummary['approval_rate'] ?? 0, 1) }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive border-bottom">
+                    <table class="table bsu-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Campus</th>
+                                <th>Students</th>
+                                <th>Applicants</th>
+                                <th>Applications</th>
+                                <th>Pending</th>
+                                <th>In Progress</th>
+                                <th>Approved</th>
+                                <th>Rejected</th>
+                                <th>Claimed</th>
+                                <th>Scholars</th>
+                                <th>Rate</th>
+                                <th>Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($campusStatusRows as $row)
+                                <tr class="{{ $selectedStatusCampus && (int) $selectedStatusCampus['id'] === (int) $row['campus_id'] ? 'table-light' : '' }}">
+                                    <td>
+                                        <div class="fw-semibold text-dark">{{ $row['campus_name'] }}</div>
+                                        <div class="small text-secondary">{{ ucfirst($row['campus_type'] ?? 'campus') }}</div>
+                                    </td>
+                                    <td>{{ number_format($row['total_students']) }}</td>
+                                    <td>{{ number_format($row['unique_applicants']) }}</td>
+                                    <td>{{ number_format($row['total_applications']) }}</td>
+                                    <td><span class="badge text-bg-warning">{{ number_format($row['pending']) }}</span></td>
+                                    <td><span class="badge text-bg-info">{{ number_format($row['in_progress']) }}</span></td>
+                                    <td><span class="badge text-bg-success">{{ number_format($row['approved']) }}</span></td>
+                                    <td><span class="badge text-bg-danger">{{ number_format($row['rejected']) }}</span></td>
+                                    <td><span class="badge text-bg-secondary">{{ number_format($row['claimed']) }}</span></td>
+                                    <td>{{ number_format($row['total_scholars']) }}</td>
+                                    <td>{{ number_format($row['approval_rate'], 1) }}%</td>
+                                    <td>
+                                        <a href="{{ route('central.dashboard', ['tabs' => 'all_statistics', 'campus' => $row['campus_id']]) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Open</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr class="bsu-empty-row"><td colspan="12" class="text-center py-5 text-secondary">No campus scholarship status data available.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-3 p-lg-4">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
+                        <div>
+                            <h3 class="h6 fw-bold mb-1">Scholarship Details: {{ $statusReportScope }}</h3>
+                            <div class="small text-secondary">Counts are grouped by scholarship and follow the selected campus scope.</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 align-self-start">
+                            <span class="badge text-bg-warning">Pending {{ number_format($statusSummary['pending'] ?? 0) }}</span>
+                            <span class="badge text-bg-info">In Progress {{ number_format($statusSummary['in_progress'] ?? 0) }}</span>
+                            <span class="badge text-bg-success">Approved {{ number_format($statusSummary['approved'] ?? 0) }}</span>
+                            <span class="badge text-bg-danger">Rejected {{ number_format($statusSummary['rejected'] ?? 0) }}</span>
+                            <span class="badge text-bg-secondary">Claimed {{ number_format($statusSummary['claimed'] ?? 0) }}</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table bsu-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Scholarship</th>
+                                    <th>Type</th>
+                                    <th>Applications</th>
+                                    <th>Pending</th>
+                                    <th>In Progress</th>
+                                    <th>Approved</th>
+                                    <th>Rejected</th>
+                                    <th>Claimed</th>
+                                    <th>Scholars</th>
+                                    <th>New / Old</th>
+                                    <th>Rate</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($scholarshipStatusRows as $row)
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold text-dark">{{ $row['scholarship_name'] }}</div>
+                                            <div class="small text-secondary">{{ number_format($row['unique_applicants']) }} unique applicant{{ (int) $row['unique_applicants'] === 1 ? '' : 's' }}</div>
+                                        </td>
+                                        <td><span class="badge text-bg-light">{{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</span></td>
+                                        <td>{{ number_format($row['total_applications']) }}</td>
+                                        <td>{{ number_format($row['pending']) }}</td>
+                                        <td>{{ number_format($row['in_progress']) }}</td>
+                                        <td>{{ number_format($row['approved']) }}</td>
+                                        <td>{{ number_format($row['rejected']) }}</td>
+                                        <td>{{ number_format($row['claimed']) }}</td>
+                                        <td>{{ number_format($row['total_scholars']) }}</td>
+                                        <td>{{ number_format($row['new_scholars']) }} / {{ number_format($row['old_scholars']) }}</td>
+                                        <td>{{ number_format($row['approval_rate'], 1) }}%</td>
+                                        <td><span class="badge text-bg-{{ $row['is_active'] ? 'success' : 'secondary' }}">{{ $row['is_active'] ? 'Active' : 'Archived' }}</span></td>
+                                    </tr>
+                                @empty
+                                    <tr class="bsu-empty-row"><td colspan="12" class="text-center py-5 text-secondary">No scholarship activity found for this scope.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
             <div class="row g-4 mb-4">
                 <div class="col-12 col-xl-7">
                     <section class="bsu-card h-100">
@@ -876,7 +1053,6 @@
                                                                 <button type="submit" class="dropdown-item text-warning">Archive</button>
                                                             </form>
                                                         </li>
-<<<<<<< HEAD
                                                     @else
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li>
@@ -886,8 +1062,6 @@
                                                                 <button type="submit" class="dropdown-item text-success">Restore</button>
                                                             </form>
                                                         </li>
-=======
->>>>>>> ac0ab7ed7023aeef0abd0359714506de3871a55e
                                                     @endif
                                                 </ul>
                                             </div>

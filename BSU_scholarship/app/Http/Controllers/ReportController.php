@@ -560,6 +560,8 @@ class ReportController extends Controller
                         'first_name' => $student->first_name,
                         'middle_name' => $student->middle_name,
                         'sex' => $student->sex,
+                        'college' => $student->college,
+                        'gwa' => $form ? $form->previous_gwa : null,
                         'department' => $student->college,
                         'program' => $student->program,
                     ];
@@ -598,9 +600,18 @@ class ReportController extends Controller
             });
 
         // Apply filters
-        if ($request->has('campus_id') && $request->campus_id != 'all') {
-            $query->whereHas('user', function($q) use ($request) {
-                $q->where('campus_id', $request->campus_id);
+        $selectedCampusId = $request->get('campus_id', (string) $campus->id);
+        if ($selectedCampusId === 'all') {
+            $selectedCampusId = (string) $campus->id;
+        }
+
+        if (! $monitoredCampuses->pluck('id')->map(fn ($id) => (string) $id)->contains((string) $selectedCampusId)) {
+            abort(403, 'The selected campus is outside your SFAO scope.');
+        }
+
+        if ($selectedCampusId) {
+            $query->whereHas('user', function($q) use ($selectedCampusId) {
+                $q->where('campus_id', $selectedCampusId);
             });
         }
 
@@ -620,7 +631,7 @@ class ReportController extends Controller
             ->pluck('total', 'scholarship_type')
             ->toArray();
 
-        return view('sfao.reports.grant-summary', compact('user', 'monitoredCampuses', 'totalGrants', 'statusStats', 'typeStats'));
+        return view('sfao.reports.grant-summary', compact('user', 'monitoredCampuses', 'totalGrants', 'statusStats', 'typeStats', 'selectedCampusId'));
     }
 
     // =====================================================
@@ -641,6 +652,21 @@ class ReportController extends Controller
             ->findOrFail($id);
 
         return view('central.reports.show', compact('report'));
+    }
+
+    /**
+     * Generate an overall central office scholar report.
+     */
+    public function centralOverallReport()
+    {
+        if (!session()->has('user_id') || session('role') !== 'central') {
+            return redirect('/login')->with('session_expired', true);
+        }
+
+        $user = User::find(session('user_id'));
+        $reportData = $this->generateCentralOverallScholarReportData();
+
+        return view('central.reports.overall', compact('user', 'reportData'));
     }
 
     /**
@@ -726,7 +752,14 @@ class ReportController extends Controller
         $campus = $user->campus;
 
         // Determine Campus ID for the report
-        $reportCampusId = $request->campus_id;
+        $campusSelection = $request->campus_id === 'all' ? (string) $campus->id : $request->campus_id;
+        $allowedCampusIds = $campus->getAllCampusesUnder()->pluck('id')->map(fn ($id) => (string) $id);
+
+        if (! $allowedCampusIds->contains((string) $campusSelection)) {
+            return redirect()->back()->withErrors(['campus_id' => 'The selected campus is outside your SFAO scope.']);
+        }
+
+        $reportCampusId = $campusSelection;
         if ($reportCampusId === 'all') {
             // If 'all' is selected, we might want to store the user's main campus ID 
             // but indicate it covers all monitored campuses in the report data or a separate field.
@@ -742,7 +775,7 @@ class ReportController extends Controller
             $scholarship = $request->scholarship_id ? Scholarship::find($request->scholarship_id) : null;
             $title = $scholarship ? $scholarship->scholarship_name . ' Applicant Summary Report' : 'Applicant Summary Report'; // Default fallback, but dynamic title overwrites
             $reportData = $this->generateStudentSummaryData(
-                $request->campus_id, 
+                $campusSelection, 
                 $campus, 
                 $request->scholarship_id,
                 $request->student_type ?? 'applicants',
@@ -755,18 +788,18 @@ class ReportController extends Controller
         elseif ($request->report_type === 'scholar_summary') {
             $scholarship = $request->scholarship_id ? Scholarship::find($request->scholarship_id) : null;
             $title = $scholarship ? $scholarship->scholarship_name . ' Scholar Summary Report' : 'Scholar Summary Report';
-            $reportData = $this->generateScholarSummaryData($request->campus_id, $campus, $request->scholarship_id);
+            $reportData = $this->generateScholarSummaryData($campusSelection, $campus, $request->scholarship_id);
         } 
         elseif ($request->report_type === 'grant_summary') {
             $title = 'Grant Summary Report';
-            $reportData = $this->generateGrantSummaryData($request->campus_id, $campus);
+            $reportData = $this->generateGrantSummaryData($campusSelection, $campus);
         }
 
         // 2. Create Report Record
         $report = Report::create([
             'sfao_user_id' => session('user_id'),
             'campus_id' => $reportCampusId, 
-            'original_campus_selection' => $request->campus_id,
+            'original_campus_selection' => $campusSelection,
             'report_type' => $request->report_type . '_' . $request->frequency,
             'student_type' => $request->student_type, // New
             'college_id' => ($request->college && $request->college != 'all') ? \App\Models\College::where('short_name', $request->college)->value('id') : null, // New
@@ -878,7 +911,7 @@ class ReportController extends Controller
                              $q->whereBetween('created_at', [$startDt, $endDt]);
                          }
                       }
-                })->with(['scholars' => function($q) use ($scholarshipId) {
+                })->with(['form', 'scholars' => function($q) use ($scholarshipId) {
                      if ($scholarshipId && $scholarshipId !== 'all') {
                          $q->where('scholarship_id', $scholarshipId);
                      }
@@ -903,6 +936,7 @@ class ReportController extends Controller
                         'first_name' => $student->first_name,
                         'middle_name' => $student->middle_name,
                         'sex' => $student->sex,
+                        'gwa' => $student->form ? $student->form->previous_gwa : null,
                         'birthdate' => $student->birthdate ? $student->birthdate->format('Y-m-d') : '',
                         'program' => $student->program,
                         'track' => $student->track,
@@ -940,6 +974,7 @@ class ReportController extends Controller
                             'middle_name' => $student->middle_name,
                             'sex' => $student->sex,
                              'college' => $student->college, // Needed for scholar view
+                            'gwa' => $student->form ? $student->form->previous_gwa : null,
                             'program' => $student->program,
                             'track' => $student->track,
                             'scholarship' => $scholar->scholarship ? $scholar->scholarship->scholarship_name : 'N/A'
@@ -978,11 +1013,11 @@ class ReportController extends Controller
             if ($scholarshipId) {
                 $query->whereHas('scholars', function($q) use ($scholarshipId) {
                     $q->where('scholarship_id', $scholarshipId);
-                })->with(['scholars' => function($q) use ($scholarshipId) {
+                })->with(['form', 'scholars' => function($q) use ($scholarshipId) {
                     $q->where('scholarship_id', $scholarshipId);
                 }]);
             } else {
-                 $query->with(['scholars' => function($q) {
+                 $query->with(['form', 'scholars' => function($q) {
                     $q->where('status', 'active');
                 }]);
             }
@@ -1003,8 +1038,11 @@ class ReportController extends Controller
                     'sex' => $student->sex,
                     'college' => $student->college ?? 'N/A',
                     'program' => $student->program ?? 'N/A',
+                    'course' => $student->program ?? 'N/A',
                     'year_level' => $student->year_level ?? 'N/A',
-                    'status' => ucfirst($activeScholar->type) . ' Scholar'
+                    'status' => ucfirst($activeScholar->type) . ' Scholar',
+                    'scholarship' => $activeScholar->scholarship?->scholarship_name ?? 'N/A',
+                    'gwa' => $student->form?->previous_gwa,
                 ];
                 
                 $campusData['scholars'][] = $sData;
@@ -1054,6 +1092,52 @@ class ReportController extends Controller
             'status_stats' => $statusStats,
             'type_stats' => $typeStats
         ];
+    }
+
+    private function generateCentralOverallScholarReportData()
+    {
+        $campuses = Campus::orderBy('name')->get();
+        $reportData = [];
+
+        foreach ($campuses as $campus) {
+            $students = User::where('campus_id', $campus->id)
+                ->where('role', 'student')
+                ->whereHas('scholars')
+                ->with(['form', 'scholars.scholarship'])
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get();
+
+            $scholars = [];
+            $seq = 1;
+
+            foreach ($students as $student) {
+                foreach ($student->scholars as $scholar) {
+                    $scholars[] = [
+                        'seq' => $seq++,
+                        'app_id' => $scholar->id,
+                        'last_name' => $student->last_name,
+                        'first_name' => $student->first_name,
+                        'middle_name' => $student->middle_name,
+                        'sex' => $student->sex,
+                        'college' => $student->college,
+                        'program' => $student->program,
+                        'course' => $student->program,
+                        'track' => $student->track,
+                        'scholarship' => $scholar->scholarship?->scholarship_name ?? 'N/A',
+                        'status' => ucfirst($scholar->type) . ' Scholar',
+                        'gwa' => $student->form?->previous_gwa,
+                    ];
+                }
+            }
+
+            $reportData[] = [
+                'campus' => $campus,
+                'students' => $scholars,
+            ];
+        }
+
+        return $reportData;
     }
 
 
@@ -1120,7 +1204,10 @@ class ReportController extends Controller
 
         // Filters
         $studentType = $request->get('student_type', 'applicants'); // applicants, scholars
-        $campusId = $request->get('campus_id', 'all');
+        $campusId = $request->get('campus_id', (string) $campus->id);
+        if ($campusId === 'all') {
+            $campusId = (string) $campus->id;
+        }
         
         // If specific campus selected
         if ($campusId !== 'all') {
@@ -1395,6 +1482,7 @@ class ReportController extends Controller
                             'first_name' => $student->first_name,
                             'middle_name' => $student->middle_name,
                             'sex' => $student->sex,
+                            'gwa' => $student->form ? $student->form->previous_gwa : null,
                             'birthdate' => $student->birthdate ? $student->birthdate->format('Y-m-d') : 'N/A',
                             'course' => $programMap[$student->program] ?? ($student->program ?? $student->college),
                             'track' => $student->track, // Add Track
@@ -1439,6 +1527,7 @@ class ReportController extends Controller
                             'middle_name' => $student->middle_name,
                             'sex' => $student->sex,
                             'college' => $student->college,
+                            'gwa' => $student->form ? $student->form->previous_gwa : null,
                             'course' => $programMap[$student->program] ?? ($student->program ?? $student->college),
                             'track' => $student->track, // Add Track
                             'program' => $student->program, // Keep original for reference if needed, or rely on course
@@ -1543,14 +1632,10 @@ class ReportController extends Controller
         }
 
         if ($request->ajax()) {
-            return view('sfao.reports.partials.student-summary-table', compact('reportData', 'studentType'));
-        }
-
-        if ($request->ajax()) {
             return view('sfao.reports.partials.student-summary-table', compact('reportData', 'studentType', 'dynamicTitle'));
         }
 
         return view('sfao.reports.student-summary', 
-            compact('user', 'monitoredCampuses', 'reportData', 'studentType', 'colleges', 'campusCollegePrograms', 'programTracks', 'academicYearOptions', 'scholarships', 'dynamicTitle', 'campusAcademicYearMap'));
+            compact('user', 'monitoredCampuses', 'reportData', 'studentType', 'campusId', 'colleges', 'campusCollegePrograms', 'programTracks', 'academicYearOptions', 'scholarships', 'dynamicTitle', 'campusAcademicYearMap'));
     }
 }

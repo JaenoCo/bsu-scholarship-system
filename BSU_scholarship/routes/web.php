@@ -294,8 +294,11 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     
     // Specific Report Summaries
     Route::get('/student-summary', [ReportController::class, 'studentSummary'])->name('reports.student-summary');
-    Route::get('/scholar-summary', function() {
-        return redirect()->route('sfao.reports.student-summary', ['student_type' => 'scholars']);
+    Route::get('/scholar-summary', function(Request $request) {
+        return redirect()->route('sfao.reports.student-summary', array_merge(
+            $request->query(),
+            ['student_type' => 'scholars']
+        ));
     })->name('reports.scholar-summary');
     Route::get('/applicant-summary', [ReportController::class, 'applicantSummary'])->name('reports.applicant-summary');
     Route::get('/grant-summary', [ReportController::class, 'grantSummary'])->name('reports.grant-summary');
@@ -356,6 +359,7 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
         Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
         
         // Reports Management
+        Route::get('/reports/overall', [ReportController::class, 'centralOverallReport'])->name('reports.overall');
         Route::get('/reports/{id}', [ReportController::class, 'centralShowReport'])->name('reports.show');
         Route::post('/reports/{id}/review', [ReportController::class, 'reviewReport'])->name('reports.review');
         

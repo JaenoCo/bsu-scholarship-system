@@ -149,7 +149,7 @@
             
             
             <div class="text-sm space-y-1">
-                <p><span class="font-semibold">Campus:</span> {{ $monitoredCampuses->count() > 1 && request('campus_id', 'all') == 'all' ? 'All Campuses' : $monitoredCampuses->first()->display_name }}</p>
+                <p><span class="font-semibold">Campus:</span> {{ $monitoredCampuses->first()->display_name ?? 'Campus' }}</p>
                 <p><span class="font-semibold">Generated on:</span> {{ now()->format('F d, Y') }}</p>
                 <p><span class="font-semibold">Prepared by:</span> {{ 'SFAO ' . ($user->campus->display_name ?? $user->name) }}</p>
             </div>
@@ -196,7 +196,7 @@
             <form action="{{ route('sfao.reports.summary-submit') }}" method="POST" class="space-y-6">
                 @csrf
                 <input type="hidden" name="report_type" value="student_summary">
-                <input type="hidden" name="campus_id" value="{{ request('campus_id', 'all') }}">
+                <input type="hidden" name="campus_id" value="{{ $campusId }}">
                 
                 <!-- Use alpine values to populate hidden fields before submit? -->
                 <!-- We can't rely on Alpine binding to hidden input for standard form submit if outside x-data scope, but here inside. 
@@ -326,7 +326,7 @@
             track: @json(request('track', 'all')),
             academicYear: @json(request('academic_year', 'all')),
             scholarshipId: @json(request('scholarship_id', 'all')),
-            campusId: @json(request('campus_id', 'all')),
+            campusId: @json($campusId),
             
             // Custom Date
             customStart: @json(request('custom_start')),

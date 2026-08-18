@@ -1257,6 +1257,8 @@ class DashboardController extends Controller
             ->orderBy('name')
             ->get();
 
+        $centralStatusReport = $this->buildCentralScholarshipStatusReport($campusFilter, $scholarshipFilter);
+
         $allReportsForReportsTab = Report::with(['campus', 'college', 'program', 'track'])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -1494,8 +1496,152 @@ class DashboardController extends Controller
             'rejectedApplicants', 'totalReports', 'academicYearOptions', 'academicYearFilter',
             'campusColleges', 'allReportsForReportsTab', 'headerNotifications', 'unreadNotificationCount',
             'centralScholarshipRows', 'centralArchivedScholarshipRows', 'centralScholarRows',
-            'centralApplicationRows', 'centralStaffRows'
+            'centralApplicationRows', 'centralStaffRows', 'centralStatusReport'
         ));
+    }
+
+    private function buildCentralScholarshipStatusReport($campusFilter = 'all', $scholarshipFilter = 'all')
+    {
+        $statuses = ['pending', 'in_progress', 'approved', 'rejected', 'claimed'];
+        $campuses = \App\Models\Campus::orderBy('name')->get(['id', 'name', 'type']);
+
+        $campusRows = $campuses->map(function ($campus) use ($statuses) {
+            $applicationBase = Application::whereHas('user', function ($query) use ($campus) {
+                $query->where('role', 'student')
+                    ->where('campus_id', $campus->id);
+            });
+
+            $statusCounts = [];
+            foreach ($statuses as $status) {
+                $statusCounts[$status] = (clone $applicationBase)->where('status', $status)->count();
+            }
+
+            $totalApplications = (clone $applicationBase)->count();
+            $approvedApplications = $statusCounts['approved'] + $statusCounts['claimed'];
+            $scholarBase = Scholar::whereHas('user', function ($query) use ($campus) {
+                $query->where('role', 'student')
+                    ->where('campus_id', $campus->id);
+            });
+
+            return [
+                'campus_id' => $campus->id,
+                'campus_name' => $campus->name,
+                'campus_type' => $campus->type,
+                'total_students' => User::where('role', 'student')->where('campus_id', $campus->id)->count(),
+                'unique_applicants' => (clone $applicationBase)->distinct('user_id')->count('user_id'),
+                'total_applications' => $totalApplications,
+                'pending' => $statusCounts['pending'],
+                'in_progress' => $statusCounts['in_progress'],
+                'approved' => $statusCounts['approved'],
+                'rejected' => $statusCounts['rejected'],
+                'claimed' => $statusCounts['claimed'],
+                'total_scholars' => (clone $scholarBase)->count(),
+                'active_scholars' => (clone $scholarBase)->where('status', 'active')->count(),
+                'new_scholars' => (clone $scholarBase)->where('type', 'new')->count(),
+                'old_scholars' => (clone $scholarBase)->where('type', 'old')->count(),
+                'approval_rate' => $totalApplications > 0 ? round(($approvedApplications / $totalApplications) * 100, 1) : 0,
+            ];
+        })->values();
+
+        $selectedCampus = $campusFilter !== 'all'
+            ? $campuses->firstWhere('id', (int) $campusFilter)
+            : null;
+
+        $summarySource = $selectedCampus
+            ? collect([$campusRows->firstWhere('campus_id', $selectedCampus->id)])->filter()
+            : $campusRows;
+
+        $totalApplications = (int) $summarySource->sum('total_applications');
+        $approvedApplications = (int) $summarySource->sum('approved') + (int) $summarySource->sum('claimed');
+
+        $summary = [
+            'total_students' => (int) $summarySource->sum('total_students'),
+            'unique_applicants' => (int) $summarySource->sum('unique_applicants'),
+            'total_applications' => $totalApplications,
+            'pending' => (int) $summarySource->sum('pending'),
+            'in_progress' => (int) $summarySource->sum('in_progress'),
+            'approved' => (int) $summarySource->sum('approved'),
+            'rejected' => (int) $summarySource->sum('rejected'),
+            'claimed' => (int) $summarySource->sum('claimed'),
+            'total_scholars' => (int) $summarySource->sum('total_scholars'),
+            'active_scholars' => (int) $summarySource->sum('active_scholars'),
+            'new_scholars' => (int) $summarySource->sum('new_scholars'),
+            'old_scholars' => (int) $summarySource->sum('old_scholars'),
+            'approval_rate' => $totalApplications > 0 ? round(($approvedApplications / $totalApplications) * 100, 1) : 0,
+        ];
+
+        $scholarshipsQuery = Scholarship::orderBy('scholarship_name')
+            ->select('id', 'scholarship_name', 'scholarship_type', 'is_active');
+
+        if ($scholarshipFilter !== 'all') {
+            $scholarshipsQuery->where('id', $scholarshipFilter);
+        }
+
+        $scholarshipRows = $scholarshipsQuery->get()
+            ->map(function ($scholarship) use ($selectedCampus, $statuses) {
+                $applicationBase = Application::where('scholarship_id', $scholarship->id)
+                    ->whereHas('user', function ($query) use ($selectedCampus) {
+                        $query->where('role', 'student');
+                        if ($selectedCampus) {
+                            $query->where('campus_id', $selectedCampus->id);
+                        }
+                    });
+
+                $statusCounts = [];
+                foreach ($statuses as $status) {
+                    $statusCounts[$status] = (clone $applicationBase)->where('status', $status)->count();
+                }
+
+                $scholarBase = Scholar::where('scholarship_id', $scholarship->id)
+                    ->whereHas('user', function ($query) use ($selectedCampus) {
+                        $query->where('role', 'student');
+                        if ($selectedCampus) {
+                            $query->where('campus_id', $selectedCampus->id);
+                        }
+                    });
+
+                $totalApplications = (clone $applicationBase)->count();
+                $totalScholars = (clone $scholarBase)->count();
+
+                if ($totalApplications === 0 && $totalScholars === 0) {
+                    return null;
+                }
+
+                $approvedApplications = $statusCounts['approved'] + $statusCounts['claimed'];
+
+                return [
+                    'scholarship_id' => $scholarship->id,
+                    'scholarship_name' => $scholarship->scholarship_name,
+                    'scholarship_type' => $scholarship->scholarship_type,
+                    'is_active' => (bool) $scholarship->is_active,
+                    'unique_applicants' => (clone $applicationBase)->distinct('user_id')->count('user_id'),
+                    'total_applications' => $totalApplications,
+                    'pending' => $statusCounts['pending'],
+                    'in_progress' => $statusCounts['in_progress'],
+                    'approved' => $statusCounts['approved'],
+                    'rejected' => $statusCounts['rejected'],
+                    'claimed' => $statusCounts['claimed'],
+                    'total_scholars' => $totalScholars,
+                    'active_scholars' => (clone $scholarBase)->where('status', 'active')->count(),
+                    'new_scholars' => (clone $scholarBase)->where('type', 'new')->count(),
+                    'old_scholars' => (clone $scholarBase)->where('type', 'old')->count(),
+                    'approval_rate' => $totalApplications > 0 ? round(($approvedApplications / $totalApplications) * 100, 1) : 0,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return [
+            'summary' => $summary,
+            'campus_rows' => $campusRows,
+            'scholarship_rows' => $scholarshipRows,
+            'selected_campus' => $selectedCampus ? [
+                'id' => $selectedCampus->id,
+                'name' => $selectedCampus->name,
+                'type' => $selectedCampus->type,
+            ] : null,
+            'generated_at' => now()->format('F d, Y h:i A'),
+        ];
     }
 
     private function sortScholarships($scholarships, $sortBy, $sortOrder)

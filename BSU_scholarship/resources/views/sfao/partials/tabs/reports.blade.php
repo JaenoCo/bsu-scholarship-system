@@ -38,29 +38,6 @@
     <!-- Campus Selection Cards (Student Summary) -->
     <div x-show="tab === 'reports-student_summary'" class="mt-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- All Campuses Card -->
-            @if(isset($monitoredCampuses) && $monitoredCampuses->count() > 1)
-            <a href="{{ route('sfao.reports.student-summary', ['campus_id' => 'all']) }}" 
-               class="block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-200 dark:border-gray-700 group">
-                <div class="p-6 flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-red-100 text-bsu-red group-hover:bg-bsu-red group-hover:text-white transition-colors duration-300">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-bsu-red dark:group-hover:text-red-400 transition-colors">All Campuses</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Generate report for all campuses</p>
-                        </div>
-                    </div>
-                    <svg class="w-6 h-6 text-gray-400 group-hover:text-bsu-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </div>
-            </a>
-            @endif
-
             <!-- Individual Campus Cards -->
             @if(isset($monitoredCampuses))
                 @foreach($monitoredCampuses as $campus)
@@ -91,29 +68,6 @@
     <!-- Campus Selection Cards (Scholar Summary) -->
     <div x-show="tab === 'reports-scholar_summary'" class="mt-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- All Campuses Card -->
-            @if(isset($monitoredCampuses) && $monitoredCampuses->count() > 1)
-            <a href="{{ route('sfao.reports.scholar-summary', ['campus_id' => 'all']) }}" 
-               class="block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-200 dark:border-gray-700 group">
-                <div class="p-6 flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-red-100 text-bsu-red group-hover:bg-bsu-red group-hover:text-white transition-colors duration-300">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-bsu-red dark:group-hover:text-red-400 transition-colors">All Campuses</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Generate scholar report for all campuses</p>
-                        </div>
-                    </div>
-                    <svg class="w-6 h-6 text-gray-400 group-hover:text-bsu-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </div>
-            </a>
-            @endif
-
             <!-- Individual Campus Cards -->
             @if(isset($monitoredCampuses))
                 @foreach($monitoredCampuses as $campus)
@@ -144,29 +98,6 @@
     <!-- Campus Selection Cards (Grant Summary) -->
     <div x-show="tab === 'reports-grant_summary'" class="mt-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- All Campuses Card -->
-            @if(isset($monitoredCampuses) && $monitoredCampuses->count() > 1)
-            <a href="{{ route('sfao.reports.grant-summary', ['campus_id' => 'all']) }}" 
-               class="block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-200 dark:border-gray-700 group">
-                <div class="p-6 flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-red-100 text-bsu-red group-hover:bg-bsu-red group-hover:text-white transition-colors duration-300">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-bsu-red dark:group-hover:text-red-400 transition-colors">All Campuses</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Generate grant report for all campuses</p>
-                        </div>
-                    </div>
-                    <svg class="w-6 h-6 text-gray-400 group-hover:text-bsu-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </div>
-            </a>
-            @endif
-
             <!-- Individual Campus Cards -->
             @if(isset($monitoredCampuses))
                 @foreach($monitoredCampuses as $campus)

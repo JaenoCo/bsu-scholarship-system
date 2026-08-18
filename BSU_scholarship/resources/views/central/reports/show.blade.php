@@ -63,7 +63,11 @@
                     $scholarshipId = $reportDataRaw['scholarship_id'] ?? null;
                     $selectedScholarship = $scholarshipId ? \App\Models\Scholarship::find($scholarshipId) : null;
                 @endphp
-                @include('sfao.reports.partials.scholar-summary-table', ['reportData' => $reportDetails, 'selectedScholarship' => $selectedScholarship])
+                @include('sfao.reports.partials.scholar-summary-table', [
+                    'reportData' => $reportDetails,
+                    'selectedScholarship' => $selectedScholarship,
+                    'visualizationScope' => 'central',
+                ])
             
              @elseif(\Illuminate\Support\Str::startsWith($report->report_type, 'student_summary'))
                  @php
@@ -76,7 +80,8 @@
                  @include('sfao.reports.partials.student-summary-table', [
                      'reportData' => $reportDetails, 
                      'studentType' => $studentType,
-                     'dynamicTitle' => 'Student Summary Report - ' . ucfirst($studentType)
+                     'dynamicTitle' => 'Student Summary Report - ' . ucfirst($studentType),
+                     'visualizationScope' => 'central',
                  ])
                  
              @else

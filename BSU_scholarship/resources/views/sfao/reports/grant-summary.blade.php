@@ -1,6 +1,6 @@
 @extends('layouts.focused')
 @section('page-title', 'Grant Summary Report')
-@section('navbar-title', 'Grant Summary Report | All Campuses')
+@section('navbar-title', 'Grant Summary Report')
 @section('back-url', route('sfao.dashboard'))
 @section('back-text', 'Back to Dashboard')
 
@@ -28,7 +28,7 @@
             <h3 class="text-lg font-medium text-gray-600 mt-4 uppercase tracking-wide">Grant Summary Report</h3>
             <!-- Dynamic Campus Subtitle -->
             <div class="mt-2 inline-block px-4 py-1 rounded-full bg-red-50 text-bsu-red font-bold text-sm uppercase tracking-wider border border-red-100">
-                Campus: {{ request('campus_id') == 'all' ? 'All Campuses' : $monitoredCampuses->where('id', request('campus_id'))->first()->display_name ?? 'Unknown Campus' }}
+                Campus: {{ $monitoredCampuses->where('id', $selectedCampusId)->first()->display_name ?? 'Unknown Campus' }}
             </div>
 
             <p class="text-sm text-gray-500 mt-4">Generated on {{ now()->format('F d, Y') }}</p>
@@ -139,7 +139,7 @@
                 <form action="{{ route('sfao.reports.summary-submit') }}" method="POST" class="space-y-4">
                     @csrf
                     <input type="hidden" name="report_type" value="grant_summary">
-                    <input type="hidden" name="campus_id" value="{{ request('campus_id', 'all') }}">
+                    <input type="hidden" name="campus_id" value="{{ $selectedCampusId }}">
 
                     <div>
                         <label for="report_frequency" class="block text-sm font-medium text-gray-700">Report Frequency</label>

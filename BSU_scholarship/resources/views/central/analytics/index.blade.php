@@ -550,10 +550,10 @@
 
         <aside class="bsu-sidebar">
             <div class="bsu-nav-section">
-                <div class="bsu-nav-label">Administration</div>
-                <a class="bsu-nav-link{{ $navActive('dashboard') }}" href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3v10Zm10 8h8V3h-8v18ZM3 21h8v-6H3v6Z"/></svg>
-                    <span class="bsu-nav-text">Dashboard</span>
+                <div class="bsu-nav-label">Insights</div>
+                <a class="bsu-nav-link{{ $navActive('all_statistics') }}" href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16V9M12 16V5M17 16v-3"/></svg>
+                    <span class="bsu-nav-text">Analytics</span>
                 </a>
                 <a class="bsu-nav-link{{ $navActive(...$scholarshipTabs) }}" href="{{ route('central.dashboard', ['tabs' => 'all_scholarships']) }}">
                     <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z"/></svg>
@@ -572,11 +572,7 @@
                     <span class="bsu-nav-text">Reports</span>
                 </a>
 
-                <div class="bsu-nav-label">Insights</div>
-                <a class="bsu-nav-link{{ $navActive('all_statistics') }}" href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16V9M12 16V5M17 16v-3"/></svg>
-                    <span class="bsu-nav-text">Analytics</span>
-                </a>
+                <div class="bsu-nav-label">Administration</div>
                 <a class="bsu-nav-link{{ $navActive('staff') }}" href="{{ route('central.dashboard', ['tabs' => 'staff']) }}">
                     <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     <span class="bsu-nav-text">User Management</span>

@@ -22,7 +22,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * =====================================================
  *
  * ANNOTATED COPY — every method has an explanation block above it.
- * The goal of these annotations is to help you (Jaeno) quickly find
+ * The goal of these annotations is to help you quickly find
  * where to apply your per-student status-priority dedup rule
  * (approved > in_progress/pending > rejected) across the codebase,
  * and to flag exactly which data structures are "one row per

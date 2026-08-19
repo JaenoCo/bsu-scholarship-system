@@ -60,7 +60,7 @@ class ScholarshipController extends Controller
 
         $colleges = \App\Models\College::orderBy('short_name')->pluck('short_name');
         $campuses = \App\Models\Campus::orderBy('name')->get();
-        return view('central.scholarships.create', compact('scholarship', 'colleges', 'campuses'));
+        return view('central.scholarships.create', compact('colleges', 'campuses'));
     }
 
     /**

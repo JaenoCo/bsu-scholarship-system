@@ -57,7 +57,11 @@ class DashboardController extends Controller
     private function sfaoSettings(Request $request, $user)
     {
         $sfaoCampus = $user->campus;
-        return view('sfao.settings.index', ['user' => $user, 'sfaoCampus' => $sfaoCampus]);
+        $activeTab = in_array($request->get('tabs', $request->get('tab')), ['account-security', 'account_security', 'login-security', 'login_and_security', 'login-and-security'], true)
+            ? 'account-security'
+            : 'account-info';
+
+        return view('sfao.settings.page', compact('user', 'sfaoCampus', 'activeTab'));
     }
 
     private function centralSettings(Request $request, $user)
@@ -127,6 +131,7 @@ class DashboardController extends Controller
         // View Parameters
         $activeTab = str_replace('_', '-', strtolower($request->get('tabs', $request->get('tab', 'analytics'))));
         $activeTab = match ($activeTab) {
+            'overview', 'analytics-scholarships', 'analytics-applications', 'analytics-scholars' => 'analytics',
             'all-app-forms', 'application-forms' => 'all-app-forms',
             'up-app-form', 'upload-app-form' => 'up-app-form',
             'account', 'account-info' => 'account-info',
@@ -1532,6 +1537,8 @@ class DashboardController extends Controller
                 ],
                 'bands' => [],
                 'scholarships' => [],
+                'students' => [],
+                'rules' => [],
             ];
         }
 
@@ -1540,16 +1547,24 @@ class DashboardController extends Controller
             ->whereIn('campus_id', $campusIds)
             ->get(['id', 'name', 'sr_code', 'campus_id', 'college', 'program', 'track']);
 
-        $verifiedGwaByUser = StudentSubmittedDocument::whereIn('user_id', $students->pluck('id'))
+        $verifiedGwaDocuments = StudentSubmittedDocument::whereIn('user_id', $students->pluck('id'))
             ->where('document_category', 'sfao_required')
             ->where('document_name', 'like', '%Grades%')
             ->where('evaluation_status', 'approved')
             ->whereNotNull('verified_gwa')
             ->orderByDesc('gwa_verified_at')
             ->orderByDesc('evaluated_at')
-            ->get(['user_id', 'verified_gwa', 'gwa_verified_at', 'evaluated_at'])
+            ->get(['user_id', 'verified_gwa', 'academic_year', 'semester', 'gwa_verified_at', 'evaluated_at'])
+            ;
+
+        $verifiedGwaByUser = $verifiedGwaDocuments
             ->groupBy('user_id')
             ->map(fn($documents) => (float) $documents->first()->verified_gwa);
+
+        $appliedScholarshipsByUser = Application::whereIn('user_id', $students->pluck('id'))
+            ->get(['user_id', 'scholarship_id'])
+            ->groupBy('user_id')
+            ->map(fn($applications) => $applications->pluck('scholarship_id')->map(fn($id) => (int) $id)->values());
 
         $studentsWithGwa = $students->filter(function ($student) use ($verifiedGwaByUser) {
             $gwa = $verifiedGwaByUser->get($student->id);
@@ -1640,6 +1655,32 @@ class DashboardController extends Controller
             ]);
         }
 
+        $predictionStudents = $students->map(function ($student) use ($verifiedGwaByUser, $verifiedGwaDocuments, $appliedScholarshipsByUser) {
+            $gradeDocument = $verifiedGwaDocuments->firstWhere('user_id', $student->id);
+
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'sr_code' => $student->sr_code,
+                'campus_name' => $student->campus?->name,
+                'campus_id' => $student->campus_id,
+                'college' => $student->college,
+                'program' => $student->program,
+                'track' => $student->track,
+                'gwa' => $verifiedGwaByUser->get($student->id),
+                'academic_year' => $gradeDocument?->academic_year,
+                'semester' => $gradeDocument?->semester,
+                'applied_scholarship_ids' => $appliedScholarshipsByUser->get($student->id, collect())->values(),
+            ];
+        })->values();
+
+        $predictionRules = $rows->map(fn($row) => [
+            'scholarship_id' => $row['scholarship_id'],
+            'scholarship_name' => $row['scholarship_name'],
+            'scholarship_type' => $row['scholarship_type'],
+            'required_gwa' => $row['required_gwa'],
+        ])->values();
+
         $rows = $rows
             ->sortBy([
                 ['qualified', 'desc'],
@@ -1673,6 +1714,8 @@ class DashboardController extends Controller
             ],
             'bands' => $bands,
             'scholarships' => $rows,
+            'students' => $predictionStudents,
+            'rules' => $predictionRules,
         ];
     }
 

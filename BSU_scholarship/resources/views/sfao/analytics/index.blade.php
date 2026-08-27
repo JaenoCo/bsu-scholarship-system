@@ -13,35 +13,13 @@
      @tab-changed.window="handleTabChange($event.detail)">
     <div class="space-y-6">
         
-        <!-- Analytics Sub-Tabs -->
+       
 
 
         <!-- Filter Controls -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
             <div class="flex flex-wrap gap-4 items-end">
-                
-                <!-- Scholarship Filters Removed -->
-
-                <!-- Campus Filter (Global) -->
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Campus</label>
-                    <div class="relative">
-                        <select x-model="filters.campus" 
-                                class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none"
-                                style="border-width: 1px;">
-                            <template x-if="campusOptions.length > 1">
-                                <option value="all">All</option>
-                            </template>
-                            <template x-for="campus in campusOptions" :key="campus.id">
-                                <option :value="campus.id" x-text="campus.name"></option>
-                            </template>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
-                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-                </div>
-
+   
                 <!-- College Filter (Global) -->
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">College</label>
@@ -184,7 +162,7 @@
         </div>
 
         <!-- GWA Qualification Prediction -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div x-show="subTab === 'gwa'" x-data="{ metricModal: null }" x-cloak class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-6">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">GWA Qualification Prediction</h3>
@@ -196,25 +174,61 @@
             </div>
 
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600">
+                <button type="button" @click="metricModal = 'verified'" class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600 cursor-pointer hover:ring-2 hover:ring-gray-300 transition">
                     <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Verified GWA</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ number_format($gwaPredictionSummary['students_with_gwa'] ?? 0) }}</p>
-                </div>
-                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800">
+                    <p class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.gwa_prediction?.summary?.students_with_gwa || 0"></p>
+                </button>
+                <button type="button" @click="metricModal = 'missing'" class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800 cursor-pointer hover:ring-2 hover:ring-red-300 transition">
                     <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Unverified / Missing</p>
-                    <p class="text-xl font-bold text-red-700 dark:text-red-300">{{ number_format($gwaPredictionSummary['students_missing_gwa'] ?? 0) }}</p>
-                </div>
-                <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                    <p class="text-xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.gwa_prediction?.summary?.students_missing_gwa || 0"></p>
+                </button>
+                <button type="button" @click="metricModal = 'qualified'" class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 cursor-pointer hover:ring-2 hover:ring-green-300 transition">
                     <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Qualified Matches</p>
-                    <p class="text-xl font-bold text-green-700 dark:text-green-300">{{ number_format($gwaPredictionSummary['qualified_matches'] ?? 0) }}</p>
-                </div>
-                <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800">
+                    <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.gwa_prediction?.summary?.qualified_matches || 0"></p>
+                </button>
+                <button type="button" @click="metricModal = 'near-miss'" class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800 cursor-pointer hover:ring-2 hover:ring-yellow-300 transition">
                     <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Near Misses</p>
-                    <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300">{{ number_format($gwaPredictionSummary['near_miss_matches'] ?? 0) }}</p>
-                </div>
-                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800">
+                    <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.gwa_prediction?.summary?.near_miss_matches || 0"></p>
+                </button>
+                <button type="button" @click="metricModal = 'rate'" class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 cursor-pointer hover:ring-2 hover:ring-blue-300 transition">
                     <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Prediction Rate</p>
-                    <p class="text-xl font-bold text-blue-700 dark:text-blue-300">{{ number_format($gwaPredictionSummary['qualification_rate'] ?? 0, 1) }}%</p>
+                    <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="(filteredData.gwa_prediction?.summary?.qualification_rate || 0) + '%' "></p>
+                </button>
+            </div>
+
+            <div x-show="metricModal" x-cloak x-transition @keydown.escape.window="metricModal = null" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="metricModal = null">
+                <div class="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-800 p-6 shadow-2xl" role="dialog" aria-modal="true">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-900 dark:text-white" x-text="{
+                                verified: 'Verified GWA', missing: 'Unverified / Missing', qualified: 'Qualified Matches', 'near-miss': 'Near Misses', rate: 'Prediction Rate'
+                            }[metricModal]"></h4>
+                            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300" x-text="{
+                                verified: 'Students with an approved grades document and a recorded GWA.',
+                                missing: 'Students in scope who still need an approved semester grades record with a GWA.',
+                                qualified: 'Applied-scholarship matches where the latest approved GWA meets the scholarship requirement.',
+                                'near-miss': 'Applied-scholarship matches within 0.25 of the required GWA.',
+                                rate: 'Qualified matches divided by all evaluated applied-scholarship matches.'
+                            }[metricModal]"></p>
+                        </div>
+                        <button type="button" @click="metricModal = null" class="text-gray-400 hover:text-gray-700 dark:hover:text-white" aria-label="Close modal">&times;</button>
+                    </div>
+                    <div class="mt-6 rounded-lg bg-gray-50 dark:bg-gray-700/50 p-5 text-center">
+                        <span class="text-3xl font-bold text-gray-900 dark:text-white" x-text="metricModal === 'verified' ? (filteredData.gwa_prediction?.summary?.students_with_gwa || 0) : metricModal === 'missing' ? (filteredData.gwa_prediction?.summary?.students_missing_gwa || 0) : metricModal === 'qualified' ? (filteredData.gwa_prediction?.summary?.qualified_matches || 0) : metricModal === 'near-miss' ? (filteredData.gwa_prediction?.summary?.near_miss_matches || 0) : (filteredData.gwa_prediction?.summary?.qualification_rate || 0) + '%'"></span>
+                    </div>
+                    <div class="mt-5 max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                        <table class="min-w-full text-left text-sm">
+                            <thead class="sticky top-0 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200">
+                                <tr><th class="px-3 py-2">Student</th><th class="px-3 py-2">SR Code</th><th class="px-3 py-2">Campus</th><th class="px-3 py-2">GWA</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                <template x-for="student in getGwaMetricStudents(metricModal)" :key="student.id">
+                                    <tr><td class="px-3 py-2 text-gray-900 dark:text-white" x-text="student.name || 'Unnamed student'"></td><td class="px-3 py-2 text-gray-600 dark:text-gray-300" x-text="student.sr_code || 'Not provided'"></td><td class="px-3 py-2 text-gray-600 dark:text-gray-300" x-text="student.campus_name || 'Unknown campus'"></td><td class="px-3 py-2 font-semibold text-gray-900 dark:text-white" x-text="Number(student.gwa) > 0 ? Number(student.gwa).toFixed(2) : 'Missing'"></td></tr>
+                                </template>
+                                <tr x-show="getGwaMetricStudents(metricModal).length === 0"><td colspan="4" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No students match this metric and the selected filters.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -223,7 +237,7 @@
                     <div class="text-center mb-4">
                         <h4 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Predicted Qualification by Scholarship</h4>
                     </div>
-                    <div class="relative h-80 w-full">
+                    <div class="relative min-h-[520px] w-full">
                         <canvas id="sfaoGwaQualificationChart"></canvas>
                     </div>
                 </div>
@@ -250,23 +264,19 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                        @forelse($gwaPredictionRows->take(5) as $row)
+                        <template x-for="row in (filteredData.gwa_prediction?.scholarships || []).slice(0, 5)" :key="row.scholarship_id">
                             <tr>
-                                <td class="px-4 py-3 text-gray-900 dark:text-white">
-                                    <div class="font-semibold">{{ $row['scholarship_name'] }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</div>
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ number_format($row['required_gwa'], 2) }} or better</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ number_format($row['total_evaluated']) }}</td>
-                                <td class="px-4 py-3 text-green-700 dark:text-green-300 font-semibold">{{ number_format($row['qualified']) }}</td>
-                                <td class="px-4 py-3 text-yellow-700 dark:text-yellow-300 font-semibold">{{ number_format($row['near_miss']) }}</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ number_format($row['qualification_rate'], 1) }}%</td>
+                                <td class="px-4 py-3 text-gray-900 dark:text-white"><div class="font-semibold" x-text="row.scholarship_name"></div><div class="text-xs text-gray-500 dark:text-gray-400" x-text="(row.scholarship_type || 'Unspecified').charAt(0).toUpperCase() + (row.scholarship_type || 'Unspecified').slice(1)"></div></td>
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300"><span x-text="Number(row.required_gwa).toFixed(2)"></span> or better</td>
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300" x-text="row.total_evaluated"></td>
+                                <td class="px-4 py-3 text-green-700 dark:text-green-300 font-semibold" x-text="row.qualified"></td>
+                                <td class="px-4 py-3 text-yellow-700 dark:text-yellow-300 font-semibold" x-text="row.near_miss"></td>
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300"><span x-text="Number(row.qualification_rate).toFixed(1)"></span>%</td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No active scholarships with a GWA requirement found for this scope.</td>
-                            </tr>
-                        @endforelse
+                        </template>
+                        <tr x-show="!(filteredData.gwa_prediction?.scholarships || []).length">
+                            <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No applied scholarships with a GWA requirement match these filters.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -537,8 +547,6 @@
 <script>
     (() => {
         const prediction = @json($gwaPrediction);
-        const rows = (prediction.scholarships || []).slice(0, 8);
-        const bands = prediction.bands || [];
         const state = window.sfaoGwaPredictionCharts || (window.sfaoGwaPredictionCharts = {});
 
         function textColor() {
@@ -551,10 +559,15 @@
 
         function renderSfaoGwaPredictionCharts() {
             if (typeof Chart === 'undefined') return;
+            const currentPrediction = window.sfaoFilteredGwaPrediction || prediction;
+            const rows = (currentPrediction.scholarships || []).slice(0, 8);
+            const bands = currentPrediction.bands || [];
 
             const qualificationCanvas = document.getElementById('sfaoGwaQualificationChart');
             const bandCanvas = document.getElementById('sfaoGwaBandChart');
             if (!qualificationCanvas || !bandCanvas) return;
+
+            qualificationCanvas.parentElement.style.height = `${Math.max(520, rows.length * 58)}px`;
 
             if (state.qualification) state.qualification.destroy();
             if (state.bands) state.bands.destroy();
@@ -562,30 +575,36 @@
             state.qualification = new Chart(qualificationCanvas, {
                 type: 'bar',
                 data: {
-                    labels: rows.map(row => row.scholarship_name.length > 24 ? row.scholarship_name.slice(0, 24) + '...' : row.scholarship_name),
+                    labels: rows.map(row => row.scholarship_name),
                     datasets: [
                         {
                             label: 'Predicted qualified',
                             data: rows.map(row => row.qualified),
                             backgroundColor: '#10B981',
                             borderRadius: 8,
-                            maxBarThickness: 42
+                            maxBarThickness: 26,
+                            barPercentage: 0.7,
+                            categoryPercentage: 0.8
                         },
                         {
                             label: 'Not qualified by GWA',
                             data: rows.map(row => row.not_qualified),
                             backgroundColor: '#EF4444',
                             borderRadius: 8,
-                            maxBarThickness: 42
+                            maxBarThickness: 26,
+                            barPercentage: 0.7,
+                            categoryPercentage: 0.8
                         }
                     ]
                 },
                 options: {
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { left: 8, right: 12, top: 8, bottom: 8 } },
                     scales: {
-                        x: { stacked: true, ticks: { color: textColor(), maxRotation: 0 }, grid: { display: false } },
-                        y: { stacked: true, beginAtZero: true, ticks: { color: textColor(), precision: 0 }, grid: { color: gridColor() } }
+                        x: { stacked: true, beginAtZero: true, ticks: { color: textColor(), precision: 0 }, grid: { color: gridColor() } },
+                        y: { stacked: true, ticks: { color: textColor(), autoSkip: false, font: { size: 11 }, padding: 14 }, grid: { display: false }, border: { display: false } }
                     },
                     plugins: {
                         legend: { position: 'bottom', labels: { color: textColor() } },
@@ -616,6 +635,10 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => setTimeout(renderSfaoGwaPredictionCharts, 150));
+        window.addEventListener('gwa-prediction-updated', (event) => {
+            window.sfaoFilteredGwaPrediction = event.detail;
+            setTimeout(renderSfaoGwaPredictionCharts, 50);
+        });
         window.addEventListener('switch-tab', event => {
             if (!event.detail || String(event.detail).startsWith('analytics')) {
                 setTimeout(renderSfaoGwaPredictionCharts, 150);

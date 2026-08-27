@@ -240,6 +240,9 @@ window.sfaoStatisticsTab = function (config = {}) {
                 } else if (currentTab === "analytics_scholars") {
                     this.subTab = "scholars";
                     this.viewMode = "scholars";
+                } else if (currentTab === "analytics_gwa") {
+                    this.subTab = "gwa";
+                    this.viewMode = "comparison";
                 }
 
                 // Initial Data Load triggering
@@ -306,6 +309,8 @@ window.sfaoStatisticsTab = function (config = {}) {
                     this.setSubTab("applicants");
                 else if (newTab === "analytics_scholars")
                     this.setSubTab("scholars");
+                else if (newTab === "analytics_gwa")
+                    this.setSubTab("gwa");
 
                 // Force a resize event to trigger observers
                 window.dispatchEvent(new Event("resize"));
@@ -848,12 +853,14 @@ window.sfaoStatisticsTab = function (config = {}) {
 
             // Scholarship Status Distribution metrics (used by the "Scholarships" sub-tab)
             data.scholarshipDistribution = this.computeScholarshipDistribution();
+            data.gwa_prediction = this.computeGwaPrediction();
 
             // ANIMATION TRIGGER:
             // Update with full data after a micro-delay to allow DOM to register changes
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     this.filteredData = data;
+                    window.dispatchEvent(new CustomEvent("gwa-prediction-updated", { detail: data.gwa_prediction }));
                     // Trigger Chart Updates strictly AFTER data is set
                     this.$nextTick(() => {
                         this.updateCharts();
@@ -865,6 +872,57 @@ window.sfaoStatisticsTab = function (config = {}) {
         applyFilters() {
             this.updateFilteredData();
             // Charts update is now chained inside updateFilteredData to handle async delay
+        },
+
+        computeGwaPrediction() {
+            const source = this.analyticsData.gwa_prediction || {};
+            const students = (source.students || []).filter((student) => {
+                if (this.filters.campus !== "all" && student.campus_id != this.filters.campus) return false;
+                if (this.localFilters.college !== "all" && student.college !== this.localFilters.college) return false;
+                if (this.localFilters.program !== "all" && student.program !== this.localFilters.program) return false;
+                if (this.localFilters.track !== "all" && student.track !== this.localFilters.track) return false;
+                if (this.filters.timePeriod !== "all" && student.academic_year !== this.filters.timePeriod) return false;
+                return true;
+            });
+            const studentsWithGwa = students.filter((student) => Number(student.gwa) > 0);
+            const rules = source.rules || [];
+            const rows = rules.map((rule) => {
+                if (this.filters.search && !rule.scholarship_name.toLowerCase().includes(this.filters.search.toLowerCase().trim())) return null;
+                const pool = studentsWithGwa.filter((student) => (student.applied_scholarship_ids || []).map(Number).includes(Number(rule.scholarship_id)));
+                const qualified = pool.filter((student) => Number(student.gwa) <= Number(rule.required_gwa)).length;
+                const nearMiss = pool.filter((student) => Number(student.gwa) > Number(rule.required_gwa) && Number(student.gwa) <= Number(rule.required_gwa) + 0.25).length;
+                return { ...rule, total_evaluated: pool.length, qualified, not_qualified: Math.max(0, pool.length - qualified), near_miss: nearMiss, qualification_rate: pool.length ? Math.round((qualified / pool.length) * 1000) / 10 : 0 };
+            }).filter(Boolean).sort((a, b) => b.qualified - a.qualified || b.qualification_rate - a.qualification_rate || a.scholarship_name.localeCompare(b.scholarship_name));
+            const bands = [
+                ['1.00-1.50', 1, 1.5], ['1.51-1.75', 1.51, 1.75], ['1.76-2.00', 1.76, 2], ['2.01-2.50', 2.01, 2.5], ['2.51+', 2.51, null]
+            ].map(([label, min, max]) => ({ label, count: studentsWithGwa.filter((student) => Number(student.gwa) >= min && (max === null || Number(student.gwa) <= max)).length }));
+            const evaluated = rows.reduce((sum, row) => sum + row.total_evaluated, 0);
+            const qualified = rows.reduce((sum, row) => sum + row.qualified, 0);
+            return { summary: { total_students: students.length, students_with_gwa: studentsWithGwa.length, students_missing_gwa: students.length - studentsWithGwa.length, qualified_matches: qualified, near_miss_matches: rows.reduce((sum, row) => sum + row.near_miss, 0), qualification_rate: evaluated ? Math.round((qualified / evaluated) * 1000) / 10 : 0 }, bands, scholarships: rows };
+        },
+
+        getGwaMetricStudents(metric) {
+            const prediction = this.analyticsData.gwa_prediction || {};
+            const students = (prediction.students || []).filter((student) => {
+                if (this.filters.campus !== "all" && student.campus_id != this.filters.campus) return false;
+                if (this.localFilters.college !== "all" && student.college !== this.localFilters.college) return false;
+                if (this.localFilters.program !== "all" && student.program !== this.localFilters.program) return false;
+                if (this.localFilters.track !== "all" && student.track !== this.localFilters.track) return false;
+                if (this.filters.timePeriod !== "all" && student.academic_year !== this.filters.timePeriod) return false;
+                return true;
+            });
+            if (metric === "verified") return students.filter((student) => Number(student.gwa) > 0);
+            if (metric === "missing") return students.filter((student) => Number(student.gwa) <= 0);
+            const matchingIds = new Set();
+            students.filter((student) => Number(student.gwa) > 0).forEach((student) => {
+                (prediction.rules || []).forEach((rule) => {
+                    if (!(student.applied_scholarship_ids || []).map(Number).includes(Number(rule.scholarship_id))) return;
+                    const gwa = Number(student.gwa);
+                    const required = Number(rule.required_gwa);
+                    if ((metric === "qualified" && gwa <= required) || (metric === "near-miss" && gwa > required && gwa <= required + 0.25)) matchingIds.add(student.id);
+                });
+            });
+            return students.filter((student) => matchingIds.has(student.id));
         },
 
         // Scholarship Status Distribution Metrics (Scholarships sub-tab summary cards)
@@ -2880,6 +2938,8 @@ window.sfaoDashboardState = function (config) {
             "analytics-applications": "analytics_applications",
             analytics_scholars: "analytics_scholars",
             "analytics-scholars": "analytics_scholars",
+            analytics_gwa: "analytics_gwa",
+            "analytics-gwa": "analytics_gwa",
             analytics: "analytics",
             overview: "analytics",
             scholarships: "scholarships",
@@ -2939,6 +2999,7 @@ window.sfaoDashboardState = function (config) {
             analytics_scholarships: "analytics_scholarships",
             analytics_applications: "analytics_applications",
             analytics_scholars: "analytics_scholars",
+            analytics_gwa: "analytics_gwa",
             scholarships: "all_scholarships",
             "scholarships-private": "private_scholarships",
             "scholarships-government": "government_scholarships",
@@ -3125,7 +3186,7 @@ window.sfaoDashboardState = function (config) {
             if (key) {
                 const url = new URL(window.location.origin + window.location.pathname);
                 url.searchParams.set("tabs", key);
-                window.history.pushState({}, "", url);
+                window.history.replaceState({}, "", url);
             }
         },
 

@@ -47,9 +47,7 @@
            @include('sfao.scholars.index')     <!-- Scholars Lists -->
            @include('sfao.reports.index')      <!-- Reports -->
            @include('sfao.analytics.index')    <!-- Analytics -->
-           @include('sfao.application-forms.index')  <!-- Application Forms -->
            @include('sfao.import.scholarships') <!-- Scholarship Import -->
-           @include('sfao.settings.index')
            
            <div>
                 

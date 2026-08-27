@@ -28,7 +28,9 @@ class ApplicationFormController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
-        return view('sfao.application-forms.index', compact('forms', 'user', 'sfaoCampus'));
+        $activeTab = $this->normalizeTab(request()->get('tabs', request()->get('tab', 'all-app-forms')));
+
+        return view('sfao.application-forms.page', compact('forms', 'user', 'sfaoCampus', 'activeTab'));
     }
 
     /**
@@ -36,23 +38,7 @@ class ApplicationFormController extends Controller
      */
     public function create()
     {
-        if (!session()->has('user_id') || session('role') !== 'sfao') {
-            return redirect('/login')->with('session_expired', true);
-        }
-
-        $user = User::with('campus')->find(session('user_id'));
-        $sfaoCampus = $user->campus;
-        $managedCampuses = $sfaoCampus->getAllCampusesUnder();
-        $campusIds = $managedCampuses->pluck('id');
-        
-        $activeScholarshipsList = \App\Models\Scholarship::where('is_active', true)
-            ->whereHas('campuses', function($q) use ($campusIds) {
-                $q->whereIn('campus_id', $campusIds);
-            })
-            ->orderBy('scholarship_name', 'asc')
-            ->get();
-
-        return view('sfao.application-forms.upload', compact('user', 'sfaoCampus', 'managedCampuses', 'activeScholarshipsList'));
+        return redirect()->route('sfao.application-forms.index', ['tabs' => 'up-app-form']);
     }
 
     /**
@@ -242,5 +228,12 @@ class ApplicationFormController extends Controller
         }
 
         return back()->with('error', 'File not found.');
+    }
+
+    private function normalizeTab(string $tab): string
+    {
+        return in_array($tab, ['up-app-form', 'up_app_form', 'upload-app-form', 'upload_app_form'], true)
+            ? 'up-app-form'
+            : 'all-app-forms';
     }
 }

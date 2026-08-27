@@ -544,8 +544,6 @@
     @include('sfao.partials.tabs.reports') <!-- Reports -->
     @include('sfao.partials.tabs.statistics') <!-- Statistics -->
     @include('sfao.partials.tabs.account') <!-- Account -->
-    @include('sfao.settings.index')
-    @include('sfao.application-forms.index')
   </main>
 
 

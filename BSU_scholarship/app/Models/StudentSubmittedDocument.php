@@ -20,6 +20,12 @@ class StudentSubmittedDocument extends Model
         'file_size',
         'is_mandatory',
         'description',
+        'declared_gwa',
+        'extracted_gwa',
+        'verified_gwa',
+        'gwa_source',
+        'gwa_verified_by',
+        'gwa_verified_at',
         'evaluation_status',
         'evaluation_notes',
         'evaluated_by',
@@ -30,6 +36,10 @@ class StudentSubmittedDocument extends Model
         'is_mandatory' => 'boolean',
         'file_size' => 'integer',
         'evaluated_at' => 'datetime',
+        'declared_gwa' => 'float',
+        'extracted_gwa' => 'float',
+        'verified_gwa' => 'float',
+        'gwa_verified_at' => 'datetime',
     ];
 
     // Relationships
@@ -46,6 +56,11 @@ class StudentSubmittedDocument extends Model
     public function evaluator()
     {
         return $this->belongsTo(User::class, 'evaluated_by');
+    }
+
+    public function gwaVerifier()
+    {
+        return $this->belongsTo(User::class, 'gwa_verified_by');
     }
 
     // Scopes

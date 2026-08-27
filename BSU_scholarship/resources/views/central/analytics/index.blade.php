@@ -111,6 +111,11 @@
     $scholarshipStatusRows = collect($centralStatusReport['scholarship_rows'] ?? []);
     $selectedStatusCampus = $centralStatusReport['selected_campus'] ?? null;
     $statusReportScope = $selectedStatusCampus['name'] ?? 'All Campuses';
+    $gwaPrediction = $analytics['gwa_prediction'] ?? [];
+    $gwaPredictionSummary = $gwaPrediction['summary'] ?? [];
+    $gwaPredictionRows = collect($gwaPrediction['scholarships'] ?? []);
+    $gwaPredictionChartRows = $gwaPredictionRows->take(8)->values();
+    $gwaBands = collect($gwaPrediction['bands'] ?? []);
 @endphp
 
 <!doctype html>
@@ -661,6 +666,105 @@
                     ])
                 </div>
             </div>
+
+            <section class="bsu-card mb-4">
+                <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                    <div>
+                        <h2 class="bsu-card-title">GWA Qualification Prediction</h2>
+                        <p class="bsu-card-subtitle">Predicted scholarship fit from student GWA against active scholarship GWA requirements.</p>
+                    </div>
+                    <span class="badge text-bg-light">{{ number_format($gwaPredictionSummary['scholarships_with_gwa_rule'] ?? 0) }} GWA-based programs</span>
+                </div>
+                <div class="p-3 p-lg-4 border-bottom">
+                    <div class="row g-3">
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Verified GWA</div>
+                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['students_with_gwa'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Unverified / Missing</div>
+                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['students_missing_gwa'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Qualified Matches</div>
+                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['qualified_matches'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Near Misses</div>
+                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['near_miss_matches'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="small text-secondary fw-bold text-uppercase">Prediction Rate</div>
+                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['qualification_rate'] ?? 0, 1) }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-0">
+                    <div class="col-12 col-xl-7 border-end">
+                        <div class="bsu-card-header border-0 pb-0">
+                            <div>
+                                <h3 class="bsu-card-title">Predicted Qualification by Scholarship</h3>
+                                <p class="bsu-card-subtitle">Top active scholarships with a GWA condition.</p>
+                            </div>
+                        </div>
+                        <div class="bsu-chart-box bsu-chart-box-lg">
+                            <canvas id="gwaQualificationChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-5">
+                        <div class="bsu-card-header border-0 pb-0">
+                            <div>
+                                <h3 class="bsu-card-title">Student GWA Distribution</h3>
+                                <p class="bsu-card-subtitle">Students grouped by submitted GWA.</p>
+                            </div>
+                        </div>
+                        <div class="bsu-chart-box bsu-chart-box-lg">
+                            <canvas id="gwaBandChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive border-top">
+                    <table class="table bsu-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Scholarship</th>
+                                <th>Required GWA</th>
+                                <th>Evaluated</th>
+                                <th>Predicted Qualified</th>
+                                <th>Near Miss</th>
+                                <th>Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($gwaPredictionRows->take(6) as $row)
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold text-dark">{{ $row['scholarship_name'] }}</div>
+                                        <div class="small text-secondary">{{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</div>
+                                    </td>
+                                    <td>{{ number_format($row['required_gwa'], 2) }} or better</td>
+                                    <td>{{ number_format($row['total_evaluated']) }}</td>
+                                    <td><span class="badge text-bg-success">{{ number_format($row['qualified']) }}</span></td>
+                                    <td><span class="badge text-bg-warning">{{ number_format($row['near_miss']) }}</span></td>
+                                    <td>{{ number_format($row['qualification_rate'], 1) }}%</td>
+                                </tr>
+                            @empty
+                                <tr class="bsu-empty-row"><td colspan="6" class="text-center py-5 text-secondary">No active scholarships with a GWA requirement found for this scope.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
             <section class="bsu-card mb-4">
                 <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
@@ -1483,7 +1587,12 @@
             monthlyLabels: @json($monthlyTrendLabels),
             monthlyValues: @json($monthlyTrendValues),
             statusLabels: @json($statusLabels),
-            statusValues: @json($statusValues)
+            statusValues: @json($statusValues),
+            gwaScholarshipLabels: @json($gwaPredictionChartRows->pluck('scholarship_name')->map(fn($name) => \Illuminate\Support\Str::limit($name, 24))->values()),
+            gwaQualifiedValues: @json($gwaPredictionChartRows->pluck('qualified')->values()),
+            gwaNotQualifiedValues: @json($gwaPredictionChartRows->pluck('not_qualified')->values()),
+            gwaBandLabels: @json($gwaBands->pluck('label')->values()),
+            gwaBandValues: @json($gwaBands->pluck('count')->values())
         };
 
         const css = getComputedStyle(document.documentElement);
@@ -1577,6 +1686,55 @@
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: chartDefaults.plugins }
+            });
+        }
+
+        const gwaQualificationChart = document.getElementById('gwaQualificationChart');
+        if (gwaQualificationChart) {
+            new Chart(gwaQualificationChart, {
+                type: 'bar',
+                data: {
+                    labels: dashboardData.gwaScholarshipLabels,
+                    datasets: [
+                        {
+                            label: 'Predicted qualified',
+                            data: dashboardData.gwaQualifiedValues,
+                            backgroundColor: palette.success,
+                            borderRadius: 8,
+                            maxBarThickness: 42
+                        },
+                        {
+                            label: 'Not qualified by GWA',
+                            data: dashboardData.gwaNotQualifiedValues,
+                            backgroundColor: 'rgba(239, 68, 68, .78)',
+                            borderRadius: 8,
+                            maxBarThickness: 42
+                        }
+                    ]
+                },
+                options: {
+                    ...chartDefaults,
+                    scales: {
+                        x: { stacked: true, ticks: { color: '#64748b', font: { family: 'Inter' } }, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { color: '#64748b', precision: 0, font: { family: 'Inter' } }, grid: { color: '#f1f5f9' } }
+                    }
+                }
+            });
+        }
+
+        const gwaBandChart = document.getElementById('gwaBandChart');
+        if (gwaBandChart) {
+            new Chart(gwaBandChart, {
+                type: 'doughnut',
+                data: {
+                    labels: dashboardData.gwaBandLabels.length ? dashboardData.gwaBandLabels : ['No GWA'],
+                    datasets: [{
+                        data: dashboardData.gwaBandValues.length ? dashboardData.gwaBandValues : [1],
+                        backgroundColor: [palette.primary, palette.info, palette.success, palette.warning, palette.danger],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '64%', plugins: chartDefaults.plugins }
             });
         }
 

@@ -77,6 +77,10 @@
                     
                     <div class="space-y-6">
                         @foreach($sfaoDocuments as $document)
+                            @php
+                                $isGradesDocument = str_contains(strtolower($document->document_name), 'grades');
+                                $suggestedGwa = $document->verified_gwa ?? $document->declared_gwa ?? $document->extracted_gwa;
+                            @endphp
                             <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                                 <div class="flex items-start justify-between mb-4">
                                     <div class="flex-1">
@@ -104,6 +108,37 @@
                                         </a>
                                     </div>
                                 </div>
+
+                                @if($isGradesDocument)
+                                    <div class="mb-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+                                        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                                            <div>
+                                                <h5 class="text-sm font-semibold text-blue-900 dark:text-blue-100">GWA Verification</h5>
+                                                <div class="mt-2 grid grid-cols-1 gap-2 text-sm text-blue-800 dark:text-blue-200 sm:grid-cols-3">
+                                                    <p>Student typed: <span class="font-semibold">{{ $document->declared_gwa ? number_format($document->declared_gwa, 2) : 'None' }}</span></p>
+                                                    <p>Auto-extracted: <span class="font-semibold">{{ $document->extracted_gwa ? number_format($document->extracted_gwa, 2) : 'None' }}</span></p>
+                                                    <p>Verified: <span class="font-semibold">{{ $document->verified_gwa ? number_format($document->verified_gwa, 2) : 'Pending' }}</span></p>
+                                                </div>
+                                                <p class="mt-2 text-xs text-blue-700 dark:text-blue-300">Required when approving Grades. This verified value is used by the scholarship prediction dashboard.</p>
+                                            </div>
+                                            <div class="w-full lg:w-48">
+                                                <label for="verified_gwa_{{ $document->id }}" class="block text-xs font-medium text-blue-900 dark:text-blue-100">Verified GWA</label>
+                                                <input type="number"
+                                                       name="evaluations[{{ $document->id }}][verified_gwa]"
+                                                       id="verified_gwa_{{ $document->id }}"
+                                                       step="0.01"
+                                                       min="1.00"
+                                                       max="5.00"
+                                                       value="{{ old('evaluations.' . $document->id . '.verified_gwa', $suggestedGwa) }}"
+                                                       placeholder="e.g. 1.75"
+                                                       class="mt-1 block w-full rounded-md border-blue-300 dark:border-blue-700 dark:bg-gray-800 dark:text-white shadow-sm focus:border-bsu-red focus:ring-bsu-red">
+                                                @error('evaluations.' . $document->id . '.verified_gwa')
+                                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                                @enderror
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                                 
                                 <div class="grid grid-cols-1 gap-4">
                                     <fieldset class="space-y-3">

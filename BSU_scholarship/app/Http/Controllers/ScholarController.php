@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Scholar;
 use App\Models\Application;
+use App\Models\Scholarship;
+use App\Models\User;
 
 class ScholarController extends Controller
 {

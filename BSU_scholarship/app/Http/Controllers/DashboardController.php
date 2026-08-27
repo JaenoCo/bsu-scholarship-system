@@ -9,6 +9,7 @@ use App\Models\Application;
 use App\Models\Scholarship;
 use App\Models\Report;
 use App\Models\Scholar;
+use App\Models\StudentSubmittedDocument;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -566,6 +567,7 @@ class DashboardController extends Controller
             ->get();
             
         $analytics['all_applications_data'] = $allApplicationsData;
+        $analytics['gwa_prediction'] = $this->buildGwaQualificationPrediction($campusIds);
 
 
         return $analytics;
@@ -888,7 +890,7 @@ class DashboardController extends Controller
         }
 
         // Create user object
-        $user = \App\Models\User::find(session('user_id'));
+        $user = User::find(session('user_id'));
 
         // Get all campuses for filter and resolving tab
         $campuses = \App\Models\Campus::all();
@@ -1090,7 +1092,7 @@ class DashboardController extends Controller
         $reportsRejected = $queryRejected->where('status', 'rejected')->paginate(10, ['*'], 'page_rejected')->appends($request->only($reportsParams));
 
         // Generate Academic Year Options
-        $oldestReport = \App\Models\Report::orderBy('report_period_start', 'asc')->first();
+        $oldestReport = Report::orderBy('report_period_start', 'asc')->first();
         $startYear = $oldestReport && $oldestReport->report_period_start ? $oldestReport->report_period_start->year : now()->year;
         
         $currentYear = now()->year;
@@ -1102,19 +1104,23 @@ class DashboardController extends Controller
         }
         $academicYearOptions = array_unique($academicYearOptions);
 
-        $totalReports = \App\Models\Report::count();
+        $totalReports = Report::count();
 
         // Get report statistics for dashboard counts
         $reportStats = [
             'total_reports' => $totalReports,
-            'submitted_reports' => \App\Models\Report::where('status', 'submitted')->count(),
-            'reviewed_reports' => \App\Models\Report::where('status', 'reviewed')->count(),
-            'approved_reports' => \App\Models\Report::where('status', 'approved')->count(),
-            'pending_reports' => \App\Models\Report::where('status', 'submitted')->count(),
+            'submitted_reports' => Report::where('status', 'submitted')->count(),
+            'reviewed_reports' => Report::where('status', 'reviewed')->count(),
+            'approved_reports' => Report::where('status', 'approved')->count(),
+            'pending_reports' => Report::where('status', 'submitted')->count(),
         ];
 
         // Generate comprehensive analytics data
         $analytics = $this->generateAnalyticsData(['campus' => $campusFilter]);
+        $predictionCampusIds = $campusFilter !== 'all'
+            ? collect([(int) $campusFilter])
+            : $campuses->pluck('id');
+        $analytics['gwa_prediction'] = $this->buildGwaQualificationPrediction($predictionCampusIds);
 
         // START: Enrich Analytics for SFAO-style Charts
         $allCampusIds = \App\Models\Campus::pluck('id')->toArray();
@@ -1130,7 +1136,7 @@ class DashboardController extends Controller
         $analytics['all_colleges'] = \App\Models\College::select('id', 'name', 'short_name')->get()->toArray();
 
         // Programs Logic
-        $dbProgramsData = \App\Models\User::where('role', 'student')
+        $dbProgramsData = User::where('role', 'student')
             ->whereNotNull('program')
             ->select('college', 'program')
             ->distinct()
@@ -1190,10 +1196,10 @@ class DashboardController extends Controller
         $analytics['program_tracks'] = $programTracks;
 
         // Available Scholarships
-        $analytics['available_scholarships'] = \App\Models\Scholarship::select('id', 'scholarship_name')->get()->toArray();
+        $analytics['available_scholarships'] = Scholarship::select('id', 'scholarship_name')->get()->toArray();
 
         // All Applications Data (Heavy Query - strictly needed for JS filtering)
-        $allApplicationsData = \App\Models\Application::join('users', 'applications.user_id', '=', 'users.id')
+        $allApplicationsData = Application::join('users', 'applications.user_id', '=', 'users.id')
             ->join('scholarships', 'applications.scholarship_id', '=', 'scholarships.id')
             ->leftJoin('scholars', function($join) {
                 $join->on('users.id', '=', 'scholars.user_id')
@@ -1220,7 +1226,7 @@ class DashboardController extends Controller
                 'scholars.id as scholar_id', 
                 'scholars.status as scholar_status', 
                 'scholars.type as scholar_type',
-                \Illuminate\Support\Facades\DB::raw('(SELECT COUNT(*) FROM scholars as s WHERE s.user_id = users.id) as is_global_scholar')
+                DB::raw('(SELECT COUNT(*) FROM scholars as s WHERE s.user_id = users.id) as is_global_scholar')
             )
             ->distinct()
             ->get();
@@ -1294,7 +1300,7 @@ class DashboardController extends Controller
             ];
         })->toArray();
         
-        $scholarshipOptions = \App\Models\Scholarship::all()->map(function($scholarship) {
+        $scholarshipOptions = Scholarship::all()->map(function($scholarship) {
             return [
                 'id' => $scholarship->id,
                 'name' => $scholarship->scholarship_name
@@ -1311,7 +1317,7 @@ class DashboardController extends Controller
         ];
 
         // Scholars Query - Base
-        $scholarsQuery = \App\Models\Scholar::with(['user', 'scholarship', 'user.campus']);
+        $scholarsQuery = Scholar::with(['user', 'scholarship', 'user.campus']);
 
         // Apply campus filter for scholars
         if ($campusFilter !== 'all') {
@@ -1456,7 +1462,7 @@ class DashboardController extends Controller
             ->get();
 
         // Data for Client-Side Filtering (SFAO Reports Tab)
-        $allReportsForReportsTab = \App\Models\Report::with(['campus', 'college', 'program', 'track'])
+        $allReportsForReportsTab = Report::with(['campus', 'college', 'program', 'track'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($report) {
@@ -1498,6 +1504,166 @@ class DashboardController extends Controller
             'centralScholarshipRows', 'centralArchivedScholarshipRows', 'centralScholarRows',
             'centralApplicationRows', 'centralStaffRows', 'centralStatusReport'
         ));
+    }
+
+    private function buildGwaQualificationPrediction($campusIds)
+    {
+        $campusIds = collect($campusIds)
+            ->filter(fn($id) => $id !== null && $id !== '')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($campusIds->isEmpty()) {
+            return [
+                'summary' => [
+                    'total_students' => 0,
+                    'students_with_gwa' => 0,
+                    'students_missing_gwa' => 0,
+                    'average_gwa' => null,
+                    'scholarships_with_gwa_rule' => 0,
+                    'scholarships_without_gwa_rule' => 0,
+                    'evaluated_matches' => 0,
+                    'qualified_matches' => 0,
+                    'not_qualified_matches' => 0,
+                    'near_miss_matches' => 0,
+                    'qualification_rate' => 0,
+                    'generated_at' => now()->format('F d, Y h:i A'),
+                ],
+                'bands' => [],
+                'scholarships' => [],
+            ];
+        }
+
+        $students = User::with(['campus:id,name'])
+            ->where('role', 'student')
+            ->whereIn('campus_id', $campusIds)
+            ->get(['id', 'name', 'sr_code', 'campus_id', 'college', 'program', 'track']);
+
+        $verifiedGwaByUser = StudentSubmittedDocument::whereIn('user_id', $students->pluck('id'))
+            ->where('document_category', 'sfao_required')
+            ->where('document_name', 'like', '%Grades%')
+            ->where('evaluation_status', 'approved')
+            ->whereNotNull('verified_gwa')
+            ->orderByDesc('gwa_verified_at')
+            ->orderByDesc('evaluated_at')
+            ->get(['user_id', 'verified_gwa', 'gwa_verified_at', 'evaluated_at'])
+            ->groupBy('user_id')
+            ->map(fn($documents) => (float) $documents->first()->verified_gwa);
+
+        $studentsWithGwa = $students->filter(function ($student) use ($verifiedGwaByUser) {
+            $gwa = $verifiedGwaByUser->get($student->id);
+            return is_numeric($gwa) && (float) $gwa > 0;
+        })->values();
+
+        $bandDefinitions = [
+            ['label' => '1.00-1.50', 'min' => 1.00, 'max' => 1.50],
+            ['label' => '1.51-1.75', 'min' => 1.51, 'max' => 1.75],
+            ['label' => '1.76-2.00', 'min' => 1.76, 'max' => 2.00],
+            ['label' => '2.01-2.50', 'min' => 2.01, 'max' => 2.50],
+            ['label' => '2.51+', 'min' => 2.51, 'max' => null],
+        ];
+
+        $bands = collect($bandDefinitions)->map(function ($band) use ($studentsWithGwa, $verifiedGwaByUser) {
+            $count = $studentsWithGwa->filter(function ($student) use ($band, $verifiedGwaByUser) {
+                $gwa = (float) $verifiedGwaByUser->get($student->id);
+                if ($band['max'] === null) {
+                    return $gwa >= $band['min'];
+                }
+                return $gwa >= $band['min'] && $gwa <= $band['max'];
+            })->count();
+
+            return [
+                'label' => $band['label'],
+                'count' => $count,
+            ];
+        })->values();
+
+        $scholarships = Scholarship::with([
+                'conditions' => fn($query) => $query->where('name', 'gwa'),
+                'campuses:id,name',
+            ])
+            ->where('is_active', true)
+            ->orderBy('scholarship_name')
+            ->get();
+
+        $scholarshipsWithoutGwaRule = 0;
+        $rows = collect();
+
+        foreach ($scholarships as $scholarship) {
+            $condition = $scholarship->conditions->first();
+            if (!$condition || !is_numeric($condition->value) || (float) $condition->value <= 0) {
+                $scholarshipsWithoutGwaRule++;
+                continue;
+            }
+
+            $requiredGwa = round((float) $condition->value, 2);
+            $availableCampusIds = $scholarship->campuses->pluck('id')->map(fn($id) => (int) $id)->values();
+            $usableCampusIds = $availableCampusIds->isEmpty()
+                ? $campusIds
+                : $availableCampusIds->intersect($campusIds)->values();
+
+            if ($usableCampusIds->isEmpty()) {
+                continue;
+            }
+
+            $usableCampusLookup = array_flip($usableCampusIds->all());
+            $pool = $studentsWithGwa->filter(fn($student) => isset($usableCampusLookup[(int) $student->campus_id]))->values();
+            $qualified = $pool->filter(fn($student) => (float) $verifiedGwaByUser->get($student->id) <= $requiredGwa)->count();
+            $nearMiss = $pool->filter(function ($student) use ($requiredGwa, $verifiedGwaByUser) {
+                $gwa = (float) $verifiedGwaByUser->get($student->id);
+                return $gwa > $requiredGwa && $gwa <= ($requiredGwa + 0.25);
+            })->count();
+            $totalEvaluated = $pool->count();
+            $notQualified = max(0, $totalEvaluated - $qualified);
+
+            $rows->push([
+                'scholarship_id' => $scholarship->id,
+                'scholarship_name' => $scholarship->scholarship_name,
+                'scholarship_type' => $scholarship->scholarship_type,
+                'required_gwa' => $requiredGwa,
+                'total_evaluated' => $totalEvaluated,
+                'qualified' => $qualified,
+                'not_qualified' => $notQualified,
+                'near_miss' => $nearMiss,
+                'qualification_rate' => $totalEvaluated > 0 ? round(($qualified / $totalEvaluated) * 100, 1) : 0,
+            ]);
+        }
+
+        $rows = $rows
+            ->sortBy([
+                ['qualified', 'desc'],
+                ['qualification_rate', 'desc'],
+                ['total_evaluated', 'desc'],
+                ['scholarship_name', 'asc'],
+            ])
+            ->values();
+
+        $evaluatedMatches = $rows->sum('total_evaluated');
+        $qualifiedMatches = $rows->sum('qualified');
+        $notQualifiedMatches = $rows->sum('not_qualified');
+        $nearMissMatches = $rows->sum('near_miss');
+
+        return [
+            'summary' => [
+                'total_students' => $students->count(),
+                'students_with_gwa' => $studentsWithGwa->count(),
+                'students_missing_gwa' => max(0, $students->count() - $studentsWithGwa->count()),
+                'average_gwa' => $studentsWithGwa->isNotEmpty()
+                    ? round($studentsWithGwa->avg(fn($student) => (float) $verifiedGwaByUser->get($student->id)), 2)
+                    : null,
+                'scholarships_with_gwa_rule' => $rows->count(),
+                'scholarships_without_gwa_rule' => $scholarshipsWithoutGwaRule,
+                'evaluated_matches' => $evaluatedMatches,
+                'qualified_matches' => $qualifiedMatches,
+                'not_qualified_matches' => $notQualifiedMatches,
+                'near_miss_matches' => $nearMissMatches,
+                'qualification_rate' => $evaluatedMatches > 0 ? round(($qualifiedMatches / $evaluatedMatches) * 100, 1) : 0,
+                'generated_at' => now()->format('F d, Y h:i A'),
+            ],
+            'bands' => $bands,
+            'scholarships' => $rows,
+        ];
     }
 
     private function buildCentralScholarshipStatusReport($campusFilter = 'all', $scholarshipFilter = 'all')
@@ -1674,10 +1840,10 @@ class DashboardController extends Controller
         $campusId = $filters['campus'] ?? 'all';
         
         // Build base query conditions
-        $applicationQuery = \App\Models\Application::query();
-        $userQuery = \App\Models\User::query();
-        $reportQuery = \App\Models\Report::query();
-        $scholarQuery = \App\Models\Scholar::query();
+        $applicationQuery = Application::query();
+        $userQuery = User::query();
+        $reportQuery = Report::query();
+        $scholarQuery = Scholar::query();
         
         // Apply time period filter
         if ($timePeriod !== 'all') {
@@ -1718,11 +1884,11 @@ class DashboardController extends Controller
         $claimedApplications = (clone $applicationQuery)->where('status', 'claimed')->count();
 
         // Get scholarship statistics
-        $totalScholarships = \App\Models\Scholarship::count();
-        $activeScholarships = \App\Models\Scholarship::where('is_active', true)->count();
-        $acceptingApplicationsScholarships = \App\Models\Scholarship::acceptingApplications()->count();
-        $oneTimeScholarships = \App\Models\Scholarship::where('grant_type', 'one_time')->count();
-        $recurringScholarships = \App\Models\Scholarship::where('grant_type', 'recurring')->count();
+        $totalScholarships = Scholarship::count();
+        $activeScholarships = Scholarship::where('is_active', true)->count();
+        $acceptingApplicationsScholarships = Scholarship::acceptingApplications()->count();
+        $oneTimeScholarships = Scholarship::where('grant_type', 'one_time')->count();
+        $recurringScholarships = Scholarship::where('grant_type', 'recurring')->count();
         
         // Get scholar statistics
         $totalScholars = $scholarQuery->count();
@@ -1758,7 +1924,7 @@ class DashboardController extends Controller
             ? 'EXTRACT(MONTH FROM created_at)::integer'
             : 'MONTH(created_at)';
 
-        $monthlyApplications = \App\Models\Application::selectRaw("{$monthExpression} as month, COUNT(*) as count")
+        $monthlyApplications = Application::selectRaw("{$monthExpression} as month, COUNT(*) as count")
             ->whereYear('created_at', date('Y'))
             ->groupByRaw($monthExpression)
             ->orderByRaw($monthExpression)
@@ -1783,7 +1949,7 @@ class DashboardController extends Controller
             $maleStudents = (clone $studentQuery)->where('sex', 'Male')->count();
             $femaleStudents = (clone $studentQuery)->where('sex', 'Female')->count();
 
-            $scholarQuery = \App\Models\Scholar::whereHas('user', function($q) use ($campus) {
+            $scholarQuery = Scholar::whereHas('user', function($q) use ($campus) {
                 $q->where('campus_id', $campus->id);
             });
             if ($dateCondition) $scholarQuery->whereBetween('created_at', $dateCondition);
@@ -1924,7 +2090,7 @@ class DashboardController extends Controller
      */
     private function studentDashboard(Request $request)
     {
-        $user = \App\Models\User::find(session('user_id'));
+        $user = User::find(session('user_id'));
         
         // 1. Fetch Application Forms
         $forms = \App\Models\ApplicationForm::where('campus_id', $user->campus_id)

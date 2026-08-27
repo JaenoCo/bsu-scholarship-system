@@ -890,6 +890,7 @@ class UserController extends Controller
         $request->validate([
             'form_137'         => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
             'grades'           => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
+            'grades_gwa'       => ['nullable', 'numeric', 'between:1.00,5.00'],
             'certificate'      => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
             'application_form' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
         ], [
@@ -907,6 +908,16 @@ class UserController extends Controller
         ]);
 
         $userId = session('user_id');
+        $declaredGwa = $this->normalizeGwaValue($request->input('grades_gwa'));
+        $extractedGwa = $request->hasFile('grades')
+            ? $this->extractGwaFromUploadedFile($request->file('grades'))
+            : null;
+
+        if ($request->hasFile('grades') && $declaredGwa === null && $extractedGwa === null) {
+            return back()
+                ->withErrors(['grades_gwa' => 'We could not extract a GWA from the grades document. Please type the GWA shown on the document.'])
+                ->withInput();
+        }
 
         $files = [
             'form_137'         => $request->file('form_137'),
@@ -935,6 +946,16 @@ class UserController extends Controller
             }
 
             $file = $files[$field] ?? null;
+            $gwaData = $field === 'grades'
+                ? [
+                    'declared_gwa' => $declaredGwa,
+                    'extracted_gwa' => $extractedGwa,
+                    'verified_gwa' => null,
+                    'gwa_source' => $declaredGwa !== null ? 'student_declared' : ($extractedGwa !== null ? 'auto_extracted' : null),
+                    'gwa_verified_by' => null,
+                    'gwa_verified_at' => null,
+                ]
+                : [];
 
             StudentSubmittedDocument::updateOrCreate(
                 [
@@ -950,7 +971,7 @@ class UserController extends Controller
                     'file_size' => $file ? $file->getSize() : null,
                     'is_mandatory' => $sfaoDocuments[$field]['mandatory'],
                     'evaluation_status' => 'pending',
-                ]
+                ] + $gwaData
             );
         }
 
@@ -993,6 +1014,7 @@ class UserController extends Controller
         $application = Application::where('user_id', $userId)
             ->where('scholarship_id', $scholarship_id)
             ->first();
+        $studentForm = Form::where('user_id', $userId)->first();
 
         // Check if user wants to force a specific stage or is resubmitting
         $forceStage = $request->get('stage');
@@ -1024,7 +1046,7 @@ class UserController extends Controller
             }
         }
 
-        return view('student.applications.form', compact('scholarship', 'submittedDocuments', 'application', 'currentStage', 'isResubmitting'));
+        return view('student.applications.form', compact('scholarship', 'submittedDocuments', 'application', 'currentStage', 'isResubmitting', 'studentForm'));
     }
 
     /**
@@ -1110,6 +1132,7 @@ class UserController extends Controller
         $rules = [
             'form_137'         => [$hasApprovedDoc('Form 137') ? 'nullable' : 'required', 'file', 'max:10240'],
             'grades'           => [$hasApprovedDoc('Grades') ? 'nullable' : 'required', 'file', 'max:10240'],
+            'grades_gwa'       => ['nullable', 'numeric', 'between:1.00,5.00'],
             'certificate'      => ['nullable', 'file', 'max:10240'],
             'application_form' => [$hasApprovedDoc('Application Form') ? 'nullable' : 'required', 'file', 'max:10240'],
         ];
@@ -1164,6 +1187,16 @@ class UserController extends Controller
         }
 
         $userId = session('user_id');
+        $declaredGwa = $this->normalizeGwaValue($request->input('grades_gwa'));
+        $extractedGwa = $request->hasFile('grades')
+            ? $this->extractGwaFromUploadedFile($request->file('grades'))
+            : null;
+
+        if ($request->hasFile('grades') && $declaredGwa === null && $extractedGwa === null) {
+            return back()
+                ->withErrors(['grades_gwa' => 'We could not extract a GWA from the grades document. Please type the GWA shown on the document.'])
+                ->withInput();
+        }
         
         // Define SFAO required documents
         $sfaoDocuments = [
@@ -1177,6 +1210,16 @@ class UserController extends Controller
             if ($request->hasFile($field) && $request->file($field)) {
                 $file = $request->file($field);
                 $filePath = $file->store("documents/{$userId}/sfao", 'public');
+                $gwaData = $field === 'grades'
+                    ? [
+                        'declared_gwa' => $declaredGwa,
+                        'extracted_gwa' => $extractedGwa,
+                        'verified_gwa' => null,
+                        'gwa_source' => $declaredGwa !== null ? 'student_declared' : ($extractedGwa !== null ? 'auto_extracted' : null),
+                        'gwa_verified_by' => null,
+                        'gwa_verified_at' => null,
+                    ]
+                    : [];
                 
                 StudentSubmittedDocument::updateOrCreate(
                     [
@@ -1191,7 +1234,8 @@ class UserController extends Controller
                         'file_type' => $file->getClientOriginalExtension(),
                         'file_size' => $file->getSize(),
                         'is_mandatory' => $config['mandatory'],
-                    ]
+                        'evaluation_status' => 'pending',
+                    ] + $gwaData
                 );
             }
         }
@@ -1402,6 +1446,93 @@ class UserController extends Controller
                 'required' => 1
             ]
         ]);
+    }
+
+    private function normalizeGwaValue($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $gwa = round((float) $value, 2);
+
+        return $gwa >= 1.00 && $gwa <= 5.00 ? $gwa : null;
+    }
+
+    private function extractGwaFromUploadedFile($file): ?float
+    {
+        if (!$file || !$file->isValid()) {
+            return null;
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        $path = $file->getRealPath();
+        $text = null;
+
+        if ($extension === 'docx') {
+            $text = $this->extractTextFromDocx($path);
+        } elseif ($extension === 'pdf') {
+            $text = $this->extractTextFromPdfBytes($path);
+        }
+
+        return $text ? $this->findGwaInText($text) : null;
+    }
+
+    private function extractTextFromDocx(string $path): ?string
+    {
+        if (!class_exists(\ZipArchive::class)) {
+            return null;
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            return null;
+        }
+
+        $content = $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        if ($content === false) {
+            return null;
+        }
+
+        $content = preg_replace('/<w:tab\/>/', ' ', $content);
+        $content = preg_replace('/<\/w:p>/', "\n", $content);
+
+        return trim(html_entity_decode(strip_tags($content)));
+    }
+
+    private function extractTextFromPdfBytes(string $path): ?string
+    {
+        $content = @file_get_contents($path);
+        if ($content === false || $content === '') {
+            return null;
+        }
+
+        $content = preg_replace('/\\\\[rn]/', ' ', $content);
+        $content = preg_replace('/\s+/', ' ', $content);
+
+        return trim($content);
+    }
+
+    private function findGwaInText(string $text): ?float
+    {
+        $patterns = [
+            '/(?:general\s+weighted\s+average|weighted\s+average|gwa)\s*[:\-]?\s*([1-5](?:\.\d{1,2})?)/i',
+            '/([1-5](?:\.\d{1,2})?)\s*(?:general\s+weighted\s+average|weighted\s+average|gwa)/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $text, $matches)) {
+                return $this->normalizeGwaValue($matches[1] ?? null);
+            }
+        }
+
+        return null;
     }
 
     /**

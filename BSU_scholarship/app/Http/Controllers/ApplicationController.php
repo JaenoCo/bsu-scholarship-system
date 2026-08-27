@@ -13,6 +13,7 @@ use App\Models\Campus;
 use App\Models\Notification;
 use App\Models\RejectedApplicant;
 use App\Models\Scholar;
+use App\Models\Form;
 use App\Services\NotificationService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -3079,21 +3080,60 @@ class ApplicationController extends Controller
             'evaluations' => 'required|array',
             'evaluations.*.document_id' => 'required|exists:student_submitted_documents,id',
             'evaluations.*.status' => 'required|in:approved,pending,rejected',
+            'evaluations.*.verified_gwa' => 'nullable|numeric|between:1.00,5.00',
         ]);
 
         $evaluatorId = session('user_id');
         $evaluatedAt = now();
 
         foreach ($request->evaluations as $evaluation) {
-            StudentSubmittedDocument::where('id', $evaluation['document_id'])
+            $document = StudentSubmittedDocument::where('id', $evaluation['document_id'])
                 ->where('user_id', $userId)
                 ->where('scholarship_id', $scholarshipId)
                 ->where('document_category', 'sfao_required')
-                ->update([
-                    'evaluation_status' => $evaluation['status'],
-                    'evaluated_by' => $evaluatorId,
-                    'evaluated_at' => $evaluatedAt,
-                ]);
+                ->first();
+
+            if (!$document) {
+                continue;
+            }
+
+            $updates = [
+                'evaluation_status' => $evaluation['status'],
+                'evaluated_by' => $evaluatorId,
+                'evaluated_at' => $evaluatedAt,
+            ];
+
+            if (str_contains(strtolower($document->document_name), 'grades')) {
+                if ($evaluation['status'] === 'approved') {
+                    $verifiedGwa = $this->normalizeGwaValue(
+                        $evaluation['verified_gwa'] ?? $document->declared_gwa ?? $document->extracted_gwa
+                    );
+
+                    if ($verifiedGwa === null) {
+                        return back()
+                            ->withErrors([
+                                "evaluations.{$document->id}.verified_gwa" => 'Please confirm the verified GWA before approving the Grades document.',
+                            ])
+                            ->withInput();
+                    }
+
+                    $updates['verified_gwa'] = $verifiedGwa;
+                    $updates['gwa_verified_by'] = $evaluatorId;
+                    $updates['gwa_verified_at'] = $evaluatedAt;
+                    $updates['gwa_source'] = 'sfao_verified';
+
+                    Form::updateOrCreate(
+                        ['user_id' => $userId],
+                        ['previous_gwa' => $verifiedGwa]
+                    );
+                } else {
+                    $updates['verified_gwa'] = null;
+                    $updates['gwa_verified_by'] = null;
+                    $updates['gwa_verified_at'] = null;
+                }
+            }
+
+            $document->update($updates);
         }
 
         return redirect()->route('sfao.evaluation.scholarship-documents', ['user_id' => $userId, 'scholarship_id' => $scholarshipId])
@@ -3173,6 +3213,21 @@ class ApplicationController extends Controller
 
         // All documents are approved
         return 'approve';
+    }
+
+    private function normalizeGwaValue($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $gwa = round((float) $value, 2);
+
+        return $gwa >= 1.00 && $gwa <= 5.00 ? $gwa : null;
     }
 
     /**

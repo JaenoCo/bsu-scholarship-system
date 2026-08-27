@@ -1,3 +1,9 @@
+@php
+    $gwaPrediction = $analytics['gwa_prediction'] ?? [];
+    $gwaPredictionSummary = $gwaPrediction['summary'] ?? [];
+    $gwaPredictionRows = collect($gwaPrediction['scholarships'] ?? []);
+@endphp
+
 <div x-show="tab === 'analytics' || tab.startsWith('analytics_')" 
      x-transition:enter="transition ease-out duration-300"
      x-transition:enter-start="opacity-0 transform scale-95"
@@ -174,6 +180,95 @@
                 </template>
 
                 <!-- Scholarships (Comparison) Mode Legend Moved Below Chart -->
+            </div>
+        </div>
+
+        <!-- GWA Qualification Prediction -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">GWA Qualification Prediction</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Predicted scholarship fit from student GWA against active scholarship GWA requirements.</p>
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    Generated {{ $gwaPredictionSummary['generated_at'] ?? now()->format('F d, Y h:i A') }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600">
+                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Verified GWA</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ number_format($gwaPredictionSummary['students_with_gwa'] ?? 0) }}</p>
+                </div>
+                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800">
+                    <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Unverified / Missing</p>
+                    <p class="text-xl font-bold text-red-700 dark:text-red-300">{{ number_format($gwaPredictionSummary['students_missing_gwa'] ?? 0) }}</p>
+                </div>
+                <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                    <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Qualified Matches</p>
+                    <p class="text-xl font-bold text-green-700 dark:text-green-300">{{ number_format($gwaPredictionSummary['qualified_matches'] ?? 0) }}</p>
+                </div>
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800">
+                    <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Near Misses</p>
+                    <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300">{{ number_format($gwaPredictionSummary['near_miss_matches'] ?? 0) }}</p>
+                </div>
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800">
+                    <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Prediction Rate</p>
+                    <p class="text-xl font-bold text-blue-700 dark:text-blue-300">{{ number_format($gwaPredictionSummary['qualification_rate'] ?? 0, 1) }}%</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
+                <div class="xl:col-span-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Predicted Qualification by Scholarship</h4>
+                    </div>
+                    <div class="relative h-80 w-full">
+                        <canvas id="sfaoGwaQualificationChart"></canvas>
+                    </div>
+                </div>
+                <div class="xl:col-span-2">
+                    <div class="text-center mb-4">
+                        <h4 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Student GWA Distribution</h4>
+                    </div>
+                    <div class="relative h-80 w-full">
+                        <canvas id="sfaoGwaBandChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Scholarship</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Required GWA</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Evaluated</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Predicted qualified</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Near miss</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+                        @forelse($gwaPredictionRows->take(5) as $row)
+                            <tr>
+                                <td class="px-4 py-3 text-gray-900 dark:text-white">
+                                    <div class="font-semibold">{{ $row['scholarship_name'] }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</div>
+                                </td>
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ number_format($row['required_gwa'], 2) }} or better</td>
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ number_format($row['total_evaluated']) }}</td>
+                                <td class="px-4 py-3 text-green-700 dark:text-green-300 font-semibold">{{ number_format($row['qualified']) }}</td>
+                                <td class="px-4 py-3 text-yellow-700 dark:text-yellow-300 font-semibold">{{ number_format($row['near_miss']) }}</td>
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ number_format($row['qualification_rate'], 1) }}%</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No active scholarships with a GWA requirement found for this scope.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -438,3 +533,94 @@
             </div>
         </div>
     </div>
+
+<script>
+    (() => {
+        const prediction = @json($gwaPrediction);
+        const rows = (prediction.scholarships || []).slice(0, 8);
+        const bands = prediction.bands || [];
+        const state = window.sfaoGwaPredictionCharts || (window.sfaoGwaPredictionCharts = {});
+
+        function textColor() {
+            return document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#374151';
+        }
+
+        function gridColor() {
+            return document.documentElement.classList.contains('dark') ? 'rgba(229, 231, 235, .14)' : 'rgba(15, 23, 42, .08)';
+        }
+
+        function renderSfaoGwaPredictionCharts() {
+            if (typeof Chart === 'undefined') return;
+
+            const qualificationCanvas = document.getElementById('sfaoGwaQualificationChart');
+            const bandCanvas = document.getElementById('sfaoGwaBandChart');
+            if (!qualificationCanvas || !bandCanvas) return;
+
+            if (state.qualification) state.qualification.destroy();
+            if (state.bands) state.bands.destroy();
+
+            state.qualification = new Chart(qualificationCanvas, {
+                type: 'bar',
+                data: {
+                    labels: rows.map(row => row.scholarship_name.length > 24 ? row.scholarship_name.slice(0, 24) + '...' : row.scholarship_name),
+                    datasets: [
+                        {
+                            label: 'Predicted qualified',
+                            data: rows.map(row => row.qualified),
+                            backgroundColor: '#10B981',
+                            borderRadius: 8,
+                            maxBarThickness: 42
+                        },
+                        {
+                            label: 'Not qualified by GWA',
+                            data: rows.map(row => row.not_qualified),
+                            backgroundColor: '#EF4444',
+                            borderRadius: 8,
+                            maxBarThickness: 42
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, ticks: { color: textColor(), maxRotation: 0 }, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { color: textColor(), precision: 0 }, grid: { color: gridColor() } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor() } },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+
+            state.bands = new Chart(bandCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: bands.length ? bands.map(band => band.label) : ['No GWA'],
+                    datasets: [{
+                        data: bands.length ? bands.map(band => band.count) : [1],
+                        backgroundColor: ['#7F1D1D', '#B91C1C', '#10B981', '#F59E0B', '#3B82F6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '64%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor() } }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => setTimeout(renderSfaoGwaPredictionCharts, 150));
+        window.addEventListener('switch-tab', event => {
+            if (!event.detail || String(event.detail).startsWith('analytics')) {
+                setTimeout(renderSfaoGwaPredictionCharts, 150);
+            }
+        });
+        window.addEventListener('tab-changed', () => setTimeout(renderSfaoGwaPredictionCharts, 150));
+    })();
+</script>

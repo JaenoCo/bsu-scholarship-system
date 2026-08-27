@@ -139,6 +139,15 @@
                                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                             <span class="truncate">{{ $doc->original_filename }}</span>
                                         </div>
+                                        @if($key === 'grades')
+                                            <div class="mt-3 p-3 text-sm rounded-lg border {{ $doc->verified_gwa ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 text-green-700 dark:text-green-300' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-100 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300' }}">
+                                                @if($doc->verified_gwa)
+                                                    Verified GWA: <strong>{{ number_format($doc->verified_gwa, 2) }}</strong>
+                                                @else
+                                                    Grades approved. GWA verification is still pending.
+                                                @endif
+                                            </div>
+                                        @endif
                                     @else
                                         <div class="relative">
                                             <input type="file" name="{{ $key }}" id="{{ $key }}" 
@@ -146,6 +155,30 @@
                                                    accept=".pdf,.jpg,.jpeg,.png,.docx" {{ ($config['required'] && !$isApproved) ? 'required' : '' }}>
                                         </div>
                                         <p class="text-xs text-gray-400 mt-2">Max 10MB (PDF, JPG, PNG, DOCX)</p>
+                                        @if($key === 'grades')
+                                            <div class="mt-4">
+                                                <label for="grades_gwa" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">GWA shown on grades document</label>
+                                                <input type="number"
+                                                       name="grades_gwa"
+                                                       id="grades_gwa"
+                                                       step="0.01"
+                                                       min="1.00"
+                                                       max="5.00"
+                                                       value="{{ old('grades_gwa', $doc->declared_gwa ?? $doc->extracted_gwa ?? $studentForm?->previous_gwa) }}"
+                                                       class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-bsu-red focus:ring-bsu-red"
+                                                       placeholder="e.g. 1.75">
+                                                <p class="text-xs text-gray-400 mt-2">Leave blank only if the uploaded PDF/DOCX clearly contains a labeled GWA. Scanned images usually require manual typing.</p>
+                                                @if($doc && ($doc->declared_gwa || $doc->extracted_gwa))
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                                        Current submitted GWA:
+                                                        <strong>{{ number_format($doc->declared_gwa ?? $doc->extracted_gwa, 2) }}</strong>
+                                                        @if($doc->extracted_gwa && !$doc->declared_gwa)
+                                                            (auto-extracted)
+                                                        @endif
+                                                    </p>
+                                                @endif
+                                            </div>
+                                        @endif
                                         @if($isRejected && $doc->remarks)
                                             <div class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-xs rounded-lg border border-red-100 dark:border-red-800">
                                                 <strong>Correction Needed:</strong> {{ $doc->remarks }}
@@ -156,6 +189,11 @@
                                     @error($key)
                                         <p class="text-xs text-red-500 mt-2 font-medium">{{ $message }}</p>
                                     @enderror
+                                    @if($key === 'grades')
+                                        @error('grades_gwa')
+                                            <p class="text-xs text-red-500 mt-2 font-medium">{{ $message }}</p>
+                                        @enderror
+                                    @endif
                                 </div>
                             @endforeach
                         </div>

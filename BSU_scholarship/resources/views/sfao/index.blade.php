@@ -49,9 +49,10 @@
            @include('sfao.analytics.index')    <!-- Analytics -->
            @include('sfao.application-forms.index')  <!-- Application Forms -->
            @include('sfao.import.scholarships') <!-- Scholarship Import -->
+           @include('sfao.settings.index')
            
            <div>
-                @include('sfao.settings.index')
+                
            </div>
         </div>
 

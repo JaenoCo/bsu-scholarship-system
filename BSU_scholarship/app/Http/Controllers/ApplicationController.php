@@ -146,6 +146,28 @@ class ApplicationController extends Controller
             'scholarship_id' => 'required|exists:scholarships,id',
         ]);
 
+        $user = User::findOrFail(session('user_id'));
+        $form = Form::where('user_id', $user->id)->first();
+        if (!$form || !$form->isComplete()) {
+            return redirect()->route('student.forms.application_form')
+                ->with('error', 'Please complete your student application form before applying for a scholarship.');
+        }
+
+        $scholarship = Scholarship::with(['campuses', 'targetColleges', 'targetPrograms', 'targetTracks'])
+            ->findOrFail($request->scholarship_id);
+        if ($scholarship->campuses->isNotEmpty() && !$scholarship->campuses->pluck('id')->contains((int) $user->campus_id)) {
+            return back()->with('error', 'This scholarship is not available at your campus.');
+        }
+        if ($scholarship->targetColleges->isNotEmpty() && !$scholarship->targetColleges->pluck('short_name')->contains($user->college)) {
+            return back()->with('error', 'This scholarship is not available for your college.');
+        }
+        if ($scholarship->targetPrograms->isNotEmpty() && !$scholarship->targetPrograms->pluck('name')->contains($user->program)) {
+            return back()->with('error', 'This scholarship is not available for your program.');
+        }
+        if ($scholarship->targetTracks->isNotEmpty() && !$scholarship->targetTracks->pluck('name')->contains($user->track)) {
+            return back()->with('error', 'This scholarship is not available for your track.');
+        }
+
         $application = Application::where('user_id', session('user_id'))
             ->where('scholarship_id', $request->scholarship_id)
             ->first();

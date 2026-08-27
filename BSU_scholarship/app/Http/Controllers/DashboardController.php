@@ -885,6 +885,23 @@ class DashboardController extends Controller
         });
     }
 
+    private function scopeScholarshipAudienceForStudent($query, User $user)
+    {
+        return $query
+            ->where(function ($scope) use ($user) {
+                $scope->doesntHave('targetColleges')
+                    ->orWhereHas('targetColleges', fn($target) => $target->where('short_name', $user->college));
+            })
+            ->where(function ($scope) use ($user) {
+                $scope->doesntHave('targetPrograms')
+                    ->orWhereHas('targetPrograms', fn($target) => $target->where('name', $user->program));
+            })
+            ->where(function ($scope) use ($user) {
+                $scope->doesntHave('targetTracks')
+                    ->orWhereHas('targetTracks', fn($target) => $target->where('name', $user->track));
+            });
+    }
+
     /**
      * Central Dashboard Logic
      */
@@ -2166,6 +2183,7 @@ class DashboardController extends Controller
             \App\Models\Scholarship::where('is_active', true),
             collect([$user->campus_id])
         );
+        $baseScholarshipsQuery = $this->scopeScholarshipAudienceForStudent($baseScholarshipsQuery, $user);
 
         $allScholarshipsCount = (clone $baseScholarshipsQuery)->count();
         $privateScholarshipsCount = $this->scopeScholarshipType(clone $baseScholarshipsQuery, 'private')->count();
@@ -2265,8 +2283,9 @@ class DashboardController extends Controller
                 ->whereNotNull('announcement_message')
                 ->where('announcement_message', '<>', ''),
             collect([$user->campus_id])
-        )
-        ->orderBy('updated_at', 'desc')
+        );
+        $announcements = $this->scopeScholarshipAudienceForStudent($announcements, $user)
+            ->orderBy('updated_at', 'desc')
         ->get();
 
         return view('student.index', compact(

@@ -58,9 +58,12 @@ class ScholarshipController extends Controller
             return redirect('/login')->with('session_expired', true);
         }
 
-        $colleges = \App\Models\College::orderBy('short_name')->pluck('short_name');
+        $colleges = \App\Models\College::orderBy('short_name')->get(['id', 'name', 'short_name']);
         $campuses = \App\Models\Campus::orderBy('name')->get();
-        return view('central.scholarships.create', compact('colleges', 'campuses'));
+        $programs = \App\Models\Program::with('campusCollege.college')->orderBy('name')->get();
+        $tracks = \App\Models\ProgramTrack::with('program')->orderBy('name')->get();
+        $campusColleges = \App\Models\CampusCollege::all(['campus_id', 'college_id']);
+        return view('central.scholarships.create', compact('colleges', 'campuses', 'programs', 'tracks', 'campusColleges'));
     }
 
     /**
@@ -85,6 +88,12 @@ class ScholarshipController extends Controller
             // 'campus_id'        => 'nullable|integer', // Replaced by campuses array
             'campuses'         => 'nullable|array',
             'campuses.*'       => 'exists:campuses,id',
+            'target_colleges' => 'nullable|array',
+            'target_colleges.*' => 'exists:colleges,id',
+            'target_programs' => 'nullable|array',
+            'target_programs.*' => 'exists:programs,id',
+            'target_tracks' => 'nullable|array',
+            'target_tracks.*' => 'exists:program_tracks,id',
             'grant_type'       => 'required|in:one_time,recurring,discontinued',
             'eligibility_notes' => 'nullable|string',
             'background_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -125,6 +134,7 @@ class ScholarshipController extends Controller
             if ($request->has('campuses')) {
                 $scholarship->campuses()->sync($request->campuses);
             }
+            $this->syncAudienceTargets($scholarship, $request);
 
             Log::info('Scholarship created successfully:', ['id' => $scholarship->id, 'name' => $scholarship->scholarship_name]);
         } catch (\Exception $e) {
@@ -181,9 +191,12 @@ class ScholarshipController extends Controller
                 'accessed_by' => session('user_id')
             ]);
             
-        $colleges = \App\Models\College::orderBy('short_name')->pluck('short_name');
+        $colleges = \App\Models\College::orderBy('short_name')->get(['id', 'name', 'short_name']);
         $campuses = \App\Models\Campus::orderBy('name')->get();
-        return view('central.scholarships.create', compact('colleges', 'campuses'));
+        $programs = \App\Models\Program::with('campusCollege.college')->orderBy('name')->get();
+        $tracks = \App\Models\ProgramTrack::with('program')->orderBy('name')->get();
+        $campusColleges = \App\Models\CampusCollege::all(['campus_id', 'college_id']);
+        return view('central.scholarships.create', compact('colleges', 'campuses', 'programs', 'tracks', 'campusColleges', 'scholarship'));
             
         } catch (\Exception $e) {
             Log::error('Error accessing scholarship edit form:', [
@@ -219,6 +232,12 @@ class ScholarshipController extends Controller
             'grant_amount'     => 'nullable|numeric|min:0',
             'campuses'         => 'nullable|array',
             'campuses.*'       => 'exists:campuses,id',
+            'target_colleges' => 'nullable|array',
+            'target_colleges.*' => 'exists:colleges,id',
+            'target_programs' => 'nullable|array',
+            'target_programs.*' => 'exists:programs,id',
+            'target_tracks' => 'nullable|array',
+            'target_tracks.*' => 'exists:program_tracks,id',
             'grant_type'       => 'required|in:one_time,recurring,discontinued',
             'eligibility_notes' => 'nullable|string',
             'background_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -272,6 +291,7 @@ class ScholarshipController extends Controller
              // For now, let's assume the frontend sends an empty array if none, or we clear it.
              $scholarship->campuses()->detach();
         }
+        $this->syncAudienceTargets($scholarship, $request);
 
         // Refresh conditions
         $scholarship->conditions()->delete();
@@ -300,6 +320,13 @@ class ScholarshipController extends Controller
         return redirect()
             ->route('central.dashboard')
             ->with('success', 'Scholarship updated successfully.');
+    }
+
+    private function syncAudienceTargets(Scholarship $scholarship, Request $request): void
+    {
+        $scholarship->targetColleges()->sync($request->input('target_colleges', []));
+        $scholarship->targetPrograms()->sync($request->input('target_programs', []));
+        $scholarship->targetTracks()->sync($request->input('target_tracks', []));
     }
 
     /**

@@ -56,6 +56,21 @@ class Scholarship extends Model
         return $this->belongsToMany(Campus::class, 'campus_scholarship');
     }
 
+    public function targetColleges()
+    {
+        return $this->belongsToMany(\App\Models\College::class, 'scholarship_target_colleges');
+    }
+
+    public function targetPrograms()
+    {
+        return $this->belongsToMany(\App\Models\Program::class, 'scholarship_target_programs');
+    }
+
+    public function targetTracks()
+    {
+        return $this->belongsToMany(\App\Models\ProgramTrack::class, 'scholarship_target_tracks', 'scholarship_id', 'program_track_id');
+    }
+
     public function scopeAvailableForCampuses($query, $campusIds)
     {
         return $query->where(function ($scope) use ($campusIds) {

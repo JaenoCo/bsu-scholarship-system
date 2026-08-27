@@ -231,8 +231,10 @@ class UserController extends Controller
         if ($isFormComplete) {
             // Get all scholarships that allow new applications and filter by all conditions
             $allScholarships = Scholarship::where('is_active', true)
-                ->with('conditions')
+                ->with(['conditions', 'campuses', 'targetColleges', 'targetPrograms', 'targetTracks'])
                 ->get();
+
+            $allScholarships = $this->filterScholarshipsForStudent($allScholarships, $user);
 
             // Filter scholarships based on grant type and all requirements
             $scholarships = $allScholarships->filter(function ($scholarship) use ($form) {
@@ -402,8 +404,10 @@ class UserController extends Controller
         if ($isFormComplete) {
             // Get all scholarships that allow new applications and filter by all conditions
             $allScholarships = Scholarship::where('is_active', true)
-                ->with('conditions')
+                ->with(['conditions', 'campuses', 'targetColleges', 'targetPrograms', 'targetTracks'])
                 ->get();
+
+            $allScholarships = $this->filterScholarshipsForStudent($allScholarships, $user);
 
             // Filter scholarships based on grant type and all requirements
             $scholarships = $allScholarships->filter(function ($scholarship) use ($form) {
@@ -839,6 +843,33 @@ class UserController extends Controller
     /**
      * Sort scholarships based on various criteria
      */
+    private function filterScholarshipsForStudent($scholarships, User $user)
+    {
+        return $scholarships->filter(function ($scholarship) use ($user) {
+            $campusIds = $scholarship->campuses->pluck('id')->map(fn($id) => (int) $id);
+            if ($campusIds->isNotEmpty() && !$campusIds->contains((int) $user->campus_id)) {
+                return false;
+            }
+
+            $targetColleges = $scholarship->targetColleges;
+            if ($targetColleges->isNotEmpty() && !$targetColleges->pluck('short_name')->contains($user->college)) {
+                return false;
+            }
+
+            $targetPrograms = $scholarship->targetPrograms;
+            if ($targetPrograms->isNotEmpty() && !$targetPrograms->pluck('name')->contains($user->program)) {
+                return false;
+            }
+
+            $targetTracks = $scholarship->targetTracks;
+            if ($targetTracks->isNotEmpty() && !$targetTracks->pluck('name')->contains($user->track)) {
+                return false;
+            }
+
+            return true;
+        })->values();
+    }
+
     private function sortScholarships($scholarships, $sortBy, $sortOrder)
     {
         return $scholarships->sortBy(function ($scholarship) use ($sortBy) {

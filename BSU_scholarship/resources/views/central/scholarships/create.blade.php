@@ -15,6 +15,10 @@
         : []
     );
 
+    $targetCollegeIds = old('target_colleges', isset($scholarship) ? $scholarship->targetColleges->pluck('id')->toArray() : []);
+    $targetProgramIds = old('target_programs', isset($scholarship) ? $scholarship->targetPrograms->pluck('id')->toArray() : []);
+    $targetTrackIds = old('target_tracks', isset($scholarship) ? $scholarship->targetTracks->pluck('id')->toArray() : []);
+
 @endphp
 
 @extends('layouts.focused')
@@ -183,6 +187,7 @@
                             },
                             updateAllState() {
                                 this.allSelected = this.selectedCampuses.length === {{ $campuses->count() }};
+                                this.$dispatch('audience-campus-change', this.selectedCampuses);
                             }
                         }" x-init="updateAllState()">
                             <label class="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">Available For Campus *</label>
@@ -207,6 +212,105 @@
                             </div>
                             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Select the campuses where this scholarship will be available. Select all for university-wide availability.</p>
                         </div>
+                    </div>
+                </div>
+
+                {{-- Personalized Audience --}}
+                <div x-data="{
+                    colleges: @js($colleges),
+                    campusColleges: @js($campusColleges),
+                    programs: @js($programs),
+                    tracks: @js($tracks),
+                    selectedCampuses: @js(array_map('intval', old('campuses', isset($scholarship) ? $scholarship->campuses->pluck('id')->toArray() : []))),
+                    selectedColleges: @js(array_map('intval', $targetCollegeIds)),
+                    selectedPrograms: @js(array_map('intval', $targetProgramIds)),
+                    selectedTracks: @js(array_map('intval', $targetTrackIds)),
+                    get visiblePrograms() {
+                        const campusIds = this.selectedCampuses.map(Number);
+                        const matchingPrograms = this.programs.filter(program => {
+                            const campusMatches = !campusIds.length || campusIds.includes(Number(program.campus_college?.campus_id));
+                            const collegeMatches = !this.selectedColleges.length || this.selectedColleges.includes(Number(program.campus_college?.college_id));
+                            return campusMatches && collegeMatches;
+                        });
+                        return Array.from(new Map(matchingPrograms.map(program => [program.name.toLowerCase(), program])).values());
+                    },
+                    get visibleTracks() {
+                        const visibleProgramIds = this.visiblePrograms.map(program => Number(program.id));
+                        const programIds = this.selectedPrograms.length
+                            ? this.selectedPrograms.map(Number).filter(id => visibleProgramIds.includes(id))
+                            : visibleProgramIds;
+                        const matchingTracks = this.tracks.filter(track => programIds.includes(Number(track.program_id)));
+                        return Array.from(new Map(matchingTracks.map(track => [track.name.toLowerCase(), track])).values());
+                    },
+                    get visibleColleges() {
+                        const campusIds = this.selectedCampuses.map(Number);
+                        if (!campusIds.length) return this.colleges;
+                        const collegeIds = this.campusColleges
+                            .filter(item => campusIds.includes(Number(item.campus_id)))
+                            .map(item => Number(item.college_id));
+                        return this.colleges.filter(college => collegeIds.includes(Number(college.id)));
+                    },
+                    toggleAll(field, items) {
+                        const ids = items.map(item => Number(item.id));
+                        this[field] = this[field].length === ids.length ? [] : ids;
+                        if (field === 'selectedColleges') this.updateAudienceSelections();
+                    },
+                    isSelected(field, id) {
+                        return this[field].includes(Number(id));
+                    },
+                    updateAudienceSelections() {
+                        const visibleCollegeIds = this.visibleColleges.map(college => Number(college.id));
+                        const visibleProgramIds = this.visiblePrograms.map(program => Number(program.id));
+                        this.selectedColleges = this.selectedColleges.filter(id => visibleCollegeIds.includes(Number(id)));
+                        this.selectedPrograms = this.selectedPrograms.filter(id => visibleProgramIds.includes(Number(id)));
+                        this.selectedTracks = this.selectedTracks.filter(id => this.visibleTracks.map(track => Number(track.id)).includes(Number(id)));
+                    }
+                }" x-on:audience-campus-change.window="selectedCampuses = ($event.detail || []).map(Number); updateAudienceSelections()" class="mt-6 rounded-2xl border-2 border-blue-100 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-900/10 p-6">
+                    <h3 class="text-sm font-bold uppercase tracking-wide text-blue-800 dark:text-blue-200">Personalized Audience</h3>
+                    <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">Leave a list empty to include everyone in the selected campuses. Selecting a level narrows the audience further.</p>
+                    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <fieldset>
+                            <div class="flex items-center justify-between gap-2">
+                                <legend class="text-sm font-semibold text-gray-700 dark:text-gray-200">Specific Colleges</legend>
+                                <button type="button" @click="toggleAll('selectedColleges', colleges)" class="text-xs font-semibold text-bsu-red hover:text-red-700">Select all</button>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 gap-2 max-h-60 overflow-y-auto rounded-lg pr-1">
+                                <template x-for="college in visibleColleges" :key="college.id">
+                                    <label class="flex items-center min-h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 px-3 py-2 cursor-pointer hover:bg-white dark:hover:bg-gray-700">
+                                        <input type="checkbox" name="target_colleges[]" :value="college.id" x-model="selectedColleges" class="rounded border-gray-300 text-bsu-red focus:ring-bsu-red">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300" x-text="college.short_name + ' - ' + college.name"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </fieldset>
+                        <fieldset>
+                            <div class="flex items-center justify-between gap-2">
+                                <legend class="text-sm font-semibold text-gray-700 dark:text-gray-200">Specific Programs</legend>
+                                <button type="button" @click="toggleAll('selectedPrograms', visiblePrograms)" class="text-xs font-semibold text-bsu-red hover:text-red-700">Select all</button>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 gap-2 max-h-60 overflow-y-auto rounded-lg pr-1">
+                                <template x-for="program in visiblePrograms" :key="program.id">
+                                    <label class="flex items-center min-h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 px-3 py-2 cursor-pointer hover:bg-white dark:hover:bg-gray-700">
+                                        <input type="checkbox" name="target_programs[]" :value="program.id" x-model="selectedPrograms" class="rounded border-gray-300 text-bsu-red focus:ring-bsu-red">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300" x-text="program.name"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </fieldset>
+                        <fieldset>
+                            <div class="flex items-center justify-between gap-2">
+                                <legend class="text-sm font-semibold text-gray-700 dark:text-gray-200">Specific Tracks / Majors</legend>
+                                <button type="button" @click="toggleAll('selectedTracks', visibleTracks)" class="text-xs font-semibold text-bsu-red hover:text-red-700">Select all</button>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 gap-2 max-h-60 overflow-y-auto rounded-lg pr-1">
+                                <template x-for="track in visibleTracks" :key="track.id">
+                                    <label class="flex items-center min-h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 px-3 py-2 cursor-pointer hover:bg-white dark:hover:bg-gray-700">
+                                        <input type="checkbox" name="target_tracks[]" :value="track.id" x-model="selectedTracks" class="rounded border-gray-300 text-bsu-red focus:ring-bsu-red">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300" x-text="track.name + ' (' + (track.program?.name || 'Program') + ')' "></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </fieldset>
                     </div>
                 </div>
 
@@ -312,7 +416,7 @@
                                                     <select x-model="pair.condition.value" :name="'conditions['+index+'][value]'" class="mt-1 w-full rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-600 px-4 py-3">
                                                         <option value="">Select College</option>
                                                         @foreach($colleges as $college)
-                                                            <option value="{{ $college }}">{{ $college }}</option>
+                                                            <option value="{{ $college->short_name }}">{{ $college->short_name }}</option>
                                                         @endforeach
                                                     </select>
                                                 </template>

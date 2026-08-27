@@ -302,8 +302,8 @@ if (!$user) {
                 <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">College <span class="text-red-500">*</span></label>
                 <select name="college" x-model="selectedCollege" @change="updateCollege()" required class="w-full border-b-2 border-gray-300 dark:border-gray-600 px-2 py-1 focus:border-red-500 dark:focus:border-red-600 focus:outline-none bg-white dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50" :disabled="!selectedCampus">
                     <option value="">-- Select College --</option>
-                    <template x-for="college in colleges" :key="college">
-                        <option :value="college" x-text="college"></option>
+                    <template x-for="college in colleges" :key="college.value">
+                      <option :value="college.value" x-text="college.name"></option>
                     </template>
                 </select>
             </div>
@@ -1282,11 +1282,15 @@ if (!$user) {
             
             get colleges() {
                 if (!this.selectedCampus || !this.campusData[this.selectedCampus]) return [];
-                return Object.keys(this.campusData[this.selectedCampus]);
+              return Object.entries(this.campusData[this.selectedCampus]).map(([value, college]) => ({
+                value,
+                name: college.name
+              }));
             },
             get programs() {
-                if (!this.selectedCampus || !this.selectedCollege || !this.campusData[this.selectedCampus] || !this.campusData[this.selectedCampus][this.selectedCollege]) return [];
-                return this.campusData[this.selectedCampus][this.selectedCollege];
+              const campusColleges = this.campusData[this.selectedCampus] || {};
+              const collegeEntry = campusColleges[this.selectedCollege] || Object.values(campusColleges).find(college => college.name === this.selectedCollege);
+              return collegeEntry ? collegeEntry.programs : [];
             },
             get tracks() {
                 const programObj = this.programs.find(p => p.name === this.selectedProgram);
@@ -1304,6 +1308,13 @@ if (!$user) {
             },
             updateProgram() {
                 this.selectedTrack = '';
+            },
+            init() {
+              const campusColleges = this.campusData[this.selectedCampus] || {};
+              const matchingCollege = Object.entries(campusColleges).find(([value, college]) => value === this.selectedCollege || college.name === this.selectedCollege);
+              if (matchingCollege) {
+                this.selectedCollege = matchingCollege[0];
+              }
             }
         }));
     });

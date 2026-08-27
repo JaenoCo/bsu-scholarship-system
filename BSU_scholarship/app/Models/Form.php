@@ -109,22 +109,34 @@ class Form extends Model
             // Personal Data - Required (marked with * in form)
             'last_name',
             'first_name',
-            // Essential personal information
             'sex',
+            'civil_status',
             'birthdate',
             'email',
             'contact_number',
+            'street_barangay',
             'town_city',
             'province',
+            'zip_code',
+            'citizenship',
             
             // Academic Data - Required for scholarship eligibility
+            'sr_code',
+            'education_level',
+            'college_department',
             'program',
             'year_level',
-            'previous_gwa',
             'campus',
+            'previous_gwa',
+            'units_enrolled',
+            'semester',
+            'academic_year',
+            'has_existing_scholarship',
             
             // Family Data - Required for financial assessment
+            'father_status',
             'father_name',
+            'mother_status',
             'mother_name',
             'estimated_gross_annual_income',
             

@@ -3080,7 +3080,6 @@ class ApplicationController extends Controller
             'evaluations' => 'required|array',
             'evaluations.*.document_id' => 'required|exists:student_submitted_documents,id',
             'evaluations.*.status' => 'required|in:approved,pending,rejected',
-            'evaluations.*.verified_gwa' => 'nullable|numeric|between:1.00,5.00',
         ]);
 
         $evaluatorId = session('user_id');
@@ -3105,14 +3104,16 @@ class ApplicationController extends Controller
 
             if (str_contains(strtolower($document->document_name), 'grades')) {
                 if ($evaluation['status'] === 'approved') {
+                    // GWA comes from the student's submitted grades record.
+                    // SFAO can cross-check it, but cannot change it.
                     $verifiedGwa = $this->normalizeGwaValue(
-                        $evaluation['verified_gwa'] ?? $document->declared_gwa ?? $document->extracted_gwa
+                        $document->declared_gwa ?? $document->extracted_gwa
                     );
 
                     if ($verifiedGwa === null) {
                         return back()
                             ->withErrors([
-                                "evaluations.{$document->id}.verified_gwa" => 'Please confirm the verified GWA before approving the Grades document.',
+                                'evaluations' => 'The Grades document must include a student-submitted GWA before it can be approved.',
                             ])
                             ->withInput();
                     }

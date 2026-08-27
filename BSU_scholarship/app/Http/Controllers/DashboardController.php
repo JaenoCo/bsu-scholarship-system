@@ -1608,7 +1608,17 @@ class DashboardController extends Controller
             }
 
             $usableCampusLookup = array_flip($usableCampusIds->all());
-            $pool = $studentsWithGwa->filter(fn($student) => isset($usableCampusLookup[(int) $student->campus_id]))->values();
+            $appliedStudentIds = Application::where('scholarship_id', $scholarship->id)
+                ->whereHas('user', function ($query) use ($campusIds) {
+                    $query->where('role', 'student')->whereIn('campus_id', $campusIds);
+                })
+                ->pluck('user_id')
+                ->flip();
+
+            $pool = $studentsWithGwa
+                ->filter(fn($student) => isset($usableCampusLookup[(int) $student->campus_id]))
+                ->filter(fn($student) => $appliedStudentIds->has($student->id))
+                ->values();
             $qualified = $pool->filter(fn($student) => (float) $verifiedGwaByUser->get($student->id) <= $requiredGwa)->count();
             $nearMiss = $pool->filter(function ($student) use ($requiredGwa, $verifiedGwaByUser) {
                 $gwa = (float) $verifiedGwaByUser->get($student->id);

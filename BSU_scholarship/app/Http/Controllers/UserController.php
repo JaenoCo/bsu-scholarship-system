@@ -639,7 +639,8 @@ class UserController extends Controller
         
         foreach ($campusColleges as $cc) {
             $campusId = $cc->campus_id;
-            $collegeName = $cc->college->name; // Using name as value based on form
+            $collegeShortName = $cc->college->short_name ?: $cc->college->name;
+            $collegeName = $cc->college->name;
             
             if (!isset($hierarchy[$campusId])) {
                 $hierarchy[$campusId] = [];
@@ -652,7 +653,10 @@ class UserController extends Controller
                 ];
             })->toArray();
             
-            $hierarchy[$campusId][$collegeName] = $programs;
+            $hierarchy[$campusId][$collegeShortName] = [
+                'name' => $collegeName,
+                'programs' => $programs,
+            ];
         }
         
         return $hierarchy; 
@@ -890,7 +894,9 @@ class UserController extends Controller
         $request->validate([
             'form_137'         => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
             'grades'           => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
-            'grades_gwa'       => ['nullable', 'numeric', 'between:1.00,5.00'],
+            'grades_academic_year' => ['required', 'regex:/^\d{4}-\d{4}$/'],
+            'grades_semester' => ['required', 'in:1st Semester,2nd Semester,Summer'],
+            'grades_gwa'       => ['required', 'numeric', 'between:1.00,5.00'],
             'certificate'      => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
             'application_form' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
         ], [
@@ -963,6 +969,8 @@ class UserController extends Controller
                     'scholarship_id' => $scholarship_id,
                     'document_category' => 'sfao_required',
                     'document_name' => $sfaoDocuments[$field]['name'],
+                    'academic_year' => $field === 'grades' ? $request->input('grades_academic_year') : null,
+                    'semester' => $field === 'grades' ? $request->input('grades_semester') : null,
                 ],
                 [
                     'file_path' => $path,
@@ -1006,6 +1014,12 @@ class UserController extends Controller
 
         $scholarship = Scholarship::with(['requiredDocuments'])->findOrFail($scholarship_id);
         $userId = session('user_id');
+        $studentForm = Form::where('user_id', $userId)->first();
+
+        if (!$studentForm || !$studentForm->isComplete()) {
+            return redirect()->route('student.forms.application_form')
+                ->with('error', 'Please complete your student application form before applying for a scholarship.');
+        }
         
         // Get existing submitted documents
         $submittedDocuments = StudentSubmittedDocument::byUserAndScholarship($userId, $scholarship_id)->get();
@@ -1014,8 +1028,6 @@ class UserController extends Controller
         $application = Application::where('user_id', $userId)
             ->where('scholarship_id', $scholarship_id)
             ->first();
-        $studentForm = Form::where('user_id', $userId)->first();
-
         // Check if user wants to force a specific stage or is resubmitting
         $forceStage = $request->get('stage');
         $isResubmitting = $request->get('resubmit') || ($application && $application->status === 'pending');
@@ -1132,7 +1144,9 @@ class UserController extends Controller
         $rules = [
             'form_137'         => [$hasApprovedDoc('Form 137') ? 'nullable' : 'required', 'file', 'max:10240'],
             'grades'           => [$hasApprovedDoc('Grades') ? 'nullable' : 'required', 'file', 'max:10240'],
-            'grades_gwa'       => ['nullable', 'numeric', 'between:1.00,5.00'],
+            'grades_academic_year' => ['required', 'regex:/^\d{4}-\d{4}$/'],
+            'grades_semester' => ['required', 'in:1st Semester,2nd Semester,Summer'],
+            'grades_gwa'       => ['required', 'numeric', 'between:1.00,5.00'],
             'certificate'      => ['nullable', 'file', 'max:10240'],
             'application_form' => [$hasApprovedDoc('Application Form') ? 'nullable' : 'required', 'file', 'max:10240'],
         ];
@@ -1227,6 +1241,8 @@ class UserController extends Controller
                         'scholarship_id' => $scholarship_id,
                         'document_category' => 'sfao_required',
                         'document_name' => $config['name'],
+                        'academic_year' => $field === 'grades' ? $request->input('grades_academic_year') : null,
+                        'semester' => $field === 'grades' ? $request->input('grades_semester') : null,
                     ],
                     [
                         'file_path' => $filePath,
@@ -1346,6 +1362,12 @@ class UserController extends Controller
         }
 
         $userId = session('user_id');
+        $studentForm = Form::where('user_id', $userId)->first();
+
+        if (!$studentForm || !$studentForm->isComplete()) {
+            return redirect()->route('student.forms.application_form')
+                ->with('error', 'Please complete your student application form before applying for a scholarship.');
+        }
         
         // Check if all required documents are submitted
         $sfaoDocs = StudentSubmittedDocument::byUserAndScholarship($userId, $scholarship_id)

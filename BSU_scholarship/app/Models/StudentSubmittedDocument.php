@@ -14,6 +14,8 @@ class StudentSubmittedDocument extends Model
         'scholarship_id',
         'document_category',
         'document_name',
+        'academic_year',
+        'semester',
         'file_path',
         'original_filename',
         'file_type',

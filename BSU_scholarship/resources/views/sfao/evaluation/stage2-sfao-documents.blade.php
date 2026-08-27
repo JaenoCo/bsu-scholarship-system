@@ -76,13 +76,16 @@
                         @foreach($sfaoDocuments as $document)
                             @php
                                 $isGradesDocument = str_contains(strtolower($document->document_name), 'grades');
-                                $suggestedGwa = $document->verified_gwa ?? $document->declared_gwa ?? $document->extracted_gwa;
+                                $submittedGwa = $document->declared_gwa ?? $document->extracted_gwa;
                             @endphp
                             <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                                 <div class="flex items-start justify-between mb-4">
                                     <div class="flex-1">
                                         <h4 class="text-lg font-medium text-gray-900 dark:text-white">{{ $document->document_name }}</h4>
                                         <p class="text-sm text-gray-600 dark:text-gray-400">{{ $document->description }}</p>
+                                        @if($isGradesDocument)
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $document->academic_year ?: 'Academic year not recorded' }} | {{ $document->semester ?: 'Semester not recorded' }}</p>
+                                        @endif
                                         @if($document->is_mandatory)
                                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                                 Required
@@ -116,22 +119,11 @@
                                                     <p>Auto-extracted: <span class="font-semibold">{{ $document->extracted_gwa ? number_format($document->extracted_gwa, 2) : 'None' }}</span></p>
                                                     <p>Verified: <span class="font-semibold">{{ $document->verified_gwa ? number_format($document->verified_gwa, 2) : 'Pending' }}</span></p>
                                                 </div>
-                                                <p class="mt-2 text-xs text-blue-700 dark:text-blue-300">Required when approving Grades. This verified value is used by the scholarship prediction dashboard.</p>
+                                                <p class="mt-2 text-xs text-blue-700 dark:text-blue-300">Cross-check this value against the uploaded document. It is submitted by the student and cannot be edited here.</p>
                                             </div>
                                             <div class="w-full lg:w-48">
-                                                <label for="verified_gwa_{{ $document->id }}" class="block text-xs font-medium text-blue-900 dark:text-blue-100">Verified GWA</label>
-                                                <input type="number"
-                                                       name="evaluations[{{ $document->id }}][verified_gwa]"
-                                                       id="verified_gwa_{{ $document->id }}"
-                                                       step="0.01"
-                                                       min="1.00"
-                                                       max="5.00"
-                                                       value="{{ old('evaluations.' . $document->id . '.verified_gwa', $suggestedGwa) }}"
-                                                       placeholder="e.g. 1.75"
-                                                       class="mt-1 block w-full rounded-md border-blue-300 dark:border-blue-700 dark:bg-gray-800 dark:text-white shadow-sm focus:border-bsu-red focus:ring-bsu-red">
-                                                @error('evaluations.' . $document->id . '.verified_gwa')
-                                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                                                @enderror
+                                                <label class="block text-xs font-medium text-blue-900 dark:text-blue-100">Student-submitted GWA</label>
+                                                <div class="mt-1 rounded-md border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 px-3 py-2 text-lg font-semibold text-blue-900 dark:text-blue-100">{{ $submittedGwa ? number_format($submittedGwa, 2) : 'Missing' }}</div>
                                             </div>
                                         </div>
                                     </div>

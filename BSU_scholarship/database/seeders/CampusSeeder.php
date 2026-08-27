@@ -45,6 +45,8 @@ class CampusSeeder extends Seeder
             ]
         );
 
+        
+
         DB::table('campuses')->updateOrInsert(
             ['name' => 'ARASOF'],
             [
@@ -70,6 +72,7 @@ class CampusSeeder extends Seeder
         // Get IDs after insert/update
         $pabloBorbon = DB::table('campuses')->where('name', 'Pablo Borbon')->value('id');
         $alangilan = DB::table('campuses')->where('name', 'Alangilan')->value('id');
+        $lipa = DB::table('campuses')->where('name', 'Lipa')->value('id');
 
         // Extension campuses
         $extensions = [
@@ -79,6 +82,7 @@ class CampusSeeder extends Seeder
             ['name' => 'Lobo', 'parent_campus_id' => $alangilan],
             ['name' => 'Mabini', 'parent_campus_id' => $alangilan],
             ['name' => 'Balayan', 'parent_campus_id' => $alangilan],
+            ['name' => 'LIMA', 'parent_campus_id' => $lipa],
         ];
 
         foreach ($extensions as $campus) {

@@ -157,6 +157,22 @@
                                         <p class="text-xs text-gray-400 mt-2">Max 10MB (PDF, JPG, PNG, DOCX)</p>
                                         @if($key === 'grades')
                                             <div class="mt-4">
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                                    <div>
+                                                        <label for="grades_academic_year" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Academic year</label>
+                                                        <input type="text" name="grades_academic_year" id="grades_academic_year" value="{{ old('grades_academic_year', $doc->academic_year ?? '') }}" placeholder="2025-2026" pattern="\d{4}-\d{4}" required class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-bsu-red focus:ring-bsu-red">
+                                                    </div>
+                                                    <div>
+                                                        <label for="grades_semester" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Semester</label>
+                                                        <select name="grades_semester" id="grades_semester" required class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-bsu-red focus:ring-bsu-red">
+                                                            <option value="">Select semester</option>
+                                                            @foreach(['1st Semester', '2nd Semester', 'Summer'] as $semester)
+                                                                <option value="{{ $semester }}" {{ old('grades_semester', $doc->semester ?? '') === $semester ? 'selected' : '' }}>{{ $semester }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <p class="text-xs text-gray-400 mb-3">Each semester needs its own grades document and student-declared GWA.</p>
                                                 <label for="grades_gwa" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">GWA shown on grades document</label>
                                                 <input type="number"
                                                        name="grades_gwa"
@@ -166,8 +182,8 @@
                                                        max="5.00"
                                                        value="{{ old('grades_gwa', $doc->declared_gwa ?? $doc->extracted_gwa ?? $studentForm?->previous_gwa) }}"
                                                        class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-bsu-red focus:ring-bsu-red"
-                                                       placeholder="e.g. 1.75">
-                                                <p class="text-xs text-gray-400 mt-2">Leave blank only if the uploaded PDF/DOCX clearly contains a labeled GWA. Scanned images usually require manual typing.</p>
+                                                          placeholder="e.g. 1.75" required>
+                                                      <p class="text-xs text-gray-400 mt-2">Enter the GWA exactly as shown on this semester's grades document. SFAO will cross-check it and cannot change it.</p>
                                                 @if($doc && ($doc->declared_gwa || $doc->extracted_gwa))
                                                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                                         Current submitted GWA:

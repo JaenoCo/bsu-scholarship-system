@@ -31,6 +31,12 @@
     <main class="max-w-5xl mx-auto mt-12 p-6 bg-white rounded-lg shadow-md flex-1">
         <h2 class="text-3xl font-bold text-red-700 mb-6 text-center">Documents for {{ $student->name }}</h2>
 
+        <div class="mb-6 flex justify-end">
+            <a href="{{ route('sfao.applicants.grades', ['userId' => $student->id]) }}" class="bg-red-700 hover:bg-red-800 text-white font-semibold px-4 py-2 rounded-lg">
+                View Submitted Grades
+            </a>
+        </div>
+
         @if($documents->isEmpty())
             <p class="text-gray-700 text-center">No documents uploaded yet.</p>
         @else

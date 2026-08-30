@@ -14,14 +14,11 @@ class AnnouncementController extends Controller
         $user = $this->resolveUser();
 
         $query = Scholarship::query()
-            ->where('is_active', true)
-            ->whereNotNull('announcement_title')
-            ->where('announcement_title', '<>', '')
-            ->whereNotNull('announcement_message')
-            ->where('announcement_message', '<>', '');
+            ->where('is_active', true);
 
         if ($user && $user->role === 'student' && $user->campus_id) {
             $this->scopeScholarshipCampusAvailability($query, [$user->campus_id]);
+            $this->scopeScholarshipAudience($query, $user);
         }
 
         $announcements = $query->orderBy('updated_at', 'desc')->get();
@@ -53,5 +50,22 @@ class AnnouncementController extends Controller
                 })->orDoesntHave('campuses');
             }
         });
+    }
+
+    private function scopeScholarshipAudience($query, User $user)
+    {
+        return $query
+            ->where(function ($scope) use ($user) {
+                $scope->doesntHave('targetColleges')
+                    ->orWhereHas('targetColleges', fn($target) => $target->where('short_name', $user->college));
+            })
+            ->where(function ($scope) use ($user) {
+                $scope->doesntHave('targetPrograms')
+                    ->orWhereHas('targetPrograms', fn($target) => $target->where('name', $user->program));
+            })
+            ->where(function ($scope) use ($user) {
+                $scope->doesntHave('targetTracks')
+                    ->orWhereHas('targetTracks', fn($target) => $target->where('name', $user->track));
+            });
     }
 }

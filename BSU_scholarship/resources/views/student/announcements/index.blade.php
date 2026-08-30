@@ -18,7 +18,7 @@
                             <div class="inline-flex items-center gap-2 rounded-full bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
                                 Announcement
                             </div>
-                            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">{{ $scholarship->announcement_title }}</h2>
+                            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">{{ $scholarship->announcement_title ?: $scholarship->scholarship_name }}</h2>
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ $scholarship->scholarship_name }}</p>
                         </div>
                         <div class="text-right">
@@ -28,7 +28,7 @@
                         </div>
                     </div>
 
-                    <p class="mt-5 text-sm leading-7 text-gray-600 dark:text-gray-300">{{ \Illuminate\Support\Str::limit($scholarship->announcement_message, 220) }}</p>
+                    <p class="mt-5 text-sm leading-7 text-gray-600 dark:text-gray-300">{{ \Illuminate\Support\Str::limit($scholarship->announcement_message ?: $scholarship->description, 220) }}</p>
 
                     <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div class="flex flex-wrap gap-3">

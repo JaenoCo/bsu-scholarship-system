@@ -2277,16 +2277,12 @@ class DashboardController extends Controller
 
         // 9. Scholarship Announcements
         $announcements = $this->scopeScholarshipCampusAvailability(
-            \App\Models\Scholarship::where('is_active', true)
-                ->whereNotNull('announcement_title')
-                ->where('announcement_title', '<>', '')
-                ->whereNotNull('announcement_message')
-                ->where('announcement_message', '<>', ''),
+            \App\Models\Scholarship::where('is_active', true),
             collect([$user->campus_id])
         );
         $announcements = $this->scopeScholarshipAudienceForStudent($announcements, $user)
             ->orderBy('updated_at', 'desc')
-        ->get();
+            ->get();
 
         return view('student.index', compact(
             'forms', 

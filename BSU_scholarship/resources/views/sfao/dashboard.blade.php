@@ -32,17 +32,17 @@
     
     pageTitle() {
       const titles = {
-        'scholarships': 'All Scholarships',
+        'scholarships': 'Scholarship Directory',
         'scholarships-private': 'Private Scholarships',
         'scholarships-government': 'Government Scholarships',
-        'applicants': 'All Applicants',
-        'applicants-in_progress': 'In Progress',
-        'applicants-pending': 'Pending',
+        'applicants': 'Application Review',
+        'applicants-in_progress': 'Under Review',
+        'applicants-pending': 'Awaiting Decision',
         'applicants-approved': 'Approved',
         'applicants-rejected': 'Rejected',
-        'scholars': 'All Scholars',
-        'scholars-new': 'New Scholars',
-        'scholars-old': 'Old Scholars',
+        'scholars': 'Active Scholars',
+        'scholars-new': 'New Awardees',
+        'scholars-old': 'Continuing Scholars',
         'reports-student_summary': 'Student Summary Report',
         'reports-scholar_summary': 'Scholar Summary Report',
         'reports-grant_summary': 'Grant Summary Report'
@@ -109,6 +109,50 @@
     .dark nav::-webkit-scrollbar-thumb:hover {
       background: rgba(156, 163, 175, 0.4);
     }
+
+    /* Mobile responsive improvements */
+    @media (max-width: 767px) {
+      aside {
+        width: 100% !important;
+        max-width: 85vw;
+      }
+
+      main {
+        padding: 1rem !important;
+      }
+
+      .page-title {
+        font-size: 1.5rem;
+      }
+
+      .card, .stats-grid > div {
+        padding: 1rem;
+      }
+
+      .tab-button {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+      }
+
+      .grid-cols-1, .grid-cols-2, .grid-cols-3, .grid-cols-4 {
+        grid-template-columns: 1fr !important;
+      }
+
+      table {
+        font-size: 0.75rem;
+      }
+
+      button {
+        min-height: 44px;
+        touch-action: manipulation;
+      }
+    }
+
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .grid-cols-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+    }
   </style>
 </head>
 
@@ -145,7 +189,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
           </svg>
-          All Scholarships
+          Scholarship Directory
         </button>
         <button @click="tab = 'scholarships-private'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -170,7 +214,7 @@
       <!-- Applicants Header -->
       <div class="space-y-1">
         <div class="px-4 py-2 text-sm font-semibold text-gray-200 uppercase tracking-wider">
-          Applicants
+          Application Review
         </div>
         <button @click="tab = 'applicants'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -179,7 +223,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
-          All Applicants
+          All Applications
         </button>
         <button @click="tab = 'applicants-in_progress'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -188,7 +232,7 @@
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z"
               clip-rule="evenodd" />
           </svg>
-          In Progress
+          Under Review
         </button>
         <button @click="tab = 'applicants-pending'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -197,7 +241,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Pending
+          Awaiting Decision
         </button>
         <button @click="tab = 'applicants-approved'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -222,7 +266,7 @@
       <!-- Scholars Header -->
       <div class="space-y-1">
         <div class="px-4 py-2 text-sm font-semibold text-gray-200 uppercase tracking-wider">
-          Scholars
+          Scholarship Awards
         </div>
         <button @click="tab = 'scholars'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -231,7 +275,7 @@
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z"
               clip-rule="evenodd" />
           </svg>
-          All Scholars
+          Active Scholars
         </button>
         <button @click="tab = 'scholars-new'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -240,7 +284,7 @@
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z"
               clip-rule="evenodd" />
           </svg>
-          New Scholars
+          New Awardees
         </button>
         <button @click="tab = 'scholars-old'"
           class="w-full text-left px-4 py-2 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm flex items-center gap-2"
@@ -249,7 +293,7 @@
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z"
               clip-rule="evenodd" />
           </svg>
-          Old Scholars
+          Continuing Scholars
         </button>
       </div>
 

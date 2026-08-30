@@ -12,15 +12,17 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AnnouncementController;
 use Illuminate\Http\Request;
+use App\Http\Controllers\StudentGradesController;
+
 
 // =================================================================
 // 0. DEV TOOLS & SEEDING FIXES
 // =================================================================
 
-Route::get('/dev/fix-dates', function() {
+Route::get('/dev/fix-dates', function () {
     $now = now();
     $count = 0;
-    
+
     // Fix Applications
     $apps = \App\Models\Application::where('created_at', '>', $now)->get();
     foreach ($apps as $app) {
@@ -40,12 +42,12 @@ Route::get('/dev/fix-dates', function() {
         $s->updated_at = $newDate;
         $s->save();
     }
-    
+
     return "Fixed $count applications with future dates.";
 });
 
 // TEMPORARY: Database Reset
-Route::get('/dev/migrate-fresh-seed', function() {
+Route::get('/dev/migrate-fresh-seed', function () {
     try {
         \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
             '--seed' => true,
@@ -58,7 +60,7 @@ Route::get('/dev/migrate-fresh-seed', function() {
 });
 
 // SAFE MIGRATION (Update Structure Only)
-Route::get('/dev/migrate', function() {
+Route::get('/dev/migrate', function () {
     try {
         \Illuminate\Support\Facades\Artisan::call('migrate', [
             '--force' => true
@@ -70,21 +72,22 @@ Route::get('/dev/migrate', function() {
 });
 
 // TEMPORARY: View Logs
-Route::get('/dev/logs', function() {
+Route::get('/dev/logs', function () {
     $path = storage_path('logs/laravel.log');
-    if (!file_exists($path)) return "No log file found.";
-    
+    if (!file_exists($path))
+        return "No log file found.";
+
     $content = file_get_contents($path);
     // Get last 20000 chars roughly
     if (strlen($content) > 20000) {
         $content = substr($content, -20000);
     }
-    
+
     return "<h1>Last Log Entries</h1><pre>" . htmlspecialchars($content) . "</pre>";
 });
 
 // TEMPORARY: Scholar Debug
-Route::get('/dev/scholar-debug', function() {
+Route::get('/dev/scholar-debug', function () {
     if (!session()->has('user_id') || session('role') !== 'sfao') {
         return redirect('/login');
     }
@@ -99,9 +102,9 @@ Route::get('/', function () {
     if (session()->has('user_id')) {
         return redirect(match (session('role')) {
             'student' => route('student.dashboard'),
-            'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
+            'sfao' => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
             'central' => route('central.dashboard', ['tabs' => 'dashboard']),
-            default   => '/'
+            default => '/'
         });
     }
     return view('home');
@@ -149,7 +152,7 @@ Route::post('/register/resend', [AuthController::class, 'resendRegistrationVerif
 // --------------------------------------------------
 
 // Session Keep-Alive
-Route::get('/ping', function() {
+Route::get('/ping', function () {
     return response()->noContent();
 })->middleware('web');
 
@@ -181,11 +184,11 @@ Route::get('/document/file/{id}', [UserController::class, 'serveDocumentFile'])-
 Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
 
 Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')->name('student.')->group(function () {
-    
+
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
-    
+
     // Scholarships
     Route::get('/scholarships', [UserController::class, 'scholarships'])->name('scholarships');
     Route::get('/scholarships/{category}', function (string $category) {
@@ -197,34 +200,47 @@ Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')
 
         return redirect()->route('student.dashboard', ['tab' => $tab]);
     })->whereIn('category', ['all', 'private', 'government'])->name('scholarships.category');
-    
+
     // Application Form
     Route::get('/sfao-form', [UserController::class, 'showApplicationForm'])->name('forms.application_form');
     Route::get('/tdp-form', [UserController::class, 'showTdpApplicationForm'])->name('forms.tdp_application_form');
     Route::get('/form/{scholarship_id}', [UserController::class, 'showApplicationForm'])->name('forms.application_form.scholarship');
     Route::post('/submit-application', [FormController::class, 'submit'])->name('submit');
-    
+
     // Applications
-    Route::get('/applications', function() {
+    Route::get('/applications', function () {
         return redirect()->route('student.dashboard', ['tab' => 'applied_scholarships']);
     })->name('applications');
     Route::post('/apply', [ApplicationController::class, 'apply'])->name('apply.post');
     Route::post('/withdraw', [ApplicationController::class, 'withdraw'])->name('withdraw');
-    
+
+    Route::get('/grades/upload', [StudentGradesController::class, 'create'])
+        ->name('grades.upload');
+
+    Route::get('/grades/upload/edit', [StudentGradesController::class, 'edit'])
+        ->name('grades.edit');
+        Route::get('/student', [StudentGradesController::class, 'index'])->name('index');
+
+    Route::post('/grades/upload', [StudentGradesController::class, 'store'])
+        ->name('grades.upload.submit');
+
+    Route::put('/grades/upload', [StudentGradesController::class, 'update'])
+        ->name('grades.upload.update');
+
     // Document Uploads (Legacy - Redirect to new multi-stage application)
-    Route::get('/upload-documents/{scholarship_id}', function($scholarship_id) {
+    Route::get('/upload-documents/{scholarship_id}', function ($scholarship_id) {
         return redirect()->route('student.apply', ['scholarship_id' => $scholarship_id]);
     })->name('upload-documents');
     Route::post('/upload-documents/{scholarship_id}', [UserController::class, 'uploadDocuments'])->name('upload-documents.submit');
     Route::get('/documents/{scholarship_id}', [UserController::class, 'viewStudentDocuments'])->name('view-documents');
-    
+
     // Multi-Stage Application
     Route::get('/apply/{scholarship_id}', [UserController::class, 'showMultiStageApplication'])->name('apply');
     Route::post('/apply/{scholarship_id}/sfao-documents', [UserController::class, 'submitSfaoDocuments'])->name('apply.sfao-documents');
     Route::post('/apply/{scholarship_id}/scholarship-documents', [UserController::class, 'submitScholarshipDocuments'])->name('apply.scholarship-documents');
     Route::post('/apply/{scholarship_id}/final-submission', [UserController::class, 'submitFinalApplication'])->name('apply.final-submission');
     Route::get('/apply/{scholarship_id}/progress', [UserController::class, 'getApplicationProgress'])->name('apply.progress');
-    
+
     // Print Application
     Route::get('/print-application', [FormPrintController::class, 'printApplication'])->name('print-application');
     Route::get('/print-application/{scholarship_id}', [FormPrintController::class, 'printApplication'])->name('print-application.scholarship');
@@ -247,10 +263,10 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
-    
+
     // Applicants
     Route::get('/applicants/{user_id}/documents', [ApplicationController::class, 'viewDocuments'])->name('viewDocuments');
-    
+
     // Document Evaluation System
     Route::get('/evaluation/{user_id}', [ApplicationController::class, 'showEvaluation'])->name('evaluation.show');
     Route::get('/evaluation/{user_id}/scholarship/{scholarship_id}/sfao-documents', [ApplicationController::class, 'evaluateSfaoDocuments'])->name('evaluation.sfao-documents');
@@ -259,7 +275,7 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::post('/evaluation/{user_id}/scholarship/{scholarship_id}/scholarship-documents/evaluate', [ApplicationController::class, 'submitScholarshipEvaluation'])->name('evaluation.scholarship-submit');
     Route::get('/evaluation/{user_id}/scholarship/{scholarship_id}/final', [ApplicationController::class, 'finalEvaluation'])->name('evaluation.final');
     Route::post('/evaluation/{user_id}/scholarship/{scholarship_id}/final/submit', [ApplicationController::class, 'submitFinalEvaluation'])->name('evaluation.final-submit');
-    
+
     // Application Management
     Route::post('/applications/{id}/approve', [ApplicationController::class, 'sfaoApproveApplication'])->name('applications.approve');
     Route::post('/applications/{id}/reject', [ApplicationController::class, 'sfaoRejectApplication'])->name('applications.reject');
@@ -267,6 +283,7 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::get('/applicants/list', [ApplicationController::class, 'sfaoApplicantsList'])->name('applicants.list');
     Route::get('/applicants', [ApplicationController::class, 'sfaoApplicants'])->name('applicants');
     Route::get('/applicant/{user_id}/documents', [ApplicationController::class, 'viewDocuments'])->name('applicant.documents');
+    Route::get('/applicant/{userId}/grades', [StudentGradesController::class, 'viewForSfao'])->name('applicants.grades');
     Route::post('/scholarships/import', [App\Http\Controllers\ScholarshipImportController::class, 'store'])->name('scholarships.import');
 
     Route::post('/applications/{id}/claim', [ApplicationController::class, 'sfaoClaimGrant'])->name('applications.claim');
@@ -274,13 +291,13 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     // Scholarships Management
     Route::post('/scholarships/store', [ScholarshipController::class, 'store'])->name('scholarships.store');
     Route::post('/scholarships/{id}/update', [ScholarshipController::class, 'update'])->name('scholarships.update');
-    
+
     Route::post('/scholarships/{id}/release-grant', [ScholarshipController::class, 'releaseGrant'])->name('scholarships.release-grant');
     Route::get('/scholarships', [ScholarshipController::class, 'sfaoIndex'])->name('scholarships.index');
     Route::get('/scholarships/{id}', [ScholarshipController::class, 'show'])->name('scholarships.show');
     Route::post('/scholars/bulk-mark-claimed', [ScholarshipController::class, 'bulkMarkScholarAsClaimed'])->name('scholars.bulk-mark-claimed');
     Route::post('/scholars/{id}/mark-claimed', [ScholarshipController::class, 'markScholarAsClaimed'])->name('scholars.mark-claimed');
-    
+
     // Reports Management (Keep original for now as it wasn't split yet)
     Route::get('/reports/create', [ReportController::class, 'createReport'])->name('reports.create');
     Route::post('/reports', [ReportController::class, 'storeReport'])->name('reports.store');
@@ -291,10 +308,10 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::post('/reports/{id}/submit', [ReportController::class, 'submitReport'])->name('reports.submit');
     Route::delete('/reports/{id}', [ReportController::class, 'deleteReport'])->name('reports.delete');
     Route::post('/reports/generate-data', [ReportController::class, 'generateReportData'])->name('reports.generate-data');
-    
+
     // Specific Report Summaries
     Route::get('/student-summary', [ReportController::class, 'studentSummary'])->name('reports.student-summary');
-    Route::get('/scholar-summary', function(Request $request) {
+    Route::get('/scholar-summary', function (Request $request) {
         return redirect()->route('sfao.reports.student-summary', array_merge(
             $request->query(),
             ['student_type' => 'scholars']
@@ -302,14 +319,14 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     })->name('reports.scholar-summary');
     Route::get('/applicant-summary', [ReportController::class, 'applicantSummary'])->name('reports.applicant-summary');
     Route::get('/grant-summary', [ReportController::class, 'grantSummary'])->name('reports.grant-summary');
-    
-    
+
+
     // Application Forms Management
     Route::get('/application-forms', [App\Http\Controllers\ApplicationFormController::class, 'index'])->name('application-forms.index');
     Route::get('/application-forms/create', [App\Http\Controllers\ApplicationFormController::class, 'create'])->name('application-forms.create');
     Route::post('/application-forms', [App\Http\Controllers\ApplicationFormController::class, 'store'])->name('application-forms.store');
     Route::delete('/application-forms/{id}', [App\Http\Controllers\ApplicationFormController::class, 'destroy'])->name('application-forms.destroy');
-    
+
     // Change Password
     Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
     // Profile Update
@@ -325,10 +342,10 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
     ->name('central.')
     ->group(function () {
 
-    // Dashboard (Unified)
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
-        
+        // Dashboard (Unified)
+        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+
         // Analytics
         Route::post('/analytics/filtered', [ApplicationController::class, 'getFilteredAnalytics'])->name('analytics.filtered');
 
@@ -344,25 +361,25 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
             Route::delete('/{id}', [ScholarshipController::class, 'destroy'])->name('destroy');
         });
 
-        
+
         // Application Management
         Route::post('/applications/{id}/approve', [ApplicationController::class, 'centralApproveApplication'])->name('applications.approve');
         Route::post('/applications/{id}/reject', [ApplicationController::class, 'centralRejectApplication'])->name('applications.reject');
         Route::post('/applications/{id}/claim', [ApplicationController::class, 'centralClaimGrant'])->name('applications.claim');
-        
+
         // Staff Management
         Route::post('/staff/invite', [UserController::class, 'inviteStaff'])->name('staff.invite');
         Route::post('/staff/{id}/deactivate', [UserController::class, 'deactivateStaff'])->name('staff.deactivate');
-        
+
         // Account Settings
         Route::post('/update-name', [UserController::class, 'updateName'])->name('update-name');
         Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
-        
+
         // Reports Management
         Route::get('/reports/overall', [ReportController::class, 'centralOverallReport'])->name('reports.overall');
         Route::get('/reports/{id}', [ReportController::class, 'centralShowReport'])->name('reports.show');
         Route::post('/reports/{id}/review', [ReportController::class, 'reviewReport'])->name('reports.review');
-        
+
         // Scholars Management
         Route::prefix('scholars')->name('scholars.')->group(function () {
             Route::get('/', [App\Http\Controllers\ScholarController::class, 'index'])->name('index');
@@ -380,7 +397,7 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
         Route::get('/endorsed-applications/{application}/validate', [ApplicationController::class, 'showEndorsedValidation'])->name('endorsed.validate');
         Route::post('/endorsed-applications/{application}/accept', [ApplicationController::class, 'acceptEndorsed'])->name('endorsed.accept');
         Route::post('/endorsed-applications/{application}/reject', [ApplicationController::class, 'rejectEndorsed'])->name('endorsed.reject');
-        
+
         // Rejected Applicants
         Route::get('/rejected-applicants', [ApplicationController::class, 'viewRejectedApplicants'])->name('rejected-applicants');
     });

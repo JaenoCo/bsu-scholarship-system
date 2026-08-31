@@ -14,7 +14,7 @@
     label="Gsuite"
     name="email"
     placeholder="example@g.batstate-u.edu.ph"
-    pattern="^[a-zA-Z0-9._%+-]+@g\.batstate-u\.edu\.ph$"
+    pattern="[a-zA-Z0-9._%+\-]+@g\.batstate-u\.edu\.ph"
     autocomplete="off"
     ariaDescribedby="email-help"
     required

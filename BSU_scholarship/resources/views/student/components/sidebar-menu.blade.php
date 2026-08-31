@@ -232,6 +232,14 @@
         </svg>
         Upload grades
       </button>
+      <button @click="$dispatch('switch-tab', 'grade_history')"
+        class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white"
+        style="padding-left: 2.5rem">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Submitted Grades
+      </button>
     </div>
   </div>
 

@@ -2271,6 +2271,13 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $gradeSubmissions = \App\Models\GradeSubmission::with('subjects')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get();
+        $latestGradeSubmission = $gradeSubmissions->first();
+        $submittedGrades = $latestGradeSubmission?->subjects ?? collect();
+
         // 8. My Scholarships
         $scholarshipIds = \App\Models\Scholar::where('user_id', $user->id)->pluck('scholarship_id');
         $myScholarships = \App\Models\Scholarship::whereIn('id', $scholarshipIds)->get();
@@ -2300,7 +2307,10 @@ class DashboardController extends Controller
             'privateScholarshipsCount',
             'governmentScholarshipsCount',
             'allScholarshipsCount',
-            'form'
+            'form',
+            'gradeSubmissions',
+            'latestGradeSubmission',
+            'submittedGrades'
         ));
     }
 

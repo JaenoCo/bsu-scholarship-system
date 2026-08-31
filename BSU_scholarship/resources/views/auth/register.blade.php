@@ -64,7 +64,7 @@
     <div x-show="currentStep === 2" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-x-4" x-transition:enter-end="opacity-100 transform translate-x-0">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Contact Information</h3>
       
-      <x-auth.input type="email" label="BSU Email" name="email" placeholder="example@g.batstate-u.edu.ph" pattern="^[a-zA-Z0-9._%+-]+@g\.batstate-u\.edu\.ph$" required x-model="formData.email">
+      <x-auth.input type="email" label="BSU Email" name="email" placeholder="example@g.batstate-u.edu.ph" pattern="[a-zA-Z0-9._%+\-]+@g\.batstate-u\.edu\.ph" required x-model="formData.email">
         <p class="mt-1 text-xs text-gray-500">Must end with @g.batstate-u.edu.ph</p>
       </x-auth.input>
       

@@ -217,6 +217,9 @@ Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')
     Route::get('/grades/upload', [StudentGradesController::class, 'create'])
         ->name('grades.upload');
 
+    Route::get('/grades/history', [StudentGradesController::class, 'history'])
+        ->name('grades.history');
+
     Route::get('/grades/upload/edit', [StudentGradesController::class, 'edit'])
         ->name('grades.edit');
         Route::get('/student', [StudentGradesController::class, 'index'])->name('index');

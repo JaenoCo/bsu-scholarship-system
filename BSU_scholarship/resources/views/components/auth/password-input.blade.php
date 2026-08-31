@@ -19,7 +19,9 @@ $errorClass = $error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 fo
 <div class="mb-4" x-data="{ 
     showPassword: false, 
     strength: 0,
+    hasValue: false,
     updateStrength(val) {
+        this.hasValue = val.length > 0;
         let strength = 0;
         if (val.length >= 8) strength++;
         if (/[a-z]/.test(val)) strength++;
@@ -61,7 +63,7 @@ $errorClass = $error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 fo
   </div>
   
   @if($showStrength)
-    <div x-show="$el.querySelector('input').value.length > 0" x-transition class="mt-2">
+    <div x-show="hasValue" x-transition class="mt-2">
       <div class="flex items-center space-x-2">
         <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div class="h-2 rounded-full transition-all duration-300" 

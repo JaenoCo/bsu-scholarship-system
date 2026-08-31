@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\StudentGrade;
+use App\Models\GradeSubmission;
+use App\Models\SubmissionSubject;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StudentGradesController extends Controller
 {
@@ -34,9 +37,13 @@ class StudentGradesController extends Controller
 
         $user = User::findOrFail($userId);
 
-        $submittedGrades = StudentGrade::where('user_id', $user->id)
-            ->orderByDesc('created_at')
-            ->get();
+        $latestSubmission = GradeSubmission::with('subjects')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->first();
+
+        $submittedGrades = $latestSubmission?->subjects
+            ?? StudentGrade::where('user_id', $user->id)->latest()->get();
 
         /*
         |--------------------------------------------------------------------------
@@ -65,6 +72,7 @@ class StudentGradesController extends Controller
             'submittedGrades' => $submittedGrades,
             'isReadOnly' => $isReadOnly,
             'isEditMode' => $isEditMode,
+            'latestSubmission' => $latestSubmission,
         ]);
     }
 
@@ -118,6 +126,13 @@ class StudentGradesController extends Controller
                 'max:255'
             ],
 
+            'grades.*.units' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:99.99'
+            ],
+
             'grades.*.grade' => [
                 'required',
                 'numeric',
@@ -148,36 +163,38 @@ class StudentGradesController extends Controller
             'public'
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Remove previous records
-        |--------------------------------------------------------------------------
-        |
-        | Your current design stores one StudentGrade row per subject.
-        | Therefore, delete the previous set before creating the new set.
-        |
-        */
-
-        StudentGrade::where('user_id', $user->id)->delete();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Save grades
-        |--------------------------------------------------------------------------
-        */
-
-        foreach ($validated['grades'] as $gradeData) {
-            StudentGrade::create([
+        $submission = DB::transaction(function () use ($user, $validated, $documentPath) {
+            $submission = GradeSubmission::create([
                 'user_id' => $user->id,
                 'school_year' => $validated['school_year'],
                 'semester' => $validated['semester'],
-                'subject_code' => trim($gradeData['subject_code']),
-                'subject_name' => trim($gradeData['subject_name']),
-                'grade' => (float) $gradeData['grade'],
-                'document_path' => $documentPath,
+                'file_path' => $documentPath,
                 'status' => 'pending',
             ]);
-        }
+
+            foreach ($validated['grades'] as $gradeData) {
+                $subject = SubmissionSubject::create([
+                    'submission_id' => $submission->id,
+                    'subject_code' => trim($gradeData['subject_code']),
+                    'subject_name' => trim($gradeData['subject_name']),
+                    'units' => (float) ($gradeData['units'] ?? 0),
+                    'grade' => (float) $gradeData['grade'],
+                ]);
+
+                StudentGrade::create([
+                    'user_id' => $user->id,
+                    'school_year' => $validated['school_year'],
+                    'semester' => $validated['semester'],
+                    'subject_code' => $subject->subject_code,
+                    'subject_name' => $subject->subject_name,
+                    'grade' => $subject->grade,
+                    'document_path' => $documentPath,
+                    'status' => 'pending',
+                ]);
+            }
+
+            return $submission;
+        });
 
         /*
         |--------------------------------------------------------------------------
@@ -196,7 +213,7 @@ class StudentGradesController extends Controller
             ->with(
                 'success',
                 'Grades submitted successfully. Your uploaded record is now saved and ready for review.'
-            );
+            )->with('grade_submission_id', $submission->id);
     }
 
 
@@ -225,6 +242,38 @@ class StudentGradesController extends Controller
         return redirect()->route('student.grades.upload', [
             'edit' => 1
         ]);
+    }
+
+    /**
+     * Return the logged-in student's grade submissions for dashboard clients.
+     */
+    public function history(Request $request)
+    {
+        $userId = session('user_id');
+
+        if (! $userId) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $submissions = GradeSubmission::with('subjects')
+            ->where('user_id', $userId)
+            ->latest()
+            ->get()
+            ->map(function (GradeSubmission $submission) {
+                return [
+                    'id' => $submission->id,
+                    'school_year' => $submission->school_year,
+                    'semester' => $submission->semester,
+                    'date_uploaded' => optional($submission->created_at)->format('M d, Y'),
+                    'status' => $submission->status,
+                    'file_url' => $submission->file_path
+                        ? asset('storage/' . ltrim($submission->file_path, '/'))
+                        : null,
+                    'subjects' => $submission->subjects,
+                ];
+            });
+
+        return response()->json(['submissions' => $submissions]);
     }
 
 
@@ -277,6 +326,13 @@ class StudentGradesController extends Controller
                 'max:255'
             ],
 
+            'grades.*.units' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:99.99'
+            ],
+
             'grades.*.grade' => [
                 'required',
                 'numeric',
@@ -306,9 +362,12 @@ class StudentGradesController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $documentPath = StudentGrade::where('user_id', $user->id)
+        $submission = GradeSubmission::with('subjects')
+            ->where('user_id', $user->id)
             ->latest()
-            ->value('document_path');
+            ->first();
+        $documentPath = $submission?->file_path
+            ?? StudentGrade::where('user_id', $user->id)->latest()->value('document_path');
 
         /*
         |--------------------------------------------------------------------------
@@ -328,32 +387,40 @@ class StudentGradesController extends Controller
             );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Replace existing grade records
-        |--------------------------------------------------------------------------
-        */
+        DB::transaction(function () use ($user, $validated, $documentPath, $submission) {
+            if (! $submission) {
+                $submission = new GradeSubmission(['user_id' => $user->id]);
+            }
 
-        StudentGrade::where('user_id', $user->id)->delete();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Save updated grades
-        |--------------------------------------------------------------------------
-        */
-
-        foreach ($validated['grades'] as $gradeData) {
-            StudentGrade::create([
-                'user_id' => $user->id,
+            $submission->fill([
                 'school_year' => $validated['school_year'],
                 'semester' => $validated['semester'],
-                'subject_code' => trim($gradeData['subject_code']),
-                'subject_name' => trim($gradeData['subject_name']),
-                'grade' => (float) $gradeData['grade'],
-                'document_path' => $documentPath,
+                'file_path' => $documentPath,
                 'status' => 'pending',
-            ]);
-        }
+            ])->save();
+            $submission->subjects()->delete();
+            StudentGrade::where('user_id', $user->id)->delete();
+
+            foreach ($validated['grades'] as $gradeData) {
+                $subject = $submission->subjects()->create([
+                    'subject_code' => trim($gradeData['subject_code']),
+                    'subject_name' => trim($gradeData['subject_name']),
+                    'units' => (float) ($gradeData['units'] ?? 0),
+                    'grade' => (float) $gradeData['grade'],
+                ]);
+
+                StudentGrade::create([
+                    'user_id' => $user->id,
+                    'school_year' => $validated['school_year'],
+                    'semester' => $validated['semester'],
+                    'subject_code' => $subject->subject_code,
+                    'subject_name' => $subject->subject_name,
+                    'grade' => $subject->grade,
+                    'document_path' => $documentPath,
+                    'status' => 'pending',
+                ]);
+            }
+        });
 
         /*
         |--------------------------------------------------------------------------
@@ -391,9 +458,19 @@ class StudentGradesController extends Controller
 
         $student = User::findOrFail($userId);
 
-        $grades = StudentGrade::where('user_id', $student->id)
-            ->orderByDesc('created_at')
-            ->get();
+        $grades = GradeSubmission::with('subjects')
+            ->where('user_id', $student->id)
+            ->latest()
+            ->get()
+            ->flatMap(function (GradeSubmission $submission) {
+                return $submission->subjects->map(function (SubmissionSubject $subject) use ($submission) {
+                    $subject->school_year = $submission->school_year;
+                    $subject->semester = $submission->semester;
+                    $subject->document_path = $submission->file_path;
+                    $subject->status = $submission->status === 'approved' ? 'verified' : $submission->status;
+                    return $subject;
+                });
+            });
 
         return view(
             'sfao.applicants.view-grades',

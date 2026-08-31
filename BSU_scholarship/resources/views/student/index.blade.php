@@ -50,6 +50,7 @@
             'comments': { tab: 'notifications', subTab: 'sfao_comment' },
             'all-app-forms': { tab: 'all-app-forms', subTab: 'all' },
             'upload_grades': { tab: 'upload_grades', subTab: 'all'},
+            'grade_history': { tab: 'grade_history', subTab: 'all'},
             'account_settings': { tab: 'account', subTab: 'all' }
         },
         scholarshipTabKeys: ['all_scholarships', 'private_scholarships', 'government_scholarships'],
@@ -215,6 +216,10 @@
             @include('student.forms.upload-grades')
         </div>
 
+        <div x-show="tab === 'grade_history'" x-transition>
+            @include('student.partials.grade-history')
+        </div>
+
         <!-- Account Settings Tab -->
         <div x-show="tab === 'account'" x-transition>
             @include('student.settings.index')
@@ -305,14 +310,14 @@
                 </div>
 
                 {{-- Action Button --}}
-                <button type="button" @click="showModal = false"
+                <a href="{{ route('student.dashboard', ['tab' => 'grade_history']) }}"
                     class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
-                    Continue
+                    View Submitted Grades
                     <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3">
                         </path>
                     </svg>
-                </button>
+                </a>
             </div>
         </div>
     @endif

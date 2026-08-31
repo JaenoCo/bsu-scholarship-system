@@ -353,6 +353,15 @@
             margin-top: 2px;
         }
 
+        .toast-link {
+            display: inline-block;
+            margin-top: 6px;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
         .toast-close {
             border: none;
             background: transparent;
@@ -427,7 +436,7 @@
             }
 
             .grade-row {
-                grid-template-columns: 150px minmax(250px, 1fr) 110px 45px;
+                grid-template-columns: 150px minmax(250px, 1fr) 80px 110px 45px;
                 align-items: end;
             }
         }
@@ -446,6 +455,7 @@
         $isReadOnly = $isReadOnly ?? false;
         $isEditMode = $isEditMode ?? false;
         $submittedGrades = $submittedGrades ?? collect();
+            $latestSubmission = $latestSubmission ?? null;
     @endphp
 
     {{--
@@ -476,6 +486,7 @@
                 <div style="flex:1">
                     <div class="toast-title">Success</div>
                     <div class="toast-message">{{ session('success') }}</div>
+                    <a href="{{ route('student.dashboard', ['tab' => 'grade_history']) }}" class="toast-link">View Submitted Grades</a>
                 </div>
                 <button type="button" @click="show = false" class="toast-close" aria-label="Dismiss">&times;</button>
             </div>
@@ -513,16 +524,16 @@
             <div class="academic-grid" style="margin-bottom: 20px;">
                 <div class="field">
                     <label>School Year</label>
-                    <input type="text" value="{{ old('school_year', $submittedGrades->first()->school_year ?? '') }}" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
+                    <input type="text" value="{{ old('school_year', $latestSubmission?->school_year ?? $submittedGrades->first()->school_year ?? '') }}" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
                 </div>
 
                 <div class="field">
                     <label>Semester</label>
                     <select class="select" disabled style="background:#f9fafb; color:#111827; cursor:default;">
                         <option value="">Select Semester</option>
-                        <option value="1st Semester" {{ old('semester', $submittedGrades->first()->semester ?? '') == '1st Semester' ? 'selected' : '' }}>1st Semester</option>
-                        <option value="2nd Semester" {{ old('semester', $submittedGrades->first()->semester ?? '') == '2nd Semester' ? 'selected' : '' }}>2nd Semester</option>
-                        <option value="Summer" {{ old('semester', $submittedGrades->first()->semester ?? '') == 'Summer' ? 'selected' : '' }}>Summer</option>
+                        <option value="1st Semester" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == '1st Semester' ? 'selected' : '' }}>1st Semester</option>
+                        <option value="2nd Semester" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == '2nd Semester' ? 'selected' : '' }}>2nd Semester</option>
+                        <option value="Summer" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == 'Summer' ? 'selected' : '' }}>Summer</option>
                     </select>
                 </div>
             </div>
@@ -537,7 +548,7 @@
             <div id="grades-container" class="subjects-container" style="padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px;">
                 @if($submittedGrades->isNotEmpty())
                     @foreach($submittedGrades as $index => $grade)
-                        <div class="grade-row" style="display:grid; grid-template-columns: 1fr 1.5fr 1fr 44px; gap: 12px; align-items:end; margin-bottom: 12px;">
+                        <div class="grade-row" style="display:grid; grid-template-columns: 1fr 1.5fr 0.7fr 0.8fr 44px; gap: 12px; align-items:end; margin-bottom: 12px;">
                             <div class="field">
                                 <label>Subject Code</label>
                                 <input type="text" value="{{ old('grades.' . $index . '.subject_code', $grade->subject_code) }}" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
@@ -549,6 +560,11 @@
                             </div>
 
                             <div class="field">
+                                    <label>Units</label>
+                                    <input type="number" value="{{ old('grades.' . $index . '.units', $grade->units ?? 0) }}" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
+                                </div>
+
+                                <div class="field">
                                 <label>Grade</label>
                                 <input type="number" value="{{ old('grades.' . $index . '.grade', $grade->grade) }}" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
                             </div>
@@ -559,7 +575,7 @@
                         </div>
                     @endforeach
                 @else
-                    <div class="grade-row" style="display:grid; grid-template-columns: 1fr 1.5fr 1fr 44px; gap: 12px; align-items:end; margin-bottom: 12px;">
+                        <div class="grade-row" style="display:grid; grid-template-columns: 1fr 1.5fr 0.7fr 0.8fr 44px; gap: 12px; align-items:end; margin-bottom: 12px;">
                         <div class="field">
                             <label>Subject Code</label>
                             <input type="text" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
@@ -569,6 +585,8 @@
                             <label>Subject Name</label>
                             <input type="text" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
                         </div>
+
+                        <div class="field"><label>Units</label><input type="number" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;"></div>
 
                         <div class="field">
                             <label>Grade</label>
@@ -590,7 +608,7 @@
                         <div class="file-title" style="font-size: 14px; font-weight: 600; color: #374151;">Upload your grade document</div>
                         <div class="file-description" style="color: #6b7280; font-size: 12px; margin-top: 5px; margin-bottom: 12px;">This document is currently locked for review.</div>
                         <input type="file" class="file-input" disabled style="display:block; margin:0 auto; max-width:100%;">
-                        <div id="file-selected" class="file-selected" style="margin-top: 12px; font-size: 12px; color: #374151; font-weight: 600;">{{ $submittedGrades->first()?->document_path ? 'Current file attached' : 'No file chosen' }}</div>
+                        <div id="file-selected" class="file-selected" style="margin-top: 12px; font-size: 12px; color: #374151; font-weight: 600;">{{ $latestSubmission?->file_path || $submittedGrades->first()?->document_path ? 'Current file attached' : 'No file chosen' }}</div>
                     </div>
                 </div>
             </div>
@@ -647,16 +665,16 @@
                 <div class="academic-grid">
                     <div class="field">
                         <label>School Year</label>
-                        <input type="text" name="school_year" value="{{ old('school_year', $submittedGrades->first()->school_year ?? '') }}" placeholder="2025-2026" required class="input">
+                        <input type="text" name="school_year" value="{{ old('school_year', $latestSubmission?->school_year ?? $submittedGrades->first()->school_year ?? '') }}" placeholder="2025-2026" required class="input">
                     </div>
 
                     <div class="field">
                         <label>Semester</label>
                         <select name="semester" required class="select">
                             <option value="">Select Semester</option>
-                            <option value="1st Semester" {{ old('semester', $submittedGrades->first()->semester ?? '') == '1st Semester' ? 'selected' : '' }}>1st Semester</option>
-                            <option value="2nd Semester" {{ old('semester', $submittedGrades->first()->semester ?? '') == '2nd Semester' ? 'selected' : '' }}>2nd Semester</option>
-                            <option value="Summer" {{ old('semester', $submittedGrades->first()->semester ?? '') == 'Summer' ? 'selected' : '' }}>Summer</option>
+                            <option value="1st Semester" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == '1st Semester' ? 'selected' : '' }}>1st Semester</option>
+                            <option value="2nd Semester" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == '2nd Semester' ? 'selected' : '' }}>2nd Semester</option>
+                            <option value="Summer" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == 'Summer' ? 'selected' : '' }}>Summer</option>
                         </select>
                     </div>
                 </div>
@@ -687,6 +705,11 @@
                                 </div>
 
                                 <div class="field">
+                                    <label>Units</label>
+                                    <input type="number" name="grades[{{ $index }}][units]" min="0" max="99.99" step="0.01" value="{{ old('grades.' . $index . '.units', $grade->units ?? 0) }}" placeholder="3" required class="input">
+                                </div>
+
+                                <div class="field">
                                     <label>Grade</label>
                                     <input type="number" name="grades[{{ $index }}][grade]" min="0" max="100" step="0.01" value="{{ old('grades.' . $index . '.grade', $grade->grade) }}" placeholder="90" required class="input">
                                 </div>
@@ -709,6 +732,11 @@
                             </div>
 
                             <div class="field">
+                                <label>Units</label>
+                                <input type="number" name="grades[0][units]" min="0" max="99.99" step="0.01" placeholder="3" required class="input">
+                            </div>
+
+                            <div class="field">
                                 <label>Grade</label>
                                 <input type="number" name="grades[0][grade]" min="0" max="100" step="0.01" placeholder="90" required class="input">
                             </div>
@@ -728,7 +756,7 @@
                             <div class="file-title">Upload your grade document</div>
                             <div class="file-description">Upload one PDF, JPG, JPEG, or PNG containing your supporting grades document.</div>
                             <input id="studentDocument" type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" {{ $isEditMode ? '' : 'required' }} class="file-input">
-                            <div id="file-selected" class="file-selected">{{ $isEditMode && $submittedGrades->first()?->document_path ? 'Current file attached' : 'No file chosen' }}</div>
+                            <div id="file-selected" class="file-selected">{{ $isEditMode && ($latestSubmission?->file_path || $submittedGrades->first()?->document_path) ? 'Current file attached' : 'No file chosen' }}</div>
                         </div>
                     </div>
                 </div>
@@ -755,7 +783,11 @@
     if (fileInput && fileSelected) {
         fileInput.addEventListener('change', function () {
             if (this.files && this.files[0]) {
-                fileSelected.textContent = 'Selected file: ' + this.files[0].name;
+                    const file = this.files[0];
+                    const size = file.size < 1024 * 1024
+                        ? `${(file.size / 1024).toFixed(1)} KB`
+                        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+                    fileSelected.textContent = `Selected file: ${file.name} (${size})`;
                 return;
             }
 
@@ -772,6 +804,11 @@
             <div class="field">
                 <label>Subject Code</label>
                 <input type="text" name="grades[${gradeIndex}][subject_code]" placeholder="IT101" required class="input">
+            </div>
+
+            <div class="field">
+                <label>Units</label>
+                <input type="number" name="grades[${gradeIndex}][units]" min="0" max="99.99" step="0.01" placeholder="3" required class="input">
             </div>
 
             <div class="field subject-name">

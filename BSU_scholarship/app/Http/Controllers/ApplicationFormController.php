@@ -97,7 +97,7 @@ class ApplicationFormController extends Controller
             ]);
 
 
-            return redirect()->route('sfao.dashboard', ['tabs' => 'all-app-forms'])
+            return redirect()->route('sfao.application-forms.index', ['tabs' => 'all-app-forms'])
                 ->with('success', 'Application form uploaded successfully.');
 
         } catch (\Exception $e) {

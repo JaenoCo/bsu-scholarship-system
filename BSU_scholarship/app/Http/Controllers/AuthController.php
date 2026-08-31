@@ -86,23 +86,6 @@ class AuthController extends Controller
      */
     public function showCentralLogin(Request $request)
     {
-        // Prevent access if coming from internal navigation (referrer check)
-        // This ensures the page can only be accessed by typing the URL directly
-        $referrer = $request->headers->get('referer');
-        if ($referrer) {
-            $referrerUrl = parse_url($referrer);
-            $referrerHost = $referrerUrl['host'] ?? null;
-            $referrerPath = $referrerUrl['path'] ?? null;
-            $currentHost = $request->getHost();
-            
-            // Allow if referrer is from different site (external)
-            // Allow if coming from /login (programmatic redirect for central admin)
-            // Block if referrer is from same site and not /login (internal navigation via links/buttons)
-            if ($referrerHost === $currentHost && $referrerPath !== '/login') {
-                return redirect('/')->withErrors(['Access denied.']);
-            }
-        }
-
         if (session()->has('user_id')) {
             if (session('role') === 'central') {
                 return redirect()->route('central.dashboard', ['tabs' => 'all_statistics']);
@@ -129,16 +112,22 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return back()->withErrors(['Invalid credentials']);
+            return view('auth.centrallogin')
+                ->withInput($request->only('email'))
+                ->withErrors(['Invalid credentials']);
         }
 
         // Only allow central admin role
         if ($user->role !== 'central') {
-            return back()->withErrors(['This login page is only for central admin users.']);
+            return view('auth.centrallogin')
+                ->withInput($request->only('email'))
+                ->withErrors(['This login page is only for central admin users.']);
         }
 
         if (!$user->hasVerifiedEmail()) {
-            return back()->withErrors(['Your email is not verified. Please check your inbox.']);
+            return view('auth.centrallogin')
+                ->withInput($request->only('email'))
+                ->withErrors(['Your email is not verified. Please check your inbox.']);
         }
 
         session([

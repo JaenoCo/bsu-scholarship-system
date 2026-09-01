@@ -220,8 +220,15 @@ Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')
     Route::get('/grades/history', [StudentGradesController::class, 'history'])
         ->name('grades.history');
 
+    Route::get('/grades/submissions/{submission}/document', [StudentGradesController::class, 'document'])
+        ->name('grades.document');
+
     Route::get('/grades/upload/edit', [StudentGradesController::class, 'edit'])
         ->name('grades.edit');
+    Route::get('/grades/submissions/{submission}/edit', [StudentGradesController::class, 'editSubmission'])
+        ->name('grades.submissions.edit');
+    Route::delete('/grades/submissions/{submission}', [StudentGradesController::class, 'destroy'])
+        ->name('grades.submissions.destroy');
         Route::get('/student', [StudentGradesController::class, 'index'])->name('index');
 
     Route::post('/grades/upload', [StudentGradesController::class, 'store'])
@@ -288,6 +295,7 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::get('/applicant/{user_id}/documents', [ApplicationController::class, 'viewDocuments'])->name('applicant.documents');
     Route::get('/applicant/{userId}/grades', [StudentGradesController::class, 'viewForSfao'])->name('applicants.grades');
     Route::post('/scholarships/import', [App\Http\Controllers\ScholarshipImportController::class, 'store'])->name('scholarships.import');
+    Route::post('/students/import', [App\Http\Controllers\StudentImportController::class, 'store'])->name('students.import');
 
     Route::post('/applications/{id}/claim', [ApplicationController::class, 'sfaoClaimGrant'])->name('applications.claim');
 

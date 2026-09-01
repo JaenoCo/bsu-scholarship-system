@@ -651,6 +651,9 @@
             @csrf
             @if($isEditMode)
                 @method('PUT')
+                @if($latestSubmission)
+                    <input type="hidden" name="submission_id" value="{{ $latestSubmission->id }}">
+                @endif
             @endif
 
             {{-- Blocks clicks on everything behind it while submitting; inputs stay enabled/submittable --}}
@@ -706,7 +709,7 @@
 
                                 <div class="field">
                                     <label>Units</label>
-                                    <input type="number" name="grades[{{ $index }}][units]" min="0" max="99.99" step="0.01" value="{{ old('grades.' . $index . '.units', $grade->units ?? 0) }}" placeholder="3" required class="input">
+                                    <input type="text" inputmode="decimal" pattern="[0-9.]*" name="grades[{{ $index }}][units]" value="{{ old('grades.' . $index . '.units', $grade->units ?? 0) }}" placeholder="3" required class="input units-input">
                                 </div>
 
                                 <div class="field">
@@ -733,7 +736,7 @@
 
                             <div class="field">
                                 <label>Units</label>
-                                <input type="number" name="grades[0][units]" min="0" max="99.99" step="0.01" placeholder="3" required class="input">
+                                <input type="text" inputmode="decimal" pattern="[0-9.]*" name="grades[0][units]" placeholder="3" required class="input units-input">
                             </div>
 
                             <div class="field">
@@ -780,6 +783,16 @@
     const fileInput = document.getElementById('studentDocument');
     const fileSelected = document.getElementById('file-selected');
 
+    document.addEventListener('input', function (event) {
+        if (!event.target.classList.contains('units-input')) {
+            return;
+        }
+
+        event.target.value = event.target.value
+            .replace(/[^0-9.]/g, '')
+            .replace(/(\..*)\./g, '$1');
+    });
+
     if (fileInput && fileSelected) {
         fileInput.addEventListener('change', function () {
             if (this.files && this.files[0]) {
@@ -808,7 +821,7 @@
 
             <div class="field">
                 <label>Units</label>
-                <input type="number" name="grades[${gradeIndex}][units]" min="0" max="99.99" step="0.01" placeholder="3" required class="input">
+                <input type="text" inputmode="decimal" pattern="[0-9.]*" name="grades[${gradeIndex}][units]" placeholder="3" required class="input units-input">
             </div>
 
             <div class="field subject-name">

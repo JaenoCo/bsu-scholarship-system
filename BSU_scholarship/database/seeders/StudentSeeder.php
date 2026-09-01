@@ -27,8 +27,7 @@ class StudentSeeder extends Seeder
             $validColleges = $campus->colleges;
 
             if ($validColleges->isEmpty()) {
-                $this->command->warn("No colleges found for campus {$campus->name}. Skipping student generation for this campus.");
-                continue;
+                $validColleges = collect([(object) ['short_name' => 'General Studies', 'id' => null]]);
             }
 
             $collegeCount = $validColleges->count();
@@ -108,6 +107,7 @@ class StudentSeeder extends Seeder
                         'program' => $program,
                         'track' => $track,
                         'college' => $collegeShortName,
+                        'education_level' => 'Undergraduate',
                         'year_level' => $faker->randomElement(['1st Year', '2nd Year', '3rd Year', '4th Year']),
                         'created_at' => $createdAt,
                         'updated_at' => $updatedAt,
@@ -120,7 +120,7 @@ class StudentSeeder extends Seeder
                         'town' => $faker->city,
                         'province' => $faker->state,
                         'zip_code' => $faker->postcode,
-                        'gwa' => $faker->randomFloat(2, 1.0, 2.5),
+                        'gwa' => 1.75,
                         'units_enrolled' => 21,
                         'father_name' => $faker->name('Male'),
                         'mother_name' => $faker->name('Female'),
@@ -133,10 +133,14 @@ class StudentSeeder extends Seeder
 
                     Form::create([
                         'user_id' => $student->id,
+                        'age' => $student->birthdate->age,
+                        'civil_status' => 'Single',
+                        'birthplace' => $faker->city . ', Batangas',
                         'units_enrolled' => 21,
                         'town_city' => $faker->city,
                         'province' => $faker->state,
                         'disability' => $faker->randomElement(['None', 'None', 'None', 'Visual', 'Hearing', 'Mobility']),
+                        'tribe' => 'None',
                         'zip_code' => $faker->postcode,
                         'street_barangay' => $faker->streetName,
                         'citizenship' => 'Filipino',
@@ -145,6 +149,14 @@ class StudentSeeder extends Seeder
                         'father_occupation' => $faker->jobTitle,
                         'mother_occupation' => $faker->jobTitle,
                         'estimated_gross_annual_income' => $faker->numberBetween(100000, 500000),
+                        'siblings_count' => $faker->numberBetween(1, 5),
+                        'reason_for_applying' => 'To support my education and continue my studies.',
+                        'form_status' => 'submitted',
+                        'semester' => '1st Sem',
+                        'academic_year' => '2025-2026',
+                        'previous_gwa' => 1.75,
+                        'scholarship_applied' => 'Need-based student assistance',
+                        'date_signed' => $createdAt->toDateString(),
                         'created_at' => $createdAt,
                         'updated_at' => $updatedAt,
                     ]);

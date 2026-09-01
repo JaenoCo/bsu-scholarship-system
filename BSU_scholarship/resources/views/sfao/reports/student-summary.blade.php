@@ -212,15 +212,6 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                         <label for="frequency" class="block text-sm font-bold text-gray-700 mb-2">Report Frequency</label>
-                        <select name="frequency" id="frequency" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-bsu-red focus:border-bsu-red block w-full p-3 shadow-sm transition-colors hover:bg-white">
-                            <option value="monthly">Monthly</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="semi-annual">Semi-Annual</option>
-                            <option value="annual">Annual</option>
-                        </select>
-                    </div>
-                    <div>
                         <label for="description" class="block text-sm font-bold text-gray-700 mb-2">Additional Notes</label>
                         <textarea name="description" id="description" rows="1" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-bsu-red focus:border-bsu-red block w-full p-3 shadow-sm transition-colors hover:bg-white" placeholder="Optional remarks..."></textarea>
                     </div>

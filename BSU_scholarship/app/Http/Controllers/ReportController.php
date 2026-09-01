@@ -1369,6 +1369,23 @@ class ReportController extends Controller
 
         // Data Fetching
         $reportData = [];
+
+        $getStudentGwa = function (User $student) {
+            $gradeDocument = $student->documents
+                ->filter(function ($document) {
+                    $name = strtolower((string) $document->document_name);
+
+                    return $document->document_category === 'sfao_required'
+                        && (str_contains($name, 'grade') || str_contains($name, 'transcript'));
+                })
+                ->sortByDesc('updated_at')
+                ->first();
+
+            return $gradeDocument?->verified_gwa
+                ?? $gradeDocument?->declared_gwa
+                ?? $gradeDocument?->extracted_gwa
+                ?? $student->form?->previous_gwa;
+        };
         
         // Pre-fetch Program Short Names Map
         $programMap = \App\Models\Program::pluck('short_name', 'name')->toArray();
@@ -1421,7 +1438,7 @@ class ReportController extends Controller
                              $qApp->whereBetween('created_at', [$startDt, $endDt]);
                          }
                      }
-                 })->with(['form', 'applications.scholarship']);
+                       })->with(['form', 'documents', 'applications.scholarship']);
             } else {
                 // Scholars
                 $query->whereHas('scholars', function($qScholar) use ($academicYearFilter, $scholarshipFilter, $request) {
@@ -1445,7 +1462,7 @@ class ReportController extends Controller
                              $qScholar->whereBetween('created_at', [$startDt, $endDt]);
                          }
                      }
-                })->with(['form', 'scholars.scholarship']);
+                })->with(['form', 'documents', 'scholars.scholarship']);
             }
 
             $students = $query->get();
@@ -1482,7 +1499,7 @@ class ReportController extends Controller
                             'first_name' => $student->first_name,
                             'middle_name' => $student->middle_name,
                             'sex' => $student->sex,
-                            'gwa' => $student->form ? $student->form->previous_gwa : null,
+                            'gwa' => $getStudentGwa($student),
                             'birthdate' => $student->birthdate ? $student->birthdate->format('Y-m-d') : 'N/A',
                             'course' => $programMap[$student->program] ?? ($student->program ?? $student->college),
                             'track' => $student->track, // Add Track
@@ -1527,7 +1544,7 @@ class ReportController extends Controller
                             'middle_name' => $student->middle_name,
                             'sex' => $student->sex,
                             'college' => $student->college,
-                            'gwa' => $student->form ? $student->form->previous_gwa : null,
+                            'gwa' => $getStudentGwa($student),
                             'course' => $programMap[$student->program] ?? ($student->program ?? $student->college),
                             'track' => $student->track, // Add Track
                             'program' => $student->program, // Keep original for reference if needed, or rely on course

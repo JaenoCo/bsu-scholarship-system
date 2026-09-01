@@ -6,9 +6,6 @@
         :user="$user"
         :settings="false"
         :logout="true"
-        :action-text="'Back to Dashboard'"
-        :action-url="route('sfao.dashboard', ['tabs' => 'analytics_scholarships'])"
-        action-title="Return to the SFAO dashboard"
     />
 @endsection
 

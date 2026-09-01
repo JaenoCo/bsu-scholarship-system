@@ -2275,6 +2275,22 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->latest()
             ->get();
+
+        // Older uploads may have a submission header but no child rows yet.
+        // Use the legacy records as a display fallback so details are never blank.
+        $gradeSubmissions->each(function ($submission) use ($user) {
+            if ($submission->subjects->isNotEmpty()) {
+                return;
+            }
+
+            $legacySubjects = \App\Models\StudentGrade::where('user_id', $user->id)
+                ->where('school_year', $submission->school_year)
+                ->where('semester', $submission->semester)
+                ->orderBy('created_at')
+                ->get();
+
+            $submission->setRelation('subjects', $legacySubjects);
+        });
         $latestGradeSubmission = $gradeSubmissions->first();
         $submittedGrades = $latestGradeSubmission?->subjects ?? collect();
 

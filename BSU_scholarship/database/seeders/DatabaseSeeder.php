@@ -20,7 +20,6 @@ class DatabaseSeeder extends Seeder
 
             // 2. Seed core records without applications or scholars
             AdminSeeder::class,
-            UsersTableSeeder::class,
             ScholarshipsTableSeeder::class,
 
             // 3. Seed students and applications

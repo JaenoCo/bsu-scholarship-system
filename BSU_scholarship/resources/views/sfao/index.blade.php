@@ -48,6 +48,7 @@
            @include('sfao.reports.index')      <!-- Reports -->
            @include('sfao.analytics.index')    <!-- Analytics -->
            @include('sfao.import.scholarships') <!-- Scholarship Import -->
+           //@include('sfao.import.students') <!-- Student Import -->
            
            <div>
                 
@@ -67,9 +68,8 @@
       :user="$user" 
       :settings="false" 
       :logout="true" 
-      action-text="Import"
-      action-click="$dispatch('switch-tab', 'import-scholarships')"
-      action-title="Import scholarships from CSV or Excel"
+      
+     
   />
 @endsection
 

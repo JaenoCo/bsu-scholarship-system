@@ -142,16 +142,6 @@
                     <input type="hidden" name="campus_id" value="{{ $selectedCampusId }}">
 
                     <div>
-                        <label for="report_frequency" class="block text-sm font-medium text-gray-700">Report Frequency</label>
-                        <select id="report_frequency" name="frequency" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-md">
-                            <option value="monthly">Monthly</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="semi-annual">Semi-Annual</option>
-                            <option value="annual">Annual</option>
-                        </select>
-                    </div>
-
-                    <div>
                         <label for="report_description" class="block text-sm font-medium text-gray-700">Additional Notes / Description</label>
                         <textarea id="report_description" name="description" rows="3" class="shadow-sm focus:ring-bsu-red focus:border-bsu-red mt-1 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Enter any additional notes for the central office..."></textarea>
                     </div>

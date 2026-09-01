@@ -8,6 +8,7 @@ use App\Models\SubmissionSubject;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class StudentGradesController extends Controller
 {
@@ -104,8 +105,7 @@ class StudentGradesController extends Controller
 
             'semester' => [
                 'required',
-                'string',
-                'max:50'
+                'in:1st Semester,2nd Semester,Summer'
             ],
 
             'grades' => [
@@ -147,6 +147,7 @@ class StudentGradesController extends Controller
                 'max:5120'
             ],
         ]);
+        $this->ensureUniqueSubjectCodes($validated['grades']);
 
         /*
         |--------------------------------------------------------------------------
@@ -196,24 +197,33 @@ class StudentGradesController extends Controller
             return $submission;
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | IMPORTANT:
-        | Redirect to the SAME Upload Grades route.
-        |
-        | Do NOT redirect to dashboard or another grades page.
-        |
-        | Since the submitted records now exist, create() will automatically
-        | display the read-only version.
-        |--------------------------------------------------------------------------
-        */
-
         return redirect()
-            ->route('student.grades.upload')
+            ->route('student.dashboard', ['tab' => 'grade_history'])
             ->with(
                 'success',
                 'Grades submitted successfully. Your uploaded record is now saved and ready for review.'
             )->with('grade_submission_id', $submission->id);
+    }
+
+    /**
+     * Display a student's uploaded document without exposing arbitrary paths.
+     */
+    public function document(GradeSubmission $submission)
+    {
+        if ((int) $submission->user_id !== (int) session('user_id')) {
+            abort(403);
+        }
+
+        $filePath = storage_path('app/public/' . ltrim((string) $submission->file_path, '/'));
+
+        if (! $submission->file_path || ! is_file($filePath)) {
+            abort(404);
+        }
+
+        return response()->file(
+            $filePath,
+            ['Content-Disposition' => 'inline; filename="' . basename($submission->file_path) . '"']
+        );
     }
 
 
@@ -242,6 +252,31 @@ class StudentGradesController extends Controller
         return redirect()->route('student.grades.upload', [
             'edit' => 1
         ]);
+    }
+
+    public function editSubmission(GradeSubmission $submission)
+    {
+        $this->authorizeStudentSubmission($submission);
+        $user = User::findOrFail(session('user_id'));
+        $submission->load('subjects');
+
+        return view('student.forms.upload-grades', [
+            'user' => $user,
+            'submittedGrades' => $submission->subjects,
+            'latestSubmission' => $submission,
+            'isReadOnly' => false,
+            'isEditMode' => true,
+        ]);
+    }
+
+    public function destroy(GradeSubmission $submission)
+    {
+        $this->authorizeStudentSubmission($submission);
+        $submission->delete();
+
+        return redirect()
+            ->route('student.dashboard', ['tab' => 'grade_history'])
+            ->with('success', 'The grade submission was deleted successfully.');
     }
 
     /**
@@ -296,6 +331,7 @@ class StudentGradesController extends Controller
         $user = User::findOrFail($userId);
 
         $validated = $request->validate([
+            'submission_id' => ['nullable', 'integer', 'exists:submissions,id'],
             'school_year' => [
                 'required',
                 'string',
@@ -304,8 +340,7 @@ class StudentGradesController extends Controller
 
             'semester' => [
                 'required',
-                'string',
-                'max:50'
+                'in:1st Semester,2nd Semester,Summer'
             ],
 
             'grades' => [
@@ -355,6 +390,7 @@ class StudentGradesController extends Controller
                 'max:5120'
             ],
         ]);
+        $this->ensureUniqueSubjectCodes($validated['grades']);
 
         /*
         |--------------------------------------------------------------------------
@@ -362,10 +398,15 @@ class StudentGradesController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $submission = GradeSubmission::with('subjects')
-            ->where('user_id', $user->id)
-            ->latest()
-            ->first();
+        $submission = ! empty($validated['submission_id'])
+            ? GradeSubmission::with('subjects')->findOrFail($validated['submission_id'])
+            : GradeSubmission::with('subjects')
+                ->where('user_id', $user->id)
+                ->latest()
+                ->first();
+        if ($submission) {
+            $this->authorizeStudentSubmission($submission);
+        }
         $documentPath = $submission?->file_path
             ?? StudentGrade::where('user_id', $user->id)->latest()->value('document_path');
 
@@ -476,5 +517,25 @@ class StudentGradesController extends Controller
             'sfao.applicants.view-grades',
             compact('student', 'grades')
         );
+    }
+
+    private function ensureUniqueSubjectCodes(array $grades): void
+    {
+        $codes = collect($grades)
+            ->pluck('subject_code')
+            ->map(fn ($code) => strtolower(trim((string) $code)));
+
+        if ($codes->duplicates()->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'grades' => 'Each subject code may only appear once in a submission.',
+            ]);
+        }
+    }
+
+    private function authorizeStudentSubmission(GradeSubmission $submission): void
+    {
+        if ((int) $submission->user_id !== (int) session('user_id')) {
+            abort(403);
+        }
     }
 }

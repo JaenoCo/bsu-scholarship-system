@@ -927,7 +927,7 @@ class UserController extends Controller
             'grades'           => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
             'grades_academic_year' => ['required', 'regex:/^\d{4}-\d{4}$/'],
             'grades_semester' => ['required', 'in:1st Semester,2nd Semester,Summer'],
-            'grades_gwa'       => ['required', 'numeric', 'between:1.00,5.00'],
+            'grades_gwa'       => ['required', 'numeric', 'in:1.00,1.25,1.50,1.75,2.00,2.25,2.50,2.75,3.00,5.00'],
             'certificate'      => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
             'application_form' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
         ], [
@@ -1177,7 +1177,7 @@ class UserController extends Controller
             'grades'           => [$hasApprovedDoc('Grades') ? 'nullable' : 'required', 'file', 'max:10240'],
             'grades_academic_year' => ['required', 'regex:/^\d{4}-\d{4}$/'],
             'grades_semester' => ['required', 'in:1st Semester,2nd Semester,Summer'],
-            'grades_gwa'       => ['required', 'numeric', 'between:1.00,5.00'],
+            'grades_gwa'       => ['required', 'numeric', 'in:1.00,1.25,1.50,1.75,2.00,2.25,2.50,2.75,3.00,5.00'],
             'certificate'      => ['nullable', 'file', 'max:10240'],
             'application_form' => [$hasApprovedDoc('Application Form') ? 'nullable' : 'required', 'file', 'max:10240'],
         ];
@@ -1512,8 +1512,9 @@ class UserController extends Controller
         }
 
         $gwa = round((float) $value, 2);
+        $allowedValues = [1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00, 5.00];
 
-        return $gwa >= 1.00 && $gwa <= 5.00 ? $gwa : null;
+        return in_array($gwa, $allowedValues, true) ? $gwa : null;
     }
 
     private function extractGwaFromUploadedFile($file): ?float

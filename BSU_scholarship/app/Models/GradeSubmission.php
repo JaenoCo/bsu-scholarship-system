@@ -17,7 +17,15 @@ class GradeSubmission extends Model
         'semester',
         'file_path',
         'status',
+        'verified_gwa',
+        'gwa_verified_by',
+        'gwa_verified_at',
         'remarks',
+    ];
+
+    protected $casts = [
+        'verified_gwa' => 'decimal:2',
+        'gwa_verified_at' => 'datetime',
     ];
 
     public function user()

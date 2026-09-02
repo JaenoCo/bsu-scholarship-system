@@ -162,7 +162,7 @@
         </div>
 
         <!-- GWA Qualification Prediction -->
-        <div x-show="subTab === 'gwa'" x-data="{ metricModal: null }" x-cloak class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div x-show="subTab === 'gwa'" x-data="{ metricModal: null, riskFilter: 'all', visibleRiskStudents() { const students = this.filteredData.gwa_prediction?.risk_students || []; return students.filter(student => this.riskFilter === 'all' || student.status === this.riskFilter); } }" x-cloak class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-6">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">GWA Qualification Prediction</h3>
@@ -279,6 +279,42 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div class="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Scholar Academic Risk</h4>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Prioritize adviser follow-up using current GWA trend and scholarship retention risk.</p>
+                    </div>
+                    <select x-model="riskFilter" class="rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm px-3 py-2 dark:text-white" aria-label="Filter scholars by academic risk">
+                        <option value="all">All statuses</option>
+                        <option value="Critical">Critical</option>
+                        <option value="At-Risk">At-Risk</option>
+                        <option value="On Track">On Track</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr><th class="px-3 py-2 text-left">Student</th><th class="px-3 py-2 text-left">Scholarship</th><th class="px-3 py-2 text-left">GWA</th><th class="px-3 py-2 text-left">Graduation</th><th class="px-3 py-2 text-left">Retention</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-left">Reason</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                            <template x-for="student in visibleRiskStudents()" :key="student.student_id">
+                                <tr :class="student.status === 'Critical' ? 'bg-red-50 dark:bg-red-900/20' : (student.status === 'At-Risk' ? 'bg-yellow-50 dark:bg-yellow-900/20' : '')">
+                                    <td class="px-3 py-2"><div class="font-semibold text-gray-900 dark:text-white" x-text="student.name || 'Unknown Student'"></div><div class="text-xs text-gray-500" x-text="student.sr_code || 'No SR code'"></div></td>
+                                    <td class="px-3 py-2 text-gray-700 dark:text-gray-300" x-text="student.scholarship_name || 'No active scholarship'"></td>
+                                    <td class="px-3 py-2 font-semibold text-gray-900 dark:text-white" x-text="student.latest_gwa ? Number(student.latest_gwa).toFixed(2) : 'Missing'"></td>
+                                    <td class="px-3 py-2" x-text="student.graduation?.status || 'On Track'"></td>
+                                    <td class="px-3 py-2" x-text="student.retention?.status || 'On Track'"></td>
+                                    <td class="px-3 py-2"><span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold" :class="student.status === 'Critical' ? 'bg-red-100 text-red-800' : (student.status === 'At-Risk' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800')" x-text="student.status"></span></td>
+                                    <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-300" x-text="student.reasons?.[0] || 'No immediate risk identified'"></td>
+                                </tr>
+                            </template>
+                            <tr x-show="visibleRiskStudents().length === 0"><td colspan="7" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No scholars match this risk filter.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 

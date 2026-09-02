@@ -3249,8 +3249,9 @@ class ApplicationController extends Controller
         }
 
         $gwa = round((float) $value, 2);
+        $allowedValues = [1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00, 5.00];
 
-        return $gwa >= 1.00 && $gwa <= 5.00 ? $gwa : null;
+        return in_array($gwa, $allowedValues, true) ? $gwa : null;
     }
 
     /**

@@ -122,6 +122,112 @@
     $gwaPredictionRows = collect($gwaPrediction['scholarships'] ?? []);
     $gwaPredictionChartRows = $gwaPredictionRows->take(8)->values();
     $gwaBands = collect($gwaPrediction['bands'] ?? []);
+    $academicRisk = $analytics['gwa_prediction'] ?? [];
+    $academicRiskSummary = is_array($academicRisk['risk_summary'] ?? null)
+        ? $academicRisk['risk_summary']
+        : [];
+
+    $academicRiskStudentsRaw = $academicRisk['risk_students'] ?? collect();
+    if ($academicRiskStudentsRaw instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator) {
+        $academicRiskStudents = $academicRiskStudentsRaw;
+    } elseif (is_array($academicRiskStudentsRaw)) {
+        $academicRiskStudents = collect($academicRiskStudentsRaw);
+    } else {
+        $academicRiskStudents = collect($academicRiskStudentsRaw ?? []);
+    }
+
+    $scholarshipRulesById = collect($gwaPrediction['rules'] ?? [])->keyBy('scholarship_id');
+    $studentGwaRecords = collect($gwaPrediction['students'] ?? []);
+    $gwaMetricStudents = [
+        'verified' => $studentGwaRecords
+            ->filter(fn ($student) => is_numeric($student['gwa'] ?? null) && (float) $student['gwa'] > 0)
+            ->map(fn ($student) => [
+                'id' => $student['id'],
+                'name' => $student['name'] ?? 'Unnamed student',
+                'sr_code' => $student['sr_code'] ?? 'Not provided',
+                'campus_name' => $student['campus_name'] ?? 'Unknown campus',
+                'gwa' => (float) ($student['gwa'] ?? 0),
+            ])
+            ->values()
+            ->all(),
+        'missing' => $studentGwaRecords
+            ->filter(fn ($student) => !(is_numeric($student['gwa'] ?? null) && (float) $student['gwa'] > 0))
+            ->map(fn ($student) => [
+                'id' => $student['id'],
+                'name' => $student['name'] ?? 'Unnamed student',
+                'sr_code' => $student['sr_code'] ?? 'Not provided',
+                'campus_name' => $student['campus_name'] ?? 'Unknown campus',
+                'gwa' => null,
+            ])
+            ->values()
+            ->all(),
+        'qualified' => $studentGwaRecords
+            ->flatMap(function ($student) use ($scholarshipRulesById) {
+                $gwa = is_numeric($student['gwa'] ?? null) ? (float) $student['gwa'] : null;
+                if ($gwa === null || $gwa <= 0) {
+                    return [];
+                }
+
+                $appliedIds = collect($student['applied_scholarship_ids'] ?? []);
+
+                return $appliedIds->map(function ($scholarshipId) use ($student, $scholarshipRulesById, $gwa) {
+                    $rule = $scholarshipRulesById->get((int) $scholarshipId);
+                    if (!$rule) {
+                        return null;
+                    }
+
+                    $required = (float) ($rule['required_gwa'] ?? 0);
+                    if ($gwa > $required) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $student['id'],
+                        'name' => $student['name'] ?? 'Unnamed student',
+                        'sr_code' => $student['sr_code'] ?? 'Not provided',
+                        'campus_name' => $student['campus_name'] ?? 'Unknown campus',
+                        'gwa' => $gwa,
+                        'scholarship_name' => $rule['scholarship_name'] ?? 'Scholarship',
+                        'required_gwa' => $required,
+                    ];
+                })->filter()->values()->all();
+            })
+            ->values()
+            ->all(),
+        'near-miss' => $studentGwaRecords
+            ->flatMap(function ($student) use ($scholarshipRulesById) {
+                $gwa = is_numeric($student['gwa'] ?? null) ? (float) $student['gwa'] : null;
+                if ($gwa === null || $gwa <= 0) {
+                    return [];
+                }
+
+                $appliedIds = collect($student['applied_scholarship_ids'] ?? []);
+
+                return $appliedIds->map(function ($scholarshipId) use ($student, $scholarshipRulesById, $gwa) {
+                    $rule = $scholarshipRulesById->get((int) $scholarshipId);
+                    if (!$rule) {
+                        return null;
+                    }
+
+                    $required = (float) ($rule['required_gwa'] ?? 0);
+                    if ($gwa <= $required || $gwa > ($required + 0.25)) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $student['id'],
+                        'name' => $student['name'] ?? 'Unnamed student',
+                        'sr_code' => $student['sr_code'] ?? 'Not provided',
+                        'campus_name' => $student['campus_name'] ?? 'Unknown campus',
+                        'gwa' => $gwa,
+                        'scholarship_name' => $rule['scholarship_name'] ?? 'Scholarship',
+                        'required_gwa' => $required,
+                    ];
+                })->filter()->values()->all();
+            })
+            ->values()
+            ->all(),
+    ];
 @endphp
 
 <!doctype html>
@@ -684,34 +790,34 @@
                 <div class="p-3 p-lg-4 border-bottom">
                     <div class="row g-3">
                         <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
+                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="verified" aria-label="View verified GWA students">
                                 <div class="small text-secondary fw-bold text-uppercase">Verified GWA</div>
-                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['students_with_gwa'] ?? 0) }}</div>
-                            </div>
+                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['students_with_gwa'] ?? 0) }}</div>
+                            </button>
                         </div>
                         <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
+                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="missing" aria-label="View missing GWA students">
                                 <div class="small text-secondary fw-bold text-uppercase">Unverified / Missing</div>
-                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['students_missing_gwa'] ?? 0) }}</div>
-                            </div>
+                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['students_missing_gwa'] ?? 0) }}</div>
+                            </button>
                         </div>
                         <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
+                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="qualified" aria-label="View qualified matches">
                                 <div class="small text-secondary fw-bold text-uppercase">Qualified Matches</div>
-                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['qualified_matches'] ?? 0) }}</div>
-                            </div>
+                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['qualified_matches'] ?? 0) }}</div>
+                            </button>
                         </div>
                         <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
+                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="near-miss" aria-label="View near misses">
                                 <div class="small text-secondary fw-bold text-uppercase">Near Misses</div>
-                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['near_miss_matches'] ?? 0) }}</div>
-                            </div>
+                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['near_miss_matches'] ?? 0) }}</div>
+                            </button>
                         </div>
                         <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
+                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="rate" aria-label="View qualification rate details">
                                 <div class="small text-secondary fw-bold text-uppercase">Prediction Rate</div>
-                                <div class="h4 mb-0">{{ number_format($gwaPredictionSummary['qualification_rate'] ?? 0, 1) }}%</div>
-                            </div>
+                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['qualification_rate'] ?? 0, 1) }}%</div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -769,6 +875,111 @@
                             @endforelse
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            {{-- ================================================================
+                 CHANGED: Academic Risk Monitoring section
+                 - Marked the <section> as a js-data-table (same client-side
+                   pagination engine that already powers the "Recent
+                   Applications" table below, plus the Scholarships / Scholars
+                   / Applicants / Reports / Staff tabs).
+                 - Added a search box + rows-per-page selector to the header,
+                   matching the pattern used on those other client-paginated
+                   tables (scoped with .js-table-search / .js-page-size so it
+                   doesn't collide with the global #tableSearch / #pageSize
+                   controls used by Recent Applications).
+                 - Swapped the old conditional Laravel ->links() pagination
+                   block (which only rendered when $academicRiskStudents was
+                   an actual LengthAwarePaginator, so it silently disappeared
+                   for plain collections) for the same footer markup/classes
+                   used by Recent Applications: a .js-table-summary counter
+                   and a .js-table-pagination <ul>. Both are picked up
+                   automatically by the existing
+                   `document.querySelectorAll('.js-data-table').forEach(initDataTable)`
+                   call already in the page script, so no new JS was needed.
+                 ================================================================ --}}
+            <section class="bsu-card mb-4 js-data-table" data-default-page-size="10">
+                <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                    <div>
+                        <h2 class="bsu-card-title">Academic Risk Monitoring</h2>
+                        <p class="bsu-card-subtitle">Early-warning view based on verified semestral GWA history and scholarship requirements.</p>
+                    </div>
+                    {{-- CHANGED: search + page size controls, copied from the
+                         Recent Applications / Scholarships tables so this
+                         table gets the same client-side pagination UI. --}}
+                    <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto">
+                        <input type="search" class="form-control js-table-search" placeholder="Search students...">
+                        <select class="form-select js-page-size" style="max-width:120px">
+                            <option value="all" selected>All rows</option>
+                            <option value="5">5 rows</option>
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                        </select>
+                    </div>
+                    <!-- <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn active" data-risk-filter="all" aria-label="Show all academic risk rows">
+                            <span class="badge text-bg-success">All {{ number_format(($academicRiskSummary['on_track'] ?? 0) + ($academicRiskSummary['at_risk'] ?? 0) + ($academicRiskSummary['critical'] ?? 0)) }}</span>
+                        </button>
+                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn" data-risk-filter="On Track" aria-label="Filter to On Track rows">
+                            <span class="badge text-bg-success">On Track {{ number_format($academicRiskSummary['on_track'] ?? 0) }}</span>
+                        </button>
+                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn" data-risk-filter="At-Risk" aria-label="Filter to At-Risk rows">
+                            <span class="badge text-bg-warning">At-Risk {{ number_format($academicRiskSummary['at_risk'] ?? 0) }}</span>
+                        </button>
+                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn" data-risk-filter="Critical" aria-label="Filter to Critical rows">
+                            <span class="badge text-bg-danger">Critical {{ number_format($academicRiskSummary['critical'] ?? 0) }}</span>
+                        </button>
+                    </div> -->
+                </div>
+                <div class="table-responsive">
+                    <table class="table bsu-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Campus</th>
+                                <th>Scholarship</th>
+                                <th>Latest GWA</th>
+                                <th>Trend</th>
+                                <th>Graduation Risk</th>
+                                <th>Retention Risk</th>
+                                <th>Overall</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($academicRiskStudents as $student)
+                                @php
+                                    $riskBadge = fn ($status) => match ($status) { 'Critical' => 'danger', 'At-Risk' => 'warning', default => 'success' };
+                                @endphp
+                                <tr data-risk-status="{{ $student['status'] ?? 'On Track' }}">
+                                    <td><div class="fw-semibold text-dark">{{ $student['name'] ?? 'Unknown Student' }}</div><div class="small text-secondary">{{ $student['sr_code'] ?? 'No SR code' }}</div></td>
+                                    <td>{{ $student['campus_name'] ?? 'Unassigned' }}</td>
+                                    <td>{{ $student['scholarship_name'] ?? 'No active scholarship' }}</td>
+                                    <td>{{ $student['latest_gwa'] !== null ? number_format($student['latest_gwa'], 2) : 'Missing' }}</td>
+                                    <td>{{ ucfirst($student['trend'] ?? 'unknown') }}</td>
+                                    <td><span class="badge text-bg-{{ $riskBadge($student['graduation']['status'] ?? 'On Track') }}">{{ $student['graduation']['status'] ?? 'On Track' }}</span></td>
+                                    <td><span class="badge text-bg-{{ $riskBadge($student['retention']['status'] ?? 'On Track') }}">{{ $student['retention']['status'] ?? 'On Track' }}</span></td>
+                                    <td><span class="badge text-bg-{{ $riskBadge($student['status'] ?? 'On Track') }}">{{ $student['status'] ?? 'On Track' }}</span></td>
+                                    <td class="small">{{ $student['reasons'][0] ?? 'No immediate risk identified' }}</td>
+                                </tr>
+                            @empty
+                                <tr class="bsu-empty-row"><td colspan="9" class="text-center py-5 text-secondary">No academic risk records available.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- CHANGED: replaced the old conditional Laravel ->links()
+                     block with the same footer structure/classes as the
+                     Recent Applications table's paginator, so it renders
+                     for both paginator and plain-collection cases and is
+                     driven by the shared initDataTable() JS. --}}
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                    <div class="small text-secondary js-table-summary">Showing 0 results</div>
+                    <nav aria-label="Academic risk monitoring pagination">
+                        <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
+                    </nav>
                 </div>
             </section>
 
@@ -1021,6 +1232,7 @@
                     <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                         <input type="search" id="tableSearch" class="form-control" placeholder="Search table...">
                         <select id="pageSize" class="form-select" style="max-width:120px">
+                            <option value="all" selected>All rows</option>
                             <option value="5">5 rows</option>
                             <option value="10">10 rows</option>
                             <option value="15">15 rows</option>
@@ -1591,9 +1803,128 @@
         </main>
     </div>
 
+    <div class="modal fade" id="gwaMetricModal" tabindex="-1" aria-labelledby="gwaMetricModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="gwaMetricModalLabel">Metric Details</h5>
+                        <p class="mb-0 text-secondary small" id="gwaMetricModalDescription">Student records for this metric.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="rounded-3 bg-light p-4 text-center mb-4">
+                        <div class="small text-secondary text-uppercase fw-bold">Current Value</div>
+                        <div class="display-6 fw-bold text-dark" id="gwaMetricModalValue">0</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>SR Code</th>
+                                    <th>Campus</th>
+                                    <th>GWA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gwaMetricModalBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script>
+        const gwaMetricData = @json($gwaMetricStudents);
+        const gwaMetricSummary = {
+            verified: {
+                label: 'Verified GWA',
+                description: 'Students with an approved grades document and a recorded GWA.',
+                value: @json($gwaPredictionSummary['students_with_gwa'] ?? 0),
+                format: 'number'
+            },
+            missing: {
+                label: 'Unverified / Missing',
+                description: 'Students who still need an approved grades record with a GWA.',
+                value: @json($gwaPredictionSummary['students_missing_gwa'] ?? 0),
+                format: 'number'
+            },
+            qualified: {
+                label: 'Qualified Matches',
+                description: 'Applied-scholarship matches where the latest approved GWA meets the scholarship requirement.',
+                value: @json($gwaPredictionSummary['qualified_matches'] ?? 0),
+                format: 'number'
+            },
+            'near-miss': {
+                label: 'Near Misses',
+                description: 'Applied-scholarship matches within 0.25 of the required GWA.',
+                value: @json($gwaPredictionSummary['near_miss_matches'] ?? 0),
+                format: 'number'
+            },
+            rate: {
+                label: 'Prediction Rate',
+                description: 'Qualified matches divided by all evaluated applied-scholarship matches.',
+                value: @json($gwaPredictionSummary['qualification_rate'] ?? 0),
+                format: 'percent'
+            }
+        };
+
+        const gwaMetricModalEl = document.getElementById('gwaMetricModal');
+        const gwaMetricModalTitle = document.getElementById('gwaMetricModalLabel');
+        const gwaMetricModalDescription = document.getElementById('gwaMetricModalDescription');
+        const gwaMetricModalValue = document.getElementById('gwaMetricModalValue');
+        const gwaMetricModalBody = document.getElementById('gwaMetricModalBody');
+
+        function formatMetricValue(metric, value) {
+            if (metric === 'rate') {
+                return `${Number(value || 0).toFixed(1)}%`;
+            }
+
+            return Number(value || 0).toLocaleString();
+        }
+
+        function renderMetricRows(metric) {
+            const rows = gwaMetricData[metric] || [];
+
+            if (!rows.length) {
+                gwaMetricModalBody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-4">No students match this metric and the selected evaluation criteria.</td></tr>';
+                return;
+            }
+
+            gwaMetricModalBody.innerHTML = rows.map((student) => {
+                const gwaText = metric === 'missing' || student.gwa === null || student.gwa === undefined ? 'Missing' : Number(student.gwa).toFixed(2);
+                return `
+                    <tr>
+                        <td class="fw-semibold">${student.name || 'Unnamed student'}</td>
+                        <td>${student.sr_code || 'Not provided'}</td>
+                        <td>${student.campus_name || 'Unknown campus'}</td>
+                        <td class="fw-semibold">${gwaText}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        document.querySelectorAll('[data-gwa-metric]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const metric = button.dataset.gwaMetric;
+                const detail = gwaMetricSummary[metric] || gwaMetricSummary.verified;
+
+                gwaMetricModalTitle.textContent = detail.label;
+                gwaMetricModalDescription.textContent = detail.description;
+                gwaMetricModalValue.textContent = formatMetricValue(metric, detail.value);
+                renderMetricRows(metric);
+
+                if (gwaMetricModalEl) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(gwaMetricModalEl);
+                    modal.show();
+                }
+            });
+        });
+
         const dashboardData = {
             campusLabels: @json($campusLabels),
             campusApplications: @json($campusApplicationCounts),
@@ -1796,7 +2127,10 @@
                 const term = (searchInput?.value || '').trim().toLowerCase();
                 const status = (statusFilter?.value || 'all').toLowerCase();
                 const campus = campusFilter?.value || 'all';
-                const pageSize = Number(pageSizeSelect?.value || container.dataset.defaultPageSize || 10);
+                const selectedPageSize = pageSizeSelect?.value || container.dataset.defaultPageSize || 'all';
+                const pageSize = selectedPageSize === 'all'
+                    ? Number.MAX_SAFE_INTEGER
+                    : Number(selectedPageSize || 10);
                 let rows = allRows.filter(row => {
                     const matchesSearch = row.innerText.toLowerCase().includes(term);
                     const matchesStatus = status === 'all' || (row.dataset.status || '').toLowerCase() === status;
@@ -1812,7 +2146,8 @@
                     });
                 }
 
-                const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+                const isAllRows = selectedPageSize === 'all';
+                const pageCount = isAllRows ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
                 page = Math.min(page, pageCount);
 
                 allRows.forEach(row => row.classList.add('d-none'));
@@ -1820,12 +2155,19 @@
 
                 if (summary) {
                     const from = rows.length ? ((page - 1) * pageSize) + 1 : 0;
-                    const to = Math.min(page * pageSize, rows.length);
-                    summary.textContent = `Showing ${from}-${to} of ${rows.length} results`;
+                    const to = isAllRows ? rows.length : Math.min(page * pageSize, rows.length);
+                    summary.textContent = rows.length ? `Showing ${from}-${to} of ${rows.length} results` : 'Showing 0 results';
                 }
 
                 if (pagination) {
                     pagination.innerHTML = '';
+                    if (isAllRows) {
+                        const item = document.createElement('li');
+                        item.className = 'page-item active';
+                        item.innerHTML = '<button class="page-link" type="button">1</button>';
+                        pagination.appendChild(item);
+                        return;
+                    }
                     for (let i = 1; i <= pageCount; i++) {
                         const item = document.createElement('li');
                         item.className = `page-item ${i === page ? 'active' : ''}`;

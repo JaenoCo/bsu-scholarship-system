@@ -47,6 +47,39 @@ class StudentGradesUploadTest extends TestCase
         ]);
     }
 
+    public function test_student_grade_submission_rejects_values_outside_the_official_bsu_grade_scale(): void
+    {
+        $user = User::create([
+            'name' => 'Student User',
+            'first_name' => 'Student',
+            'last_name' => 'User',
+            'email' => 'student.invalidgrade@example.com',
+            'password' => bcrypt('password123'),
+            'role' => 'student',
+        ]);
+
+        session(['user_id' => $user->id, 'role' => 'student']);
+
+        $response = $this->post(route('student.grades.upload.submit'), [
+            'school_year' => '2025-2026',
+            'semester' => '1st Semester',
+            'grades' => [
+                [
+                    'subject_code' => 'CS101',
+                    'subject_name' => 'Introduction to Computing',
+                    'grade' => '1.30',
+                ],
+            ],
+            'document' => UploadedFile::fake()->create('grades.pdf', 200, 'application/pdf'),
+        ]);
+
+        $response->assertSessionHasErrors('grades.0.grade');
+        $this->assertDatabaseMissing('student_grades', [
+            'user_id' => $user->id,
+            'subject_code' => 'CS101',
+        ]);
+    }
+
     public function test_student_can_view_submitted_grades_and_reopen_the_form_for_editing(): void
     {
         $user = User::create([

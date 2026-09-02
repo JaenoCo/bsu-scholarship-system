@@ -9,7 +9,9 @@ use App\Models\Application;
 use App\Models\Scholarship;
 use App\Models\Report;
 use App\Models\Scholar;
+use App\Models\GradeSubmission;
 use App\Models\StudentSubmittedDocument;
+use App\Services\ScholarAcademicRiskService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -1569,14 +1571,12 @@ class DashboardController extends Controller
             ->whereIn('campus_id', $campusIds)
             ->get(['id', 'name', 'sr_code', 'campus_id', 'college', 'program', 'track']);
 
-        $verifiedGwaDocuments = StudentSubmittedDocument::whereIn('user_id', $students->pluck('id'))
-            ->where('document_category', 'sfao_required')
-            ->where('document_name', 'like', '%Grades%')
-            ->where('evaluation_status', 'approved')
+        $verifiedGwaDocuments = GradeSubmission::whereIn('user_id', $students->pluck('id'))
+            ->where('status', 'approved')
             ->whereNotNull('verified_gwa')
             ->orderByDesc('gwa_verified_at')
-            ->orderByDesc('evaluated_at')
-            ->get(['user_id', 'verified_gwa', 'academic_year', 'semester', 'gwa_verified_at', 'evaluated_at'])
+            ->orderByDesc('updated_at')
+            ->get(['user_id', 'verified_gwa', 'school_year', 'semester', 'gwa_verified_at', 'updated_at'])
             ;
 
         $verifiedGwaByUser = $verifiedGwaDocuments
@@ -1690,7 +1690,7 @@ class DashboardController extends Controller
                 'program' => $student->program,
                 'track' => $student->track,
                 'gwa' => $verifiedGwaByUser->get($student->id),
-                'academic_year' => $gradeDocument?->academic_year,
+                'academic_year' => $gradeDocument?->school_year,
                 'semester' => $gradeDocument?->semester,
                 'applied_scholarship_ids' => $appliedScholarshipsByUser->get($student->id, collect())->values(),
             ];
@@ -1702,6 +1702,50 @@ class DashboardController extends Controller
             'scholarship_type' => $row['scholarship_type'],
             'required_gwa' => $row['required_gwa'],
         ])->values();
+
+        $riskService = app(ScholarAcademicRiskService::class);
+        $scholarshipsById = $scholarships->keyBy('id');
+        $riskStudents = $students->map(function ($student) use ($verifiedGwaDocuments, $appliedScholarshipsByUser, $scholarshipsById, $riskService) {
+            $appliedScholarship = $appliedScholarshipsByUser->get($student->id, collect())
+                ->map(fn($id) => $scholarshipsById->get($id))
+                ->filter()
+                ->first();
+            $risk = $riskService->evaluate(
+                $student,
+                $verifiedGwaDocuments->where('user_id', $student->id),
+                $appliedScholarship
+            );
+
+            return array_merge($risk, [
+                'name' => $student->name,
+                'sr_code' => $student->sr_code,
+                'campus_name' => $student->campus?->name,
+                'campus_id' => $student->campus_id,
+                'scholarship_name' => $appliedScholarship?->scholarship_name,
+            ]);
+        })->values();
+
+        $riskSummary = [
+            'total' => $riskStudents->count(),
+            'on_track' => $riskStudents->where('status', 'On Track')->count(),
+            'at_risk' => $riskStudents->where('status', 'At-Risk')->count(),
+            'critical' => $riskStudents->where('status', 'Critical')->count(),
+        ];
+
+        $sortedRiskStudents = $riskStudents
+            ->sortByDesc(fn ($student) => match ($student['status'] ?? 'On Track') {
+                'Critical' => 2,
+                'At-Risk' => 1,
+                default => 0,
+            })
+            ->values();
+
+        $paginatedRiskStudents = $this->paginate(
+            $sortedRiskStudents,
+            15,
+            request()->get('risk_page', 1),
+            'risk_page'
+        );
 
         $rows = $rows
             ->sortBy([
@@ -1738,6 +1782,8 @@ class DashboardController extends Controller
             'scholarships' => $rows,
             'students' => $predictionStudents,
             'rules' => $predictionRules,
+            'risk_summary' => $riskSummary,
+            'risk_students' => $paginatedRiskStudents,
         ];
     }
 

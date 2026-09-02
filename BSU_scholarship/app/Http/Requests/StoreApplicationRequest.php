@@ -37,7 +37,7 @@ class StoreApplicationRequest extends FormRequest
             'tribe'               => 'nullable|string',
 
             // ------------------- Academic Data -------------------
-            'previous_gwa'                 => 'nullable|numeric|between:1.00,5.00',
+            'previous_gwa'                 => 'nullable|numeric|in:1.00,1.25,1.50,1.75,2.00,2.25,2.50,2.75,3.00,5.00',
             'honors_received'              => 'nullable|string',
             'units_enrolled'               => 'nullable|integer',
             'scholarship_applied'          => 'nullable|string',

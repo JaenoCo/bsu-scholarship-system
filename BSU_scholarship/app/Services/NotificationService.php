@@ -22,17 +22,9 @@ class NotificationService
         // Start query for students
         $query = User::where('role', 'student');
 
-        // 1. Filter by Campus
-        // 1. Filter by Campus (Support Multiple Campuses via Relation)
-        $scholarship->load('campuses');
-        if ($scholarship->campuses->isNotEmpty()) {
-            $query->whereIn('campus_id', $scholarship->campuses->pluck('id'));
-        } elseif ($scholarship->campus_id) {
-            // Fallback for legacy single-campus structure
-            $query->where('campus_id', $scholarship->campus_id);
-        }
+        // Apply the same campus and academic audience rules used by listings and applications.
+        app(ScholarshipAudienceService::class)->applyToStudentQuery($query, $scholarship);
 
-        // 2. Filter by Eligibility Conditions
         // Reload conditions to ensure we have the latest created ones
         $scholarship->load('conditions');
 

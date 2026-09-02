@@ -714,7 +714,7 @@
 
                                 <div class="field">
                                     <label>Grade</label>
-                                    <input type="number" name="grades[{{ $index }}][grade]" min="0" max="100" step="0.01" value="{{ old('grades.' . $index . '.grade', $grade->grade) }}" placeholder="90" required class="input">
+                                    <input type="number" name="grades[{{ $index }}][grade]" min="1.00" max="5.00" step="0.25" value="{{ old('grades.' . $index . '.grade', $grade->grade) }}" placeholder="1.75" required class="input">
                                 </div>
 
                                 <div class="remove-wrapper">
@@ -741,7 +741,7 @@
 
                             <div class="field">
                                 <label>Grade</label>
-                                <input type="number" name="grades[0][grade]" min="0" max="100" step="0.01" placeholder="90" required class="input">
+                                <input type="number" name="grades[0][grade]" min="1.00" max="5.00" step="0.25" placeholder="1.75" required class="input">
                             </div>
 
                             <div class="remove-wrapper">

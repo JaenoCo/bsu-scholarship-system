@@ -23,9 +23,14 @@
     $totalApplicants = (int) ($userStats['unique_applicants'] ?? $applicationStats['total'] ?? $applicationsCollection->count());
     $approvedApplications = (int) ($applicationStats['approved'] ?? $applicationsCollection->where('status', 'approved')->count());
     $pendingApplications = (int) ($applicationStats['pending'] ?? $applicationsCollection->where('status', 'pending')->count());
+    $inProgressApplications = (int) ($applicationStats['in_progress'] ?? $applicationsCollection->where('status', 'in_progress')->count());
     $rejectedApplications = (int) ($applicationStats['rejected'] ?? $applicationsCollection->where('status', 'rejected')->count());
+    $claimedApplications = (int) ($applicationStats['claimed'] ?? $applicationsCollection->where('status', 'claimed')->count());
     $totalApplications = max(1, (int) ($applicationStats['total'] ?? $applicationsCollection->count()));
-    $approvalRate = round(($approvedApplications / $totalApplications) * 100, 1);
+    $decidedApplications = $approvedApplications + $rejectedApplications;
+    $approvalRate = $decidedApplications > 0
+        ? round(($approvedApplications / $decidedApplications) * 100, 1)
+        : 0;
 
     $campusLabels = collect($campuses ?? [])->map(fn ($campus) => $campus->name)->values();
     $campusApplicationCounts = collect($campuses ?? [])->map(function ($campus) use ($allApplicationsData, $applicationsCollection) {
@@ -46,8 +51,8 @@
     $monthlyTrendLabels = data_get($applicationStats, 'monthly_trends.labels', []);
     $monthlyTrendValues = data_get($applicationStats, 'monthly_trends.data', []);
 
-    $statusLabels = ['Approved', 'Pending', 'Rejected'];
-    $statusValues = [$approvedApplications, $pendingApplications, $rejectedApplications];
+    $statusLabels = ['Approved', 'Claimed', 'Pending', 'In Progress', 'Rejected'];
+    $statusValues = [$approvedApplications, $claimedApplications, $pendingApplications, $inProgressApplications, $rejectedApplications];
 
     $recentApplications = $applicationsCollection
         ->sortByDesc(fn ($application) => $application->created_at)
@@ -111,6 +116,7 @@
     $scholarshipStatusRows = collect($centralStatusReport['scholarship_rows'] ?? []);
     $selectedStatusCampus = $centralStatusReport['selected_campus'] ?? null;
     $statusReportScope = $selectedStatusCampus['name'] ?? 'All Campuses';
+    $hasCampusFilter = $selectedStatusCampus !== null;
     $gwaPrediction = $analytics['gwa_prediction'] ?? [];
     $gwaPredictionSummary = $gwaPrediction['summary'] ?? [];
     $gwaPredictionRows = collect($gwaPrediction['scholarships'] ?? []);
@@ -709,7 +715,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="row g-0">
+                <!-- <div class="row g-0">
                     <div class="col-12 col-xl-7 border-end">
                         <div class="bsu-card-header border-0 pb-0">
                             <div>
@@ -732,7 +738,7 @@
                             <canvas id="gwaBandChart"></canvas>
                         </div>
                     </div>
-                </div>
+                </div> -->
                 <div class="table-responsive border-top">
                     <table class="table bsu-table mb-0">
                         <thead>
@@ -769,8 +775,8 @@
             <section class="bsu-card mb-4">
                 <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
                     <div>
-                        <h2 class="bsu-card-title">Overall Scholarship Status</h2>
-                        <p class="bsu-card-subtitle">University-wide status for all campuses, with campus-level drilldown for detailed scholarship performance.</p>
+                        <h2 class="bsu-card-title">{{ $hasCampusFilter ? $statusReportScope . ' Scholarship Status' : 'Overall Scholarship Status' }}</h2>
+                        <p class="bsu-card-subtitle">{{ $hasCampusFilter ? 'Status and scholarship performance for the selected campus.' : 'University-wide status for all campuses, with campus-level drilldown for detailed scholarship performance.' }}</p>
                     </div>
                     <form method="GET" action="{{ route('central.dashboard') }}" class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto">
                         <input type="hidden" name="tabs" value="all_statistics">
@@ -831,51 +837,7 @@
                     </div>
                 </div>
 
-                <div class="table-responsive border-bottom">
-                    <table class="table bsu-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Campus</th>
-                                <th>Students</th>
-                                <th>Applicants</th>
-                                <th>Applications</th>
-                                <th>Pending</th>
-                                <th>In Progress</th>
-                                <th>Approved</th>
-                                <th>Rejected</th>
-                                <th>Claimed</th>
-                                <th>Scholars</th>
-                                <th>Rate</th>
-                                <th>Detail</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($campusStatusRows as $row)
-                                <tr class="{{ $selectedStatusCampus && (int) $selectedStatusCampus['id'] === (int) $row['campus_id'] ? 'table-light' : '' }}">
-                                    <td>
-                                        <div class="fw-semibold text-dark">{{ $row['campus_name'] }}</div>
-                                        <div class="small text-secondary">{{ ucfirst($row['campus_type'] ?? 'campus') }}</div>
-                                    </td>
-                                    <td>{{ number_format($row['total_students']) }}</td>
-                                    <td>{{ number_format($row['unique_applicants']) }}</td>
-                                    <td>{{ number_format($row['total_applications']) }}</td>
-                                    <td><span class="badge text-bg-warning">{{ number_format($row['pending']) }}</span></td>
-                                    <td><span class="badge text-bg-info">{{ number_format($row['in_progress']) }}</span></td>
-                                    <td><span class="badge text-bg-success">{{ number_format($row['approved']) }}</span></td>
-                                    <td><span class="badge text-bg-danger">{{ number_format($row['rejected']) }}</span></td>
-                                    <td><span class="badge text-bg-secondary">{{ number_format($row['claimed']) }}</span></td>
-                                    <td>{{ number_format($row['total_scholars']) }}</td>
-                                    <td>{{ number_format($row['approval_rate'], 1) }}%</td>
-                                    <td>
-                                        <a href="{{ route('central.dashboard', ['tabs' => 'all_statistics', 'campus' => $row['campus_id']]) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Open</a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr class="bsu-empty-row"><td colspan="12" class="text-center py-5 text-secondary">No campus scholarship status data available.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                
 
                 <div class="p-3 p-lg-4">
                     <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
@@ -937,6 +899,7 @@
                 </div>
             </section>
 
+            @unless($hasCampusFilter)
             <div class="row g-4 mb-4">
                 <div class="col-12 col-xl-7">
                     <section class="bsu-card h-100">
@@ -967,7 +930,9 @@
                     </section>
                 </div>
             </div>
+            @endunless
 
+            @unless($hasCampusFilter)
             <div class="row g-4 mb-4">
                 <div class="col-12 col-xl-8">
                     <section class="bsu-card h-100">
@@ -996,6 +961,56 @@
                     </section>
                 </div>
             </div>
+            @endunless
+            @unless($hasCampusFilter)
+            <section class="bsu-card mb-4">
+                <div class="table-responsive border-bottom">
+                    <table class="table bsu-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Campus</th>
+                                <th>Students</th>
+                                <th>Applicants</th>
+                                <th>Applications</th>
+                                <th>Pending</th>
+                                <th>In Progress</th>
+                                <th>Approved</th>
+                                <th>Rejected</th>
+                                <th>Claimed</th>
+                                <th>Scholars</th>
+                                <th>Rate</th>
+                                <th>Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($campusStatusRows as $row)
+                                <tr class="{{ $selectedStatusCampus && (int) $selectedStatusCampus['id'] === (int) $row['campus_id'] ? 'table-light' : '' }}">
+                                    <td>
+                                        <div class="fw-semibold text-dark">{{ $row['campus_name'] }}</div>
+                                        <div class="small text-secondary">{{ ucfirst($row['campus_type'] ?? 'campus') }}</div>
+                                    </td>
+                                    <td>{{ number_format($row['total_students']) }}</td>
+                                    <td>{{ number_format($row['unique_applicants']) }}</td>
+                                    <td>{{ number_format($row['total_applications']) }}</td>
+                                    <td><span class="badge text-bg-warning">{{ number_format($row['pending']) }}</span></td>
+                                    <td><span class="badge text-bg-info">{{ number_format($row['in_progress']) }}</span></td>
+                                    <td><span class="badge text-bg-success">{{ number_format($row['approved']) }}</span></td>
+                                    <td><span class="badge text-bg-danger">{{ number_format($row['rejected']) }}</span></td>
+                                    <td><span class="badge text-bg-secondary">{{ number_format($row['claimed']) }}</span></td>
+                                    <td>{{ number_format($row['total_scholars']) }}</td>
+                                    <td>{{ number_format($row['approval_rate'], 1) }}%</td>
+                                    <td>
+                                        <a href="{{ route('central.dashboard', ['tabs' => 'all_statistics', 'campus' => $row['campus_id']]) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Open</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr class="bsu-empty-row"><td colspan="12" class="text-center py-5 text-secondary">No campus scholarship status data available.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            @endunless
 
             <section class="bsu-card mb-4">
                 <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
@@ -1202,10 +1217,10 @@
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                             <input type="search" class="form-control js-table-search" placeholder="Search scholars...">
-                            <select class="form-select js-status-filter" style="max-width:150px" aria-label="Filter scholars by status">
-                                <option value="all">All status</option>
-                                @foreach($scholarStatusOptions as $statusOption)
-                                    <option value="{{ $statusOption }}">{{ ucfirst(str_replace('_', ' ', $statusOption)) }}</option>
+                            <select class="form-select js-campus-filter" style="max-width:180px" aria-label="Filter scholars by campus">
+                                <option value="all">All campuses</option>
+                                @foreach($campuses as $campus)
+                                    <option value="{{ $campus->id }}">{{ $campus->name }}</option>
                                 @endforeach
                             </select>
                             <select class="form-select js-page-size" style="max-width:120px">
@@ -1230,7 +1245,7 @@
                             </thead>
                             <tbody>
                                 @forelse($visibleScholars as $scholar)
-                                    <tr data-status="{{ $scholar->status }}">
+                                    <tr data-status="{{ $scholar->status }}" data-campus="{{ $scholar->user->campus_id ?? '' }}">
                                         <td data-value="{{ $scholar->user->name ?? '' }}">
                                             <div class="fw-semibold text-dark">{{ $scholar->user->name ?? 'Unknown Student' }}</div>
                                             <div class="small text-secondary">{{ $scholar->user->email ?? 'No email' }}</div>
@@ -1286,10 +1301,10 @@
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                             <input type="search" class="form-control js-table-search" placeholder="Search applicants...">
-                            <select class="form-select js-status-filter" style="max-width:150px" aria-label="Filter applicants by status">
-                                <option value="all">All status</option>
-                                @foreach($applicantStatusOptions as $statusOption)
-                                    <option value="{{ $statusOption }}">{{ ucfirst(str_replace('_', ' ', $statusOption === 'in_progress' ? 'endorsed' : $statusOption)) }}</option>
+                            <select class="form-select js-campus-filter" style="max-width:180px" aria-label="Filter applicants by campus">
+                                <option value="all">All campuses</option>
+                                @foreach($campuses as $campus)
+                                    <option value="{{ $campus->id }}">{{ $campus->name }}</option>
                                 @endforeach
                             </select>
                             <select class="form-select js-page-size" style="max-width:120px">
@@ -1318,7 +1333,7 @@
                                         $student = $activeTab === 'endorsed_applicants' ? $record->user : $record->user;
                                         $scholarship = $activeTab === 'endorsed_applicants' ? $record->scholarship : $record->scholarship;
                                     @endphp
-                                    <tr data-status="{{ $activeTab === 'endorsed_applicants' ? ($record->status ?? 'in_progress') : 'rejected' }}">
+                                    <tr data-status="{{ $activeTab === 'endorsed_applicants' ? ($record->status ?? 'in_progress') : 'rejected' }}" data-campus="{{ $student->campus_id ?? '' }}">
                                         <td data-value="{{ $student->name ?? '' }}">
                                             <div class="fw-semibold text-dark">{{ $student->name ?? 'Unknown Student' }}</div>
                                             <div class="small text-secondary">{{ $student->email ?? 'No email' }}</div>
@@ -1761,6 +1776,7 @@
             const allRows = Array.from(tbody.querySelectorAll('tr')).filter(row => !row.classList.contains('bsu-empty-row'));
             const searchInput = container.querySelector('.js-table-search') || document.getElementById('tableSearch');
             const statusFilter = container.querySelector('.js-status-filter');
+            const campusFilter = container.querySelector('.js-campus-filter');
             const pageSizeSelect = container.querySelector('.js-page-size') || document.getElementById('pageSize');
             const pagination = container.querySelector('.js-table-pagination') || document.getElementById('tablePagination');
             const summary = container.querySelector('.js-table-summary') || document.getElementById('tableSummary');
@@ -1779,11 +1795,13 @@
             function renderTable() {
                 const term = (searchInput?.value || '').trim().toLowerCase();
                 const status = (statusFilter?.value || 'all').toLowerCase();
+                const campus = campusFilter?.value || 'all';
                 const pageSize = Number(pageSizeSelect?.value || container.dataset.defaultPageSize || 10);
                 let rows = allRows.filter(row => {
                     const matchesSearch = row.innerText.toLowerCase().includes(term);
                     const matchesStatus = status === 'all' || (row.dataset.status || '').toLowerCase() === status;
-                    return matchesSearch && matchesStatus;
+                    const matchesCampus = campus === 'all' || (row.dataset.campus || '') === campus;
+                    return matchesSearch && matchesStatus && matchesCampus;
                 });
 
                 if (sortKey !== null) {
@@ -1829,6 +1847,7 @@
 
             if (searchInput) searchInput.addEventListener('input', () => { page = 1; renderTable(); });
             if (statusFilter) statusFilter.addEventListener('change', () => { page = 1; renderTable(); });
+            if (campusFilter) campusFilter.addEventListener('change', () => { page = 1; renderTable(); });
             if (pageSizeSelect) pageSizeSelect.addEventListener('change', () => { page = 1; renderTable(); });
             renderTable();
         }

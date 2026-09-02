@@ -662,30 +662,19 @@ window.sfaoStatisticsTab = function (config = {}) {
                 );
             }
 
-            allApplications.forEach((app) => {
-                // Determine if Scholar or Applicant
-                const isScholarVal =
-                    Number(app.is_global_scholar) || (app.scholar_id ? 1 : 0);
-                const isScholar = isScholarVal > 0;
-                const isApplicant = !isScholar; // Logic: If not a global scholar, treat as applicant
+            allApplications = allApplications.filter((app) => {
+                const isScholar = Number(app.is_global_scholar) > 0 || !!app.scholar_id;
+                const validStatus = [
+                    "pending",
+                    "approved",
+                    "rejected",
+                    "in_progress",
+                ].includes(app.status);
 
-                // Filter by View Mode
-                if (this.viewMode === "scholars" && !isScholar) return;
-                if (this.viewMode === "applicants" && isScholar) return;
-                // 'comparison' mode allows BOTH.
+                if (this.viewMode === "scholars" && !isScholar) return false;
+                if (this.viewMode === "applicants" && !validStatus) return false;
 
-                // Status Validity Check for Applicants
-                // Scholars are implicitly valid (approved). Applicants need valid status.
-                if (
-                    isApplicant &&
-                    ![
-                        "pending",
-                        "approved",
-                        "rejected",
-                        "in_progress",
-                    ].includes(app.status)
-                )
-                    return;
+                return true;
             });
 
             // Skipping explicit Scholarship Stats object creation for now as we use groupedData in chart function,
@@ -1739,9 +1728,8 @@ window.sfaoStatisticsTab = function (config = {}) {
             // For now, let's just populate from data found to avoid empty bars clutter.
 
             rawData.forEach((item) => {
-                // CRITICAL: Filter out Scholars if in Applicants Mode
                 const isGlobalScholar = Number(item.is_global_scholar);
-                if (this.viewMode === "applicants" && isGlobalScholar > 0)
+                if (this.viewMode === "scholars" && isGlobalScholar <= 0)
                     return;
 
                 // Determine Group Key
@@ -2109,7 +2097,7 @@ window.sfaoStatisticsTab = function (config = {}) {
                     return;
 
                 const isScholarVal = Number(item.is_global_scholar);
-                if (this.viewMode === "applicants" && isScholarVal > 0) return;
+                if (this.viewMode === "scholars" && isScholarVal <= 0) return;
                 if (
                     this.viewMode === "applicants" &&
                     ![

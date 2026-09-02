@@ -227,7 +227,6 @@ class DashboardController extends Controller
 
             } elseif ($activeTab === 'scholars' || str_starts_with($activeTab, 'scholars-')) {
                 $scholarsList = $this->getApprovedScholarRows($campusIds, $request);
-                $scholarsList = $this->paginate($scholarsList, 5, $request->get('page_scholarships', 1), 'page_scholarships');
                 
                 $view = 'sfao.scholars.list';
                 $data = ['scholars' => $scholarsList];
@@ -1228,6 +1227,9 @@ class DashboardController extends Controller
                      ->on('scholarships.id', '=', 'scholars.scholarship_id');
             })
             ->where('users.role', 'student')
+            ->when($campusFilter !== 'all', function ($query) use ($campusFilter) {
+                $query->where('users.campus_id', $campusFilter);
+            })
             ->select(
                 'users.id as user_id', 
                 'users.sr_code',
@@ -1400,50 +1402,53 @@ class DashboardController extends Controller
         $scholars = $scholarsAll;
 
         // Get qualified applicants (approved by SFAO but not yet selected as scholars)
-        $qualifiedApplicantsQuery = User::with(['applications.scholarship', 'campus'])
-            ->where('role', 'student')
-            ->whereHas('applications', function($query) {
-                $query->where('status', 'approved');
+        // IMPORTANT: query by Application, not User, so a student who already has a scholar
+        // record for one scholarship still remains visible for a different scholarship application.
+        $qualifiedApplicantsQuery = Application::with(['user', 'scholarship', 'user.campus'])
+            ->whereHas('user', function($query) {
+                $query->where('role', 'student');
             })
-            ->whereDoesntHave('scholars');
+            ->where('status', 'approved')
+            ->whereDoesntHave('scholar');
 
         if ($campusFilter !== 'all') {
-            $qualifiedApplicantsQuery->where('campus_id', $campusFilter);
+            $qualifiedApplicantsQuery->whereHas('user', function($query) use ($campusFilter) {
+                $query->where('campus_id', $campusFilter);
+            });
         }
 
         if ($scholarshipFilter !== 'all') {
-            $qualifiedApplicantsQuery->whereHas('applications', function($query) use ($scholarshipFilter) {
-                $query->where('scholarship_id', $scholarshipFilter);
-            });
+            $qualifiedApplicantsQuery->where('scholarship_id', $scholarshipFilter);
         }
 
         switch ($sortBy) {
             case 'name':
-                $qualifiedApplicantsQuery->orderBy('first_name', $sortOrder);
+                $qualifiedApplicantsQuery->join('users', 'applications.user_id', '=', 'users.id')
+                    ->orderBy('users.name', $sortOrder);
                 break;
             case 'campus':
                 $qualifiedApplicantsQuery->join('campuses', 'users.campus_id', '=', 'campuses.id')
                     ->orderBy('campuses.name', $sortOrder);
                 break;
             case 'scholarship':
-                $qualifiedApplicantsQuery->join('applications', 'users.id', '=', 'applications.user_id')
-                    ->join('scholarships', 'applications.scholarship_id', '=', 'scholarships.id')
+                $qualifiedApplicantsQuery->join('scholarships', 'applications.scholarship_id', '=', 'scholarships.id')
                     ->orderBy('scholarships.scholarship_name', $sortOrder);
                 break;
             case 'date_approved':
-                $qualifiedApplicantsQuery->join('applications', 'users.id', '=', 'applications.user_id')
-                    ->orderBy('applications.updated_at', $sortOrder);
+                $qualifiedApplicantsQuery->orderBy('applications.updated_at', $sortOrder);
                 break;
             default:
-                $qualifiedApplicantsQuery->orderBy('users.created_at', $sortOrder);
+                $qualifiedApplicantsQuery->orderBy('applications.created_at', $sortOrder);
         }
 
         $qualifiedApplicants = $qualifiedApplicantsQuery->get() ?? collect();
 
         // Get endorsed applicants (approved by SFAO and ready for scholar selection)
+        // IMPORTANT: this must remain application-based, not user-based, so one student can
+        // appear separately for different scholarships when only one of them has been accepted.
         $endorsedApplicantsQuery = Application::with(['user', 'scholarship', 'user.campus'])
             ->where('status', 'in_progress')
-            ->whereDoesntHave('user.scholars');
+            ->whereDoesntHave('scholar');
 
         if ($campusFilter !== 'all') {
             $endorsedApplicantsQuery->whereHas('user', function($query) use ($campusFilter) {
@@ -2093,6 +2098,7 @@ class DashboardController extends Controller
                 'approved' => $approvedApplications,
                 'rejected' => $rejectedApplications,
                 'pending' => $pendingApplications,
+                'in_progress' => (clone $applicationQuery)->where('status', 'in_progress')->count(),
                 'claimed' => $claimedApplications,
                 'monthly_trends' => [
                     'labels' => $months,

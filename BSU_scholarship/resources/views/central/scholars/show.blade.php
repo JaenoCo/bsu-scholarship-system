@@ -1,327 +1,222 @@
-@extends('layouts.dashboard', ['user' => $user, 'title' => 'Scholar Details'])
+@extends('layouts.focused')
 
-@section('sidebar-menu')
-    @include('central.components.sidebar-menu', ['user' => $user, 'campuses' => $campuses])
-@endsection
-
-@section('navbar')
-    <x-layout.navbar
-        title="Scholar Details"
-        subtitle="Central Dashboard"
-        :user="$user"
-        :profile="false"
-        :settings="true"
-        settings-click="$dispatch('switch-tab', 'account_settings')"
-        :logout="true"
-    />
-@endsection
+@section('navbar-title', 'Scholar Details')
+@section('back-url', route('central.dashboard', ['tabs' => 'all_scholars']))
+@section('back-text', 'Back to Scholars')
 
 @section('content')
-    <style>
-        :root {
-            --bsu-bg: #f8fafc;
-            --bsu-primary: #7B1113;
-            --bsu-secondary: #991B1B;
-            --bsu-success: #22C55E;
-            --bsu-warning: #F59E0B;
-            --bsu-danger: #EF4444;
-            --bsu-info: #3B82F6;
-            --bsu-gray: #64748b;
-            --bsu-border: #e5e7eb;
-            --bsu-shadow: 0 2px 10px rgba(0,0,0,.05);
-            --bsu-radius: 14px;
-        }
+@php
+    $statusClasses = [
+        'active' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200',
+        'inactive' => 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+        'suspended' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
+        'completed' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+    ];
 
-        .bsu-page-title {
-            font-size: 1.6rem;
-            font-weight: 800;
-            color: #0f172a;
-            margin: 0;
-        }
+    $typeClasses = [
+        'new' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+        'old' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200',
+    ];
 
-        .bsu-card {
-            background: #fff;
-            border: 1px solid var(--bsu-border);
-            border-radius: var(--bsu-radius);
-            box-shadow: var(--bsu-shadow);
-        }
+    $grantHistory = is_array($scholar->grant_history ?? null) ? $scholar->grant_history : [];
+@endphp
 
-        .bsu-card-header {
-            padding: 1.15rem 1.25rem;
-            border-bottom: 1px solid var(--bsu-border);
-        }
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <p class="text-sm font-medium uppercase tracking-[0.2em] text-bsu-red">Scholar Record</p>
+            <h1 class="mt-1 text-3xl font-extrabold text-gray-900 dark:text-white">{{ $scholar->user->name ?? 'Unknown Student' }}</h1>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ $scholar->user->email ?? 'No email on file' }}</p>
+        </div>
 
-        .bsu-card-title {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 800;
-            color: #111827;
-        }
-
-        .bsu-card-subtitle {
-            margin: .2rem 0 0;
-            color: var(--bsu-gray);
-            font-size: .84rem;
-        }
-
-        .bsu-kpi-card {
-            border: 1px solid var(--bsu-border);
-            border-radius: var(--bsu-radius);
-            background: #fff;
-            box-shadow: var(--bsu-shadow);
-            padding: 1.1rem;
-        }
-
-        .bsu-kpi-label {
-            color: var(--bsu-gray);
-            font-size: .8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-        }
-
-        .bsu-kpi-value {
-            font-size: 1.35rem;
-            font-weight: 800;
-            color: #0f172a;
-        }
-
-        .bsu-kpi-icon {
-            width: 46px;
-            height: 46px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 14px;
-        }
-
-        .bsu-kpi-icon-primary { background: rgba(123,17,19,.12); color: var(--bsu-primary); }
-        .bsu-kpi-icon-success { background: rgba(34,197,94,.13); color: var(--bsu-success); }
-        .bsu-kpi-icon-info { background: rgba(59,130,246,.13); color: var(--bsu-info); }
-        .bsu-kpi-icon-warning { background: rgba(245,158,11,.14); color: var(--bsu-warning); }
-
-        .bsu-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: .4rem .7rem;
-            border-radius: 999px;
-            font-size: .78rem;
-            font-weight: 700;
-        }
-
-        .bsu-badge-success { background: rgba(34,197,94,.13); color: #15803d; }
-        .bsu-badge-info { background: rgba(59,130,246,.13); color: #1d4ed8; }
-        .bsu-badge-secondary { background: #f1f5f9; color: #475569; }
-
-        .bsu-list-item {
-            display: flex;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: .75rem 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .bsu-list-item:last-child {
-            border-bottom: 0;
-            padding-bottom: 0;
-        }
-
-        .bsu-list-label {
-            font-weight: 700;
-            color: #334155;
-        }
-
-        .bsu-list-value {
-            color: #475569;
-            text-align: right;
-        }
-    </style>
-
-    <div class="mb-4">
-        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
-            <div>
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <a href="{{ route('central.scholars.index') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-arrow-left"></i> Back to Scholars
-                    </a>
-                </div>
-                <h1 class="bsu-page-title">Scholar Details</h1>
-                <p class="text-muted mb-0">Review accepted scholar information, award details, and scholarship status.</p>
-            </div>
-            <div class="d-flex gap-2 flex-wrap">
-                @if(method_exists($scholar, 'canEdit') ? $scholar->canEdit() : true)
-                    <a href="{{ route('central.scholars.edit', $scholar->id) }}" class="btn btn-bsu">Edit Scholar</a>
-                @endif
-            </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ route('central.scholars.edit', $scholar->id) }}" class="inline-flex items-center rounded-lg bg-bsu-red px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700">
+                Edit Scholar
+            </a>
+            <form action="{{ route('central.scholars.destroy', $scholar->id) }}" method="POST" onsubmit="return confirm('Delete this scholar record? This cannot be undone.')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="inline-flex items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-950/30">
+                    Delete
+                </button>
+            </form>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-12 col-xl-8">
-            <div class="bsu-card overflow-hidden">
-                <div class="bsu-card-header d-flex flex-column flex-lg-row justify-content-between gap-3">
+    @if(session('success'))
+        <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    <div class="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
+        <div class="space-y-6">
+            <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="mb-5 flex items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
                     <div>
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="bsu-badge bsu-badge-success">{{ ucfirst($scholar->status ?? 'active') }}</span>
-                            <span class="bsu-badge bsu-badge-info">{{ ucfirst($scholar->scholarship->scholarship_type ?? 'Scholarship') }}</span>
-                        </div>
-                        <h2 class="bsu-card-title mb-1">{{ $scholar->user->name ?? 'N/A' }}</h2>
-                        <p class="bsu-card-subtitle mb-0">{{ $scholar->user->email ?? 'No email provided' }}</p>
+                        <h2 class="text-lg font-bold text-gray-900 dark:text-white">Student Details</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Profile and academic information</p>
                     </div>
-                    <div class="text-lg-end">
-                        <div class="text-muted small">Scholarship</div>
-                        <div class="fw-bold text-dark">{{ $scholar->scholarship->scholarship_name ?? 'N/A' }}</div>
+                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {{ $typeClasses[$scholar->type] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200' }}">
+                        {{ ucfirst($scholar->type ?? 'new') }} scholarship
+                    </span>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Campus</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $scholar->user->campus->name ?? 'Unassigned' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Program</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $scholar->user->form?->program ?? 'Not available' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Year Level</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $scholar->user->form?->year_level ?? 'Not available' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Previous GWA</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $scholar->user->form?->previous_gwa ? number_format((float) $scholar->user->form->previous_gwa, 2) : 'Not available' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Contact Number</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $scholar->user->contact_number ?? 'Not provided' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">SR Code</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $scholar->user->sr_code ?? 'Not provided' }}</p>
                     </div>
                 </div>
-                <div class="p-4">
-                    <div class="row g-3">
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="bsu-kpi-card">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span class="bsu-kpi-label">Campus</span>
-                                    <span class="bsu-kpi-icon bsu-kpi-icon-primary"><i class="bi bi-buildings"></i></span>
-                                </div>
-                                <div class="bsu-kpi-value">{{ $scholar->user->campus->name ?? 'N/A' }}</div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="bsu-kpi-card">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span class="bsu-kpi-label">Program</span>
-                                    <span class="bsu-kpi-icon bsu-kpi-icon-info"><i class="bi bi-mortarboard"></i></span>
-                                </div>
-                                <div class="bsu-kpi-value">{{ $scholar->user->program ?? 'N/A' }}</div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="bsu-kpi-card">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span class="bsu-kpi-label">Year Level</span>
-                                    <span class="bsu-kpi-icon bsu-kpi-icon-warning"><i class="bi bi-calendar3"></i></span>
-                                </div>
-                                <div class="bsu-kpi-value">{{ $scholar->user->year_level ?? 'N/A' }}</div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="bsu-kpi-card">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span class="bsu-kpi-label">Grant Count</span>
-                                    <span class="bsu-kpi-icon bsu-kpi-icon-success"><i class="bi bi-cash-stack"></i></span>
-                                </div>
-                                <div class="bsu-kpi-value">{{ $scholar->grant_count ?? 0 }}</div>
-                            </div>
+            </section>
+
+            <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Scholarship Details</h2>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Scholarship Program</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $scholar->scholarship->scholarship_name ?? 'Unknown Scholarship' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</p>
+                        <div class="mt-1">
+                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {{ $statusClasses[$scholar->status] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200' }}">
+                                {{ ucfirst($scholar->status ?? 'active') }}
+                            </span>
                         </div>
                     </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Start Date</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ optional($scholar->scholarship_start_date)->format('F d, Y') ?? 'Not set' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">End Date</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ optional($scholar->scholarship_end_date)->format('F d, Y') ?? 'Not set' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Grant Count</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ number_format((int) ($scholar->grant_count ?? 0)) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Total Grant Received</p>
+                        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">₱{{ number_format((float) ($scholar->total_grant_received ?? 0), 2) }}</p>
+                    </div>
                 </div>
-            </div>
+            </section>
         </div>
 
-        <div class="col-12 col-xl-4">
-            <div class="bsu-card">
-                <div class="bsu-card-header">
-                    <div>
-                        <h3 class="bsu-card-title">Scholar at a Glance</h3>
-                        <p class="bsu-card-subtitle">Quick reference for the current award</p>
+        <aside class="space-y-6">
+            <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white">Quick Summary</h2>
+                <div class="mt-5 space-y-4">
+                    <div class="rounded-xl bg-gray-50 p-4 dark:bg-gray-900/40">
+                        <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Award Type</div>
+                        <div class="mt-1 text-lg font-bold text-gray-900 dark:text-white">{{ ucfirst($scholar->type ?? 'new') }}</div>
+                    </div>
+                    <div class="rounded-xl bg-gray-50 p-4 dark:bg-gray-900/40">
+                        <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Grant History</div>
+                        <div class="mt-1 text-lg font-bold text-gray-900 dark:text-white">{{ number_format((int) ($scholar->grant_count ?? 0)) }} disbursements</div>
+                    </div>
+                    <div class="rounded-xl bg-gray-50 p-4 dark:bg-gray-900/40">
+                        <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Scholarship Period</div>
+                        <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                            {{ optional($scholar->scholarship_start_date)->format('M d, Y') ?? 'N/A' }}
+                            @if($scholar->scholarship_end_date)
+                                - {{ $scholar->scholarship_end_date->format('M d, Y') }}
+                            @endif
+                        </div>
                     </div>
                 </div>
-                <div class="p-4">
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Status</span>
-                        <span class="bsu-list-value">{{ ucfirst($scholar->status ?? 'active') }}</span>
+            </section>
+
+            @if($scholar->application)
+                <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Original Application</h2>
+                    <div class="mt-4 space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-gray-500 dark:text-gray-400">Application ID</span>
+                            <span class="font-semibold">#{{ $scholar->application->id }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-gray-500 dark:text-gray-400">Status</span>
+                            <span class="font-semibold capitalize">{{ $scholar->application->status ?? 'N/A' }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-gray-500 dark:text-gray-400">Submitted</span>
+                            <span class="font-semibold">{{ optional($scholar->application->created_at)->format('M d, Y') ?? 'N/A' }}</span>
+                        </div>
                     </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Scholarship</span>
-                        <span class="bsu-list-value">{{ $scholar->scholarship->scholarship_name ?? 'N/A' }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Grant Type</span>
-                        <span class="bsu-list-value">{{ ucfirst(str_replace('_', ' ', $scholar->scholarship->grant_type ?? 'N/A')) }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Renewal</span>
-                        <span class="bsu-list-value">{{ $scholar->scholarship->renewal_allowed ? 'Yes' : 'No' }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+                </section>
+            @endif
+        </aside>
     </div>
 
-    <div class="row g-4">
-        <div class="col-12 col-lg-6">
-            <div class="bsu-card">
-                <div class="bsu-card-header">
-                    <div>
-                        <h3 class="bsu-card-title">Scholar Profile</h3>
-                        <p class="bsu-card-subtitle">Personal and academic details</p>
-                    </div>
-                </div>
-                <div class="p-4">
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Campus</span>
-                        <span class="bsu-list-value">{{ $scholar->user->campus->name ?? 'N/A' }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Program</span>
-                        <span class="bsu-list-value">{{ $scholar->user->program ?? 'N/A' }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Year Level</span>
-                        <span class="bsu-list-value">{{ $scholar->user->year_level ?? 'N/A' }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Type</span>
-                        <span class="bsu-list-value">{{ ucfirst($scholar->type ?? 'N/A') }}</span>
-                    </div>
-                </div>
-            </div>
+    <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="mb-4 border-b border-gray-200 pb-4 dark:border-gray-700">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">Notes</h2>
+        </div>
+        <p class="whitespace-pre-wrap text-sm leading-6 text-gray-700 dark:text-gray-300">
+            {{ $scholar->notes ?: 'No notes recorded for this scholar.' }}
+        </p>
+    </section>
+
+    <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div class="mb-4 flex items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">Grant History</h2>
+            <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                {{ count($grantHistory) }} entries
+            </span>
         </div>
 
-        <div class="col-12 col-lg-6">
-            <div class="bsu-card">
-                <div class="bsu-card-header">
-                    <div>
-                        <h3 class="bsu-card-title">Scholarship & Application</h3>
-                        <p class="bsu-card-subtitle">Award and application details</p>
+        @if(!empty($grantHistory))
+            <div class="space-y-3">
+                @foreach($grantHistory as $entry)
+                    <div class="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 md:flex-row md:items-center md:justify-between dark:border-gray-700 dark:bg-gray-900/40">
+                        <div>
+                            <div class="font-semibold text-gray-900 dark:text-white">
+                                Grant #{{ $entry['grant_number'] ?? 'N/A' }}
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">
+                                {{ $entry['description'] ?? 'General grant release' }}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-semibold text-bsu-red">₱{{ number_format((float) ($entry['amount'] ?? 0), 2) }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ isset($entry['date']) ? \Carbon::parse($entry['date'])->format('F d, Y') : 'N/A' }}
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="p-4">
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Application ID</span>
-                        <span class="bsu-list-value">{{ $scholar->application->id ?? 'N/A' }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Application Status</span>
-                        <span class="bsu-list-value">{{ ucfirst($scholar->application->status ?? 'N/A') }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Grant Received</span>
-                        <span class="bsu-list-value">{{ $scholar->total_grant_received ? '₱' . number_format($scholar->total_grant_received, 2) : '₱0.00' }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">Start Date</span>
-                        <span class="bsu-list-value">{{ optional($scholar->scholarship_start_date)->format('M d, Y') ?? 'N/A' }}</span>
-                    </div>
-                    <div class="bsu-list-item">
-                        <span class="bsu-list-label">End Date</span>
-                        <span class="bsu-list-value">{{ optional($scholar->scholarship_end_date)->format('M d, Y') ?? 'N/A' }}</span>
-                    </div>
-                </div>
+                @endforeach
             </div>
-        </div>
-    </div>
-
-    <div class="mt-4">
-        <div class="bsu-card">
-            <div class="bsu-card-header">
-                <div>
-                    <h3 class="bsu-card-title">Scholar Notes</h3>
-                    <p class="bsu-card-subtitle">Optional remarks for this scholar</p>
-                </div>
+        @else
+            <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-600 dark:border-gray-600 dark:bg-gray-900/30 dark:text-gray-300">
+                No grant history has been recorded for this scholar yet.
             </div>
-            <div class="p-4">
-                <p class="text-muted mb-0">{{ $scholar->notes ?: 'No notes available.' }}</p>
-            </div>
-        </div>
-    </div>
+        @endif
+    </section>
+</div>
 @endsection

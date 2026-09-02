@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Application;
 use App\Models\Campus;
+use App\Models\Scholar;
 use App\Models\Scholarship;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -131,6 +132,77 @@ class ApplicationGrantCountTest extends TestCase
             'user_id' => $studentUser->id,
             'scholarship_id' => $scholarship->id,
         ]);
+    }
+
+    public function test_central_dashboard_keeps_approved_scholarship_separate_from_other_applications_for_same_student(): void
+    {
+        $campus = Campus::create([
+            'name' => 'Test Campus',
+            'type' => 'constituent',
+        ]);
+
+        $centralUser = User::factory()->create([
+            'name' => 'Central Admin',
+            'first_name' => 'Central',
+            'last_name' => 'Admin',
+            'role' => 'central',
+            'campus_id' => $campus->id,
+        ]);
+
+        $studentUser = User::factory()->create([
+            'name' => 'Student Applicant',
+            'first_name' => 'Student',
+            'last_name' => 'Applicant',
+            'role' => 'student',
+            'campus_id' => $campus->id,
+        ]);
+
+        $scholarshipA = Scholarship::create([
+            'scholarship_name' => 'Scholarship A',
+            'description' => 'First scholarship',
+            'submission_deadline' => now()->addMonth(),
+            'application_start_date' => now(),
+            'created_by' => $centralUser->id,
+        ]);
+
+        $scholarshipB = Scholarship::create([
+            'scholarship_name' => 'Scholarship B',
+            'description' => 'Second scholarship',
+            'submission_deadline' => now()->addMonth(),
+            'application_start_date' => now(),
+            'created_by' => $centralUser->id,
+        ]);
+
+        $approvedApplication = Application::create([
+            'user_id' => $studentUser->id,
+            'scholarship_id' => $scholarshipA->id,
+            'status' => 'approved',
+        ]);
+
+        $acceptedApplication = Application::create([
+            'user_id' => $studentUser->id,
+            'scholarship_id' => $scholarshipB->id,
+            'status' => 'approved',
+        ]);
+
+        Scholar::create([
+            'user_id' => $studentUser->id,
+            'scholarship_id' => $scholarshipB->id,
+            'application_id' => $acceptedApplication->id,
+            'type' => 'new',
+            'status' => 'active',
+            'scholarship_start_date' => now()->startOfMonth(),
+            'scholarship_end_date' => now()->startOfMonth()->addYear(),
+        ]);
+
+        session(['user_id' => $centralUser->id, 'role' => 'central']);
+
+        $response = $this->get(route('central.dashboard'));
+
+        $response->assertOk();
+        $response->assertViewHas('qualifiedApplicants', function ($items) use ($approvedApplication) {
+            return collect($items)->contains(fn ($item) => $item->id === $approvedApplication->id);
+        });
     }
 
     public function test_filtered_analytics_returns_status_counts_for_selected_filters(): void

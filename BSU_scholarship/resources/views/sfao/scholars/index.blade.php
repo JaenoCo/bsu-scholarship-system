@@ -13,8 +13,8 @@
             old: {{ $scholarCounts["old"] ?? $scholars->where("type", "old")->count() }}
         },
         campusOptions: @json($campusOptions),
-        colleges: [], 
-        programs: [],
+        colleges: @json($colleges),
+        programs: @json($programs),
         tracks: @json($tracks),
         academicYears: @json($academicYears),
         campusCollegePrograms: @json($analytics['campus_college_programs'] ?? []),
@@ -36,7 +36,7 @@
                 <div class="relative">
                     <select x-model="filters.scholarship" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none cursor-pointer">
                         <option value="all">All Scholarships</option>
-                        @foreach($scholarshipsAll as $scholarship)
+                        @foreach($activeScholarshipsList as $scholarship)
                             <option value="{{ $scholarship->id }}">{{ $scholarship->scholarship_name }}</option>
                         @endforeach
                     </select>

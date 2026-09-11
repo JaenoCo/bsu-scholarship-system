@@ -411,19 +411,20 @@
         }
 
         .bsu-kpi-card {
-            padding: 1.25rem;
+            padding: .95rem 1rem;
+            min-width: 0;
         }
 
         .bsu-kpi-label {
             color: var(--bsu-gray);
-            font-size: .82rem;
+            font-size: .72rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .04em;
         }
 
         .bsu-kpi-value {
-            font-size: 2rem;
+            font-size: 1.7rem;
             font-weight: 800;
             color: #0f172a;
         }
@@ -432,9 +433,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+        }
+
+        .bsu-kpi-card .d-flex.align-items-start {
+            gap: .55rem !important;
         }
 
         .bsu-kpi-icon-primary { background: rgba(123,17,19,.1); color: var(--bsu-primary); }
@@ -485,12 +490,13 @@
         }
 
         .bsu-chart-box {
-            height: 310px;
-            padding: 1.25rem;
+            height: 280px;
+            padding: 1rem 1.25rem 1.15rem;
+            position: relative;
         }
 
         .bsu-chart-box-lg {
-            height: 360px;
+            height: 330px;
         }
 
         .bsu-table {
@@ -542,6 +548,35 @@
 
         .bsu-sidebar-backdrop {
             display: none;
+        }
+
+        .bsu-applicant-card .table-responsive {
+            overflow: visible;
+        }
+
+        .bsu-applicant-card .dropdown-menu {
+            top: auto;
+            bottom: 100%;
+            margin-top: 0;
+            margin-bottom: .25rem;
+        }
+
+        .bsu-kpi-grid > [class*="col-"] {
+            width: 100%;
+        }
+
+        @media (min-width: 1200px) {
+            .bsu-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 576px) and (max-width: 1199.98px) {
+            .bsu-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
         @media (max-width: 991.98px) {
@@ -670,19 +705,19 @@
                 <div class="bsu-nav-label">Insights</div>
                 <a class="bsu-nav-link{{ $navActive('all_statistics') }}" href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}">
                     <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16V9M12 16V5M17 16v-3"/></svg>
-                    <span class="bsu-nav-text">Analytics</span>
+                    <span class="bsu-nav-text">Dashboard & Analytics</span>
                 </a>
                 <a class="bsu-nav-link{{ $navActive(...$scholarshipTabs) }}" href="{{ route('central.dashboard', ['tabs' => 'all_scholarships']) }}">
                     <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z"/></svg>
-                    <span class="bsu-nav-text">Scholarships</span>
+                    <span class="bsu-nav-text">Scholarship Programs</span>
                 </a>
                 <a class="bsu-nav-link{{ $navActive(...$scholarTabs) }}" href="{{ route('central.dashboard', ['tabs' => 'all_scholars']) }}">
                     <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
-                    <span class="bsu-nav-text">Scholars</span>
+                    <span class="bsu-nav-text">Student Scholars</span>
                 </a>
                 <a class="bsu-nav-link{{ $navActive(...$applicantTabs) }}" href="{{ route('central.dashboard', ['tabs' => 'endorsed_applicants']) }}">
                     <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
-                    <span class="bsu-nav-text">Applicants</span>
+                    <span class="bsu-nav-text">Applications</span>
                 </a>
                 <a class="bsu-nav-link{{ $navActive('sfao_reports') }}" href="{{ route('central.dashboard', ['tabs' => 'sfao_reports']) }}">
                     <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
@@ -699,10 +734,6 @@
                     <span class="bsu-nav-text">Settings</span>
                 </a>
             </div>
-            <div class="bsu-sidebar-footer p-3 small text-secondary">
-                <div class="fw-bold text-dark">Central Office</div>
-                <div>University-wide scholarship oversight</div>
-            </div>
         </aside>
         <div class="bsu-sidebar-backdrop" id="sidebarBackdrop"></div>
 
@@ -710,12 +741,6 @@
             @if(in_array($activeTab, $dashboardTabs, true))
             <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-4">
                 <div>
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('central.dashboard') }}">Central</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">{{ $currentPageTitle }}</li>
-                        </ol>
-                    </nav>
                     <h1 class="bsu-page-title h2 mb-1">{{ $activeTab === 'all_statistics' ? 'Scholarship Analytics' : 'Central Dashboard' }}</h1>
                     <p class="text-secondary mb-0">Executive overview of scholarship applications, approvals, campus distribution, and program performance.</p>
                 </div>
@@ -726,7 +751,7 @@
                 </div>
             </div>
 
-            <div class="row g-3 g-xl-4 mb-4">
+            <div class="row g-3 g-xl-4 bsu-kpi-grid mb-4">
                 <div class="col-12 col-sm-6 col-xl">
                     @include('central.components.bootstrap-kpi-card', [
                         'title' => 'Total Applicants',
@@ -778,6 +803,69 @@
                     ])
                 </div>
             </div>
+
+            @unless($hasCampusFilter)
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-xl-7">
+                    <section class="bsu-card h-100">
+                        <div class="bsu-card-header">
+                            <div>
+                                <h2 class="bsu-card-title">Applications by Campus</h2>
+                                <p class="bsu-card-subtitle">Number of applications submitted across university campuses.</p>
+                            </div>
+                            <span class="badge text-bg-light">{{ $campusLabels->count() }} campuses</span>
+                        </div>
+                        <div class="bsu-chart-box">
+                            <canvas id="campusApplicationsChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+                <div class="col-12 col-xl-5">
+                    <section class="bsu-card h-100">
+                        <div class="bsu-card-header">
+                            <div>
+                                <h2 class="bsu-card-title">Application Status</h2>
+                                <p class="bsu-card-subtitle">Current composition of scholarship applications.</p>
+                            </div>
+                            <span class="badge text-bg-light">{{ number_format($totalApplications) }} total</span>
+                        </div>
+                        <div class="bsu-chart-box">
+                            <canvas id="statusBreakdownChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-xl-5">
+                    <section class="bsu-card h-100">
+                        <div class="bsu-card-header">
+                            <div>
+                                <h2 class="bsu-card-title">Scholarship Distribution</h2>
+                                <p class="bsu-card-subtitle">Application share by scholarship category.</p>
+                            </div>
+                            <span class="badge text-bg-light">{{ number_format($scholarshipStats['total'] ?? 0) }} programs</span>
+                        </div>
+                        <div class="bsu-chart-box">
+                            <canvas id="scholarshipDistributionChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+                <div class="col-12 col-xl-7">
+                    <section class="bsu-card h-100">
+                        <div class="bsu-card-header">
+                            <div>
+                                <h2 class="bsu-card-title">Monthly Application Trends</h2>
+                                <p class="bsu-card-subtitle">Submission volume throughout the current year.</p>
+                            </div>
+                        </div>
+                        <div class="bsu-chart-box">
+                            <canvas id="monthlyTrendsChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+            </div>
+            @endunless
 
             <section class="bsu-card mb-4">
                 <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
@@ -1111,69 +1199,6 @@
             </section>
 
             @unless($hasCampusFilter)
-            <div class="row g-4 mb-4">
-                <div class="col-12 col-xl-7">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Applications by Campus</h2>
-                                <p class="bsu-card-subtitle">Distribution of submitted scholarship applications across campuses.</p>
-                            </div>
-                            <span class="badge text-bg-light">{{ $campusLabels->count() }} campuses</span>
-                        </div>
-                        <div class="bsu-chart-box">
-                            <canvas id="campusApplicationsChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-                <div class="col-12 col-xl-5">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Scholarship Distribution</h2>
-                                <p class="bsu-card-subtitle">Application share by scholarship category.</p>
-                            </div>
-                            <span class="badge text-bg-light">{{ number_format($scholarshipStats['total'] ?? 0) }} programs</span>
-                        </div>
-                        <div class="bsu-chart-box">
-                            <canvas id="scholarshipDistributionChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-            </div>
-            @endunless
-
-            @unless($hasCampusFilter)
-            <div class="row g-4 mb-4">
-                <div class="col-12 col-xl-8">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Monthly Application Trends</h2>
-                                <p class="bsu-card-subtitle">Volume of scholarship submissions by month.</p>
-                            </div>
-                        </div>
-                        <div class="bsu-chart-box bsu-chart-box-lg">
-                            <canvas id="monthlyTrendsChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-                <div class="col-12 col-xl-4">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Approval Status Breakdown</h2>
-                                <p class="bsu-card-subtitle">Current review status composition.</p>
-                            </div>
-                        </div>
-                        <div class="bsu-chart-box bsu-chart-box-lg">
-                            <canvas id="statusBreakdownChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-            </div>
-            @endunless
-            @unless($hasCampusFilter)
             <section class="bsu-card mb-4">
                 <div class="table-responsive border-bottom">
                     <table class="table bsu-table mb-0">
@@ -1304,12 +1329,6 @@
                 @endphp
                 <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
                     <div>
-                        <nav aria-label="breadcrumb">
-                            <ol class="breadcrumb mb-2">
-                                <li class="breadcrumb-item"><a href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Central</a></li>
-                                <li class="breadcrumb-item active" aria-current="page">Scholarships</li>
-                            </ol>
-                        </nav>
                         <h1 class="bsu-page-title h2 mb-1">{{ $isArchiveTab ? 'Archived Scholarships' : 'Scholarship Programs' }}</h1>
                         <p class="text-secondary mb-0">{{ $isArchiveTab ? 'View scholarship programs removed from active student applications.' : 'Manage university-wide scholarship programs and application capacity.' }}</p>
                     </div>
@@ -1332,6 +1351,15 @@
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                             <input type="search" class="form-control js-table-search" placeholder="Search scholarships...">
+                            <form method="GET" action="{{ route('central.dashboard') }}" class="d-flex">
+                                <input type="hidden" name="tabs" value="{{ $activeTab }}">
+                                <select name="scholarship_campus_filter" class="form-select" aria-label="Filter scholarships by campus" onchange="this.form.submit()">
+                                    <option value="all" @selected($scholarshipCampusFilter === 'all')>All campuses</option>
+                                    @foreach($campuses as $campus)
+                                        <option value="{{ $campus->id }}" @selected((string) $scholarshipCampusFilter === (string) $campus->id)>{{ $campus->name }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
                             <select class="form-select js-page-size" style="max-width:120px">
                                 <option value="5">5 rows</option>
                                 <option value="10" selected>10 rows</option>
@@ -1347,7 +1375,7 @@
                                     <th data-sort="1">Type</th>
                                     <th data-sort="2">Grant</th>
                                     <th data-sort="3">Deadline</th>
-                                    <th data-sort="4">Applications</th>
+                                    <th data-sort="4">Slots / Applications</th>
                                     <th data-sort="5">Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -1362,7 +1390,10 @@
                                         <td data-value="{{ $scholarship->scholarship_type }}"><span class="badge text-bg-light">{{ ucfirst($scholarship->scholarship_type) }}</span></td>
                                         <td data-value="{{ $scholarship->grant_amount ?? 0 }}">{{ $scholarship->grant_amount ? 'PHP ' . number_format((float) $scholarship->grant_amount, 2) : 'TBD' }}</td>
                                         <td data-value="{{ optional($scholarship->submission_deadline)->timestamp ?? 0 }}">{{ optional($scholarship->submission_deadline)->format('M d, Y') ?? 'No deadline' }}</td>
-                                        <td data-value="{{ $scholarship->applications_count }}">{{ number_format($scholarship->applications_count) }}</td>
+                                        <td data-value="{{ ($scholarship->slots_available ?? PHP_INT_MAX) . '-' . $scholarship->applications_count }}">
+                                            <span class="fw-semibold">{{ $scholarship->slots_available !== null ? number_format($scholarship->slots_available) : 'Unlimited' }}</span>
+                                            <span class="text-secondary"> / {{ number_format($scholarship->applications_count) }}</span>
+                                        </td>
                                         <td data-value="{{ $scholarship->is_active ? 'active' : 'inactive' }}">
                                             <span class="badge text-bg-{{ $scholarship->is_active ? 'success' : 'secondary' }}">{{ $scholarship->is_active ? 'Active' : 'Archived' }}</span>
                                         </td>
@@ -1412,13 +1443,7 @@
                     $scholarStatusOptions = $visibleScholars->pluck('status')->filter()->unique()->sort()->values();
                 @endphp
                 <div class="mb-4">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Central</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Scholars</li>
-                        </ol>
-                    </nav>
-                    <h1 class="bsu-page-title h2 mb-1">Scholars</h1>
+                    <h1 class="bsu-page-title h2 mb-1" id="scholarsPageTitle">Scholars | All</h1>
                     <p class="text-secondary mb-0">Track accepted scholars, grants, campuses, and active scholarship records.</p>
                 </div>
                 <section class="bsu-card js-data-table" data-default-page-size="10">
@@ -1496,16 +1521,10 @@
                         ->values();
                 @endphp
                 <div class="mb-4">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Central</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Applicants</li>
-                        </ol>
-                    </nav>
-                    <h1 class="bsu-page-title h2 mb-1">{{ $activeTab === 'endorsed_applicants' ? 'Endorsed Applicants' : 'Rejected Applicants' }}</h1>
+                    <h1 class="bsu-page-title h2 mb-1">{{ $activeTab === 'endorsed_applicants' ? 'Endorsed Applications' : 'Rejected Applications' }}</h1>
                     <p class="text-secondary mb-0">Review SFAO-endorsed applications and Central Administration decisions.</p>
                 </div>
-                <section class="bsu-card js-data-table" data-default-page-size="10">
+                <section class="bsu-card bsu-applicant-card js-data-table" data-default-page-size="10">
                     <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
                         <div>
                             <h2 class="bsu-card-title">{{ $activeTab === 'endorsed_applicants' ? 'For Central Validation' : 'Rejected Records' }}</h2>
@@ -1595,12 +1614,6 @@
                 </section>
             @elseif($activeTab === 'sfao_reports')
                 <div class="mb-4">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Central</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Reports</li>
-                        </ol>
-                    </nav>
                     <h1 class="bsu-page-title h2 mb-1">SFAO Reports</h1>
                     <p class="text-secondary mb-0">Review submitted, reviewed, approved, and rejected SFAO reports.</p>
                 </div>
@@ -1654,12 +1667,6 @@
                 </section>
             @elseif($activeTab === 'staff')
                 <div class="mb-4">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Central</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">User Management</li>
-                        </ol>
-                    </nav>
                     <h1 class="bsu-page-title h2 mb-1">User Management</h1>
                     <p class="text-secondary mb-0">Create and manage SFAO staff accounts for constituent campuses.</p>
                 </div>
@@ -1738,12 +1745,6 @@
                 </div>
             @elseif($activeTab === 'account_settings')
                 <div class="mb-4">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Central</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Settings</li>
-                        </ol>
-                    </nav>
                     <h1 class="bsu-page-title h2 mb-1">Settings</h1>
                     <p class="text-secondary mb-0">Manage your Central Administration profile and account security.</p>
                 </div>
@@ -1952,15 +1953,72 @@
             gray: css.getPropertyValue('--bsu-gray').trim()
         };
 
+        const chartValueLabels = {
+            id: 'chartValueLabels',
+            afterDatasetsDraw(chart) {
+                if (!['bar'].includes(chart.config.type)) return;
+
+                const { ctx } = chart;
+                ctx.save();
+                ctx.font = '600 10px Inter, sans-serif';
+                ctx.fillStyle = '#64748b';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    if (meta.hidden) return;
+
+                    meta.data.forEach((element, index) => {
+                        const value = Number(dataset.data[index] || 0);
+                        if (!value) return;
+                        ctx.fillText(value.toLocaleString(), element.x, element.y - 6);
+                    });
+                });
+
+                ctx.restore();
+            }
+        };
+
         const chartDefaults = {
             responsive: true,
             maintainAspectRatio: false,
+            animation: { duration: 650, easing: 'easeOutQuart' },
+            layout: { padding: { top: 16, right: 8, bottom: 0, left: 0 } },
             plugins: {
-                legend: { labels: { color: '#475569', font: { family: 'Inter', weight: 600 } } }
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#475569',
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        padding: 16,
+                        font: { family: 'Inter', size: 11, weight: 600 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#0f172a',
+                    titleFont: { family: 'Inter', weight: 700 },
+                    bodyFont: { family: 'Inter' },
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: true
+                }
             },
             scales: {
-                x: { ticks: { color: '#64748b', font: { family: 'Inter' } }, grid: { color: '#f1f5f9' } },
-                y: { ticks: { color: '#64748b', precision: 0, font: { family: 'Inter' } }, grid: { color: '#f1f5f9' } }
+                x: {
+                    border: { display: false },
+                    ticks: { color: '#64748b', maxRotation: 0, font: { family: 'Inter', size: 10 } },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    border: { display: false },
+                    ticks: { color: '#64748b', precision: 0, font: { family: 'Inter', size: 10 } },
+                    grid: { color: '#eef2f7', drawTicks: false }
+                }
             }
         };
 
@@ -1973,12 +2031,17 @@
                     datasets: [{
                         label: 'Applications',
                         data: dashboardData.campusApplications,
-                        backgroundColor: 'rgba(123, 17, 19, .82)',
-                        borderRadius: 8,
-                        maxBarThickness: 44
+                        backgroundColor: palette.primary,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        maxBarThickness: 38
                     }]
                 },
-                options: chartDefaults
+                options: {
+                    ...chartDefaults,
+                    plugins: { ...chartDefaults.plugins, legend: { display: false } }
+                },
+                plugins: [chartValueLabels]
             });
         }
 
@@ -1990,11 +2053,19 @@
                     labels: dashboardData.distributionLabels.length ? dashboardData.distributionLabels : ['No Data'],
                     datasets: [{
                         data: dashboardData.distributionValues.length ? dashboardData.distributionValues : [1],
-                        backgroundColor: [palette.primary, palette.info, palette.warning, palette.success, palette.danger],
-                        borderWidth: 0
+                        backgroundColor: [palette.primary, palette.info, palette.success, palette.warning, palette.danger],
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        hoverOffset: 5
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: chartDefaults.plugins }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    layout: { padding: 8 },
+                    plugins: chartDefaults.plugins
+                }
             });
         }
 
@@ -2008,14 +2079,21 @@
                         label: 'Applications',
                         data: dashboardData.monthlyValues,
                         borderColor: palette.primary,
-                        backgroundColor: 'rgba(123, 17, 19, .08)',
+                        backgroundColor: 'rgba(123, 17, 19, .10)',
                         pointBackgroundColor: palette.primary,
-                        pointRadius: 4,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        borderWidth: 2.5,
                         fill: true,
                         tension: .35
                     }]
                 },
-                options: chartDefaults
+                options: {
+                    ...chartDefaults,
+                    plugins: { ...chartDefaults.plugins, legend: { display: false } }
+                }
             });
         }
 
@@ -2027,11 +2105,18 @@
                     labels: dashboardData.statusLabels,
                     datasets: [{
                         data: dashboardData.statusValues,
-                        backgroundColor: [palette.success, palette.warning, palette.danger],
-                        borderWidth: 0
+                        backgroundColor: [palette.success, palette.info, palette.warning, palette.danger, '#94a3b8'],
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        hoverOffset: 5
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: chartDefaults.plugins }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: 8 },
+                    plugins: chartDefaults.plugins
+                }
             });
         }
 
@@ -2046,14 +2131,16 @@
                             label: 'Predicted qualified',
                             data: dashboardData.gwaQualifiedValues,
                             backgroundColor: palette.success,
-                            borderRadius: 8,
+                            borderRadius: 6,
+                            borderSkipped: false,
                             maxBarThickness: 42
                         },
                         {
                             label: 'Not qualified by GWA',
                             data: dashboardData.gwaNotQualifiedValues,
-                            backgroundColor: 'rgba(239, 68, 68, .78)',
-                            borderRadius: 8,
+                            backgroundColor: palette.danger,
+                            borderRadius: 6,
+                            borderSkipped: false,
                             maxBarThickness: 42
                         }
                     ]
@@ -2061,10 +2148,11 @@
                 options: {
                     ...chartDefaults,
                     scales: {
-                        x: { stacked: true, ticks: { color: '#64748b', font: { family: 'Inter' } }, grid: { display: false } },
-                        y: { stacked: true, beginAtZero: true, ticks: { color: '#64748b', precision: 0, font: { family: 'Inter' } }, grid: { color: '#f1f5f9' } }
+                        x: { stacked: true, border: { display: false }, ticks: { color: '#64748b', maxRotation: 0, font: { family: 'Inter', size: 10 } }, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, border: { display: false }, ticks: { color: '#64748b', precision: 0, font: { family: 'Inter', size: 10 } }, grid: { color: '#eef2f7', drawTicks: false } }
                     }
-                }
+                },
+                plugins: [chartValueLabels]
             });
         }
 
@@ -2077,10 +2165,18 @@
                     datasets: [{
                         data: dashboardData.gwaBandValues.length ? dashboardData.gwaBandValues : [1],
                         backgroundColor: [palette.primary, palette.info, palette.success, palette.warning, palette.danger],
-                        borderWidth: 0
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        hoverOffset: 5
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '64%', plugins: chartDefaults.plugins }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    layout: { padding: 8 },
+                    plugins: chartDefaults.plugins
+                }
             });
         }
 
@@ -2108,6 +2204,8 @@
             const searchInput = container.querySelector('.js-table-search') || document.getElementById('tableSearch');
             const statusFilter = container.querySelector('.js-status-filter');
             const campusFilter = container.querySelector('.js-campus-filter');
+            const scholarsPageTitle = document.getElementById('scholarsPageTitle');
+            const scholarsPageTitleBase = scholarsPageTitle?.textContent || '';
             const pageSizeSelect = container.querySelector('.js-page-size') || document.getElementById('pageSize');
             const pagination = container.querySelector('.js-table-pagination') || document.getElementById('tablePagination');
             const summary = container.querySelector('.js-table-summary') || document.getElementById('tableSummary');
@@ -2189,7 +2287,16 @@
 
             if (searchInput) searchInput.addEventListener('input', () => { page = 1; renderTable(); });
             if (statusFilter) statusFilter.addEventListener('change', () => { page = 1; renderTable(); });
-            if (campusFilter) campusFilter.addEventListener('change', () => { page = 1; renderTable(); });
+            if (campusFilter) campusFilter.addEventListener('change', () => {
+                page = 1;
+                if (scholarsPageTitle) {
+                    const campusName = campusFilter.options[campusFilter.selectedIndex]?.text || 'All campuses';
+                    scholarsPageTitle.textContent = campusFilter.value === 'all'
+                        ? scholarsPageTitleBase
+                        : `Scholars | ${campusName}`;
+                }
+                renderTable();
+            });
             if (pageSizeSelect) pageSizeSelect.addEventListener('change', () => { page = 1; renderTable(); });
             renderTable();
         }

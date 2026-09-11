@@ -943,6 +943,7 @@ class DashboardController extends Controller
         }
 
         $scholarshipFilter = $request->get('scholarship_filter', 'all');
+        $scholarshipCampusFilter = $request->get('scholarship_campus_filter', 'all');
 
         // Build applications query with filtering
         $applicationsQuery = Application::with(['user', 'scholarship', 'user.campus'])
@@ -1263,15 +1264,26 @@ class DashboardController extends Controller
         $headerNotifications = \App\Models\Notification::where('user_id', $user->id)->latest()->take(5)->get();
         $unreadNotificationCount = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->count();
 
-        $centralScholarshipRows = Scholarship::withCount(['applications', 'scholars'])
-            ->where('is_active', true)
-            ->orderBy('scholarship_name')
-            ->get();
+        $scholarshipRowsQuery = function ($isActive) use ($scholarshipCampusFilter) {
+            return Scholarship::withCount(['applications', 'scholars'])
+                ->where('is_active', $isActive)
+                ->when($scholarshipCampusFilter !== 'all', function ($query) use ($scholarshipCampusFilter) {
+                    $query->where(function ($visibility) use ($scholarshipCampusFilter) {
+                        $visibility->where('campus_id', $scholarshipCampusFilter)
+                            ->orWhereHas('campuses', function ($campusQuery) use ($scholarshipCampusFilter) {
+                                $campusQuery->where('campus_id', $scholarshipCampusFilter);
+                            })
+                            ->orWhere(function ($global) {
+                                $global->whereNull('campus_id')->doesntHave('campuses');
+                            });
+                    });
+                })
+                ->orderBy('scholarship_name')
+                ->get();
+        };
 
-        $centralArchivedScholarshipRows = Scholarship::withCount(['applications', 'scholars'])
-            ->where('is_active', false)
-            ->orderBy('scholarship_name')
-            ->get();
+        $centralScholarshipRows = $scholarshipRowsQuery(true);
+        $centralArchivedScholarshipRows = $scholarshipRowsQuery(false);
 
         $centralScholarRows = Scholar::with(['user.campus', 'scholarship'])
             ->latest()
@@ -1526,7 +1538,7 @@ class DashboardController extends Controller
             'user', 'applications', 'scholarshipsAll', 'scholarshipsPrivate', 'scholarshipsGov',
             'reportStats', 'analytics', 'reportsSubmitted', 'reportsReviewed', 'reportsApproved',
             'reportsRejected', 'campuses', 'campusOptions', 'scholarshipOptions', 'statusOptions',
-            'sortBy', 'sortOrder', 'statusFilter', 'campusFilter', 'scholarshipFilter', 'scholars',
+            'sortBy', 'sortOrder', 'statusFilter', 'campusFilter', 'scholarshipFilter', 'scholarshipCampusFilter', 'scholars',
             'scholarsAll', 'scholarsNew', 'scholarsOld', 'qualifiedApplicants', 'endorsedApplicants',
             'rejectedApplicants', 'totalReports', 'academicYearOptions', 'academicYearFilter',
             'campusColleges', 'allReportsForReportsTab', 'headerNotifications', 'unreadNotificationCount',

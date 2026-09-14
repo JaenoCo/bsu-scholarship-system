@@ -272,7 +272,9 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/campus-comparison', [DashboardController::class, 'campusComparison'])->name('dashboard.campus-comparison');
     Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+    Route::get('/analytics/insights', [DashboardController::class, 'sfaoInsights'])->name('analytics.insights');
 
     // Applicants
     Route::get('/applicants/{user_id}/documents', [ApplicationController::class, 'viewDocuments'])->name('viewDocuments');
@@ -309,16 +311,21 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::post('/scholars/bulk-mark-claimed', [ScholarshipController::class, 'bulkMarkScholarAsClaimed'])->name('scholars.bulk-mark-claimed');
     Route::post('/scholars/{id}/mark-claimed', [ScholarshipController::class, 'markScholarAsClaimed'])->name('scholars.mark-claimed');
 
-    // Reports Management (Keep original for now as it wasn't split yet)
+    // Reports Management
+    // Keep the report hub addressable so sidebar links and bookmarked URLs do not
+    // depend on the dashboard's client-side tab state.
+    Route::redirect('/reports', '/sfao?tab=reports')->name('reports.index');
     Route::get('/reports/create', [ReportController::class, 'createReport'])->name('reports.create');
     Route::post('/reports', [ReportController::class, 'storeReport'])->name('reports.store');
-    Route::get('/reports/{id}', [ReportController::class, 'showReport'])->name('reports.show');
     Route::post('/reports/summary-submit', [ReportController::class, 'submitSummaryReport'])->name('reports.summary-submit');
+    Route::post('/reports/generate-data', [ReportController::class, 'generateReportData'])->name('reports.generate-data');
+    Route::get('/reports/analytics.{format}', [ReportController::class, 'exportAnalytics'])->whereIn('format', ['pdf', 'xlsx'])->name('reports.analytics-export');
+    Route::get('/reports/analytics/print', [ReportController::class, 'printAnalytics'])->name('reports.analytics-print');
     Route::get('/reports/{id}/edit', [ReportController::class, 'editReport'])->name('reports.edit');
     Route::put('/reports/{id}', [ReportController::class, 'updateReport'])->name('reports.update');
     Route::post('/reports/{id}/submit', [ReportController::class, 'submitReport'])->name('reports.submit');
     Route::delete('/reports/{id}', [ReportController::class, 'deleteReport'])->name('reports.delete');
-    Route::post('/reports/generate-data', [ReportController::class, 'generateReportData'])->name('reports.generate-data');
+    Route::get('/reports/{id}', [ReportController::class, 'showReport'])->name('reports.show');
 
     // Specific Report Summaries
     Route::get('/student-summary', [ReportController::class, 'studentSummary'])->name('reports.student-summary');

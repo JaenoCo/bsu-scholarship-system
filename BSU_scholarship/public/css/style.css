@@ -127,3 +127,84 @@
     background-size: cover;
     background-position: center;
 }
+
+/* Shared pagination for Central, SFAO, and Student pages. */
+.app-pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.app-pagination-list {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.app-pagination-link {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.45rem;
+    color: #374151;
+    display: inline-flex;
+    font-size: 0.875rem;
+    font-weight: 600;
+    justify-content: center;
+    line-height: 1;
+    min-height: 2.25rem;
+    min-width: 2.25rem;
+    padding: 0.5rem 0.65rem;
+    text-decoration: none;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.app-pagination-link:hover,
+.app-pagination-link:focus-visible {
+    background: #fff1f2;
+    border-color: #be123c;
+    color: #9f1239;
+    outline: none;
+}
+
+.app-pagination-item.is-active .app-pagination-link {
+    background: #991b1b;
+    border-color: #991b1b;
+    color: #fff;
+}
+
+.app-pagination-item.is-disabled .app-pagination-link {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.dark .app-pagination-link {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+.dark .app-pagination-link:hover,
+.dark .app-pagination-link:focus-visible {
+    background: #3f1d2b;
+    border-color: #fda4af;
+    color: #fff1f2;
+}
+
+.dark .app-pagination-item.is-active .app-pagination-link {
+    background: #be123c;
+    border-color: #fb7185;
+    color: #fff;
+}
+
+.dark .app-pagination-item.is-disabled .app-pagination-link {
+    background: #111827;
+    border-color: #334155;
+    color: #64748b;
+}

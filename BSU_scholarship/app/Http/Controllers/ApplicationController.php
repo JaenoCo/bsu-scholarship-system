@@ -175,7 +175,8 @@ class ApplicationController extends Controller
         if ($application) {
             // If it already exists, update status (if you want to allow re-applying)
             $application->update(['status' => 'pending']);
-            return back()->with('success', 'Your application has been updated.');
+            return back()->with('success', 'Your application has been updated.')
+                ->with('success_action', 'applications');
         } else {
             // Create new application
             Application::create([
@@ -186,7 +187,8 @@ class ApplicationController extends Controller
 
             $message = 'You have successfully applied for the scholarship.';
 
-            return back()->with('success', $message);
+            return back()->with('success', $message)
+                ->with('success_action', 'applications');
         }
     }
 

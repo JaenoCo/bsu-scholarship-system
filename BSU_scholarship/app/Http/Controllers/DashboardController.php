@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Campus;
 use App\Models\Application;
 use App\Models\Scholarship;
 use App\Models\Report;
@@ -12,6 +13,7 @@ use App\Models\Scholar;
 use App\Models\GradeSubmission;
 use App\Models\StudentSubmittedDocument;
 use App\Services\ScholarAcademicRiskService;
+use App\Services\ScholarshipInsightsService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -131,9 +133,10 @@ class DashboardController extends Controller
         $reports = Report::where('sfao_user_id', session('user_id'))->latest()->paginate(5);
 
         // View Parameters
-        $activeTab = str_replace('_', '-', strtolower($request->get('tabs', $request->get('tab', 'analytics'))));
+        $activeTab = str_replace('_', '-', strtolower($request->get('tabs', $request->get('tab', 'dashboard'))));
         $activeTab = match ($activeTab) {
-            'overview', 'analytics-scholarships', 'analytics-applications', 'analytics-scholars' => 'analytics',
+            'overview', 'dashboard' => 'dashboard',
+            'analytics-scholarships', 'analytics-applications', 'analytics-scholars', 'analytics-gwa' => 'analytics',
             'all-app-forms', 'application-forms' => 'all-app-forms',
             'up-app-form', 'upload-app-form' => 'up-app-form',
             'account', 'account-info' => 'account-info',
@@ -141,6 +144,10 @@ class DashboardController extends Controller
             default => $activeTab,
         };
         $campusOptions = $monitoredCampuses->map(function($c) { return ['id' => $c->id, 'name' => $c->name]; })->values();
+        $comparisonCampusOptions = Campus::orderBy('name')->get(['id', 'name'])
+            ->map(fn ($campus) => ['id' => $campus->id, 'name' => $campus->display_name])->values();
+        $comparisonScholarshipOptions = Scholarship::where('is_active', true)->orderBy('scholarship_name')
+            ->get(['id', 'scholarship_name']);
 
         // Pass empty collections for the "Detailed Lists" that are handled by AJAX or specific tabs
         // This prevents the view from crashing while we transition.
@@ -339,6 +346,8 @@ class DashboardController extends Controller
             'forms' => $forms,
             'activeTab' => $activeTab,
             'campusOptions' => $campusOptions,
+            'comparisonCampusOptions' => $comparisonCampusOptions,
+            'comparisonScholarshipOptions' => $comparisonScholarshipOptions,
             'colleges' => $colleges,
             'programs' => $programs,
             'tracks' => $tracks,
@@ -346,6 +355,77 @@ class DashboardController extends Controller
             'sortBy' => 'name', 'sortOrder' => 'asc', 'campusFilter' => 'all', 'statusFilter' => 'all',
             'scholarsSortBy' => 'name', 'scholarsSortOrder' => 'asc'
         ], $applicantData));
+    }
+
+    /** JSON source for Scholarship Insights filters. Campus access is always derived from the signed-in SFAO user. */
+    public function sfaoInsights(Request $request, ScholarshipInsightsService $insights)
+    {
+        $user = User::with('campus')->findOrFail(session('user_id'));
+        $filters = $request->validate([
+            'campus' => 'nullable', 'college' => 'nullable|string', 'program' => 'nullable|string',
+            'track' => 'nullable|string', 'scholarship_id' => 'nullable', 'scholarship' => 'nullable|string', 'status' => 'nullable|string',
+            'academic_year' => ['nullable', 'regex:/^(all|\\d{4}-\\d{4})$/'], 'semester' => 'nullable|in:all,first,second',
+        ]);
+        return response()->json($insights->build($user->campus->getAllCampusesUnder()->pluck('id'), $filters));
+    }
+
+    /** Campus comparison data used by the operational SFAO dashboard. */
+    public function campusComparison(Request $request)
+    {
+        $campuses = Campus::orderBy('name')->get();
+        $allowedIds = $campuses->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        $filters = $request->validate([
+            'campus' => ['nullable', function ($attribute, $value, $fail) use ($allowedIds) {
+                if ($value !== null && $value !== 'all' && ! in_array((string) $value, $allowedIds, true)) {
+                    $fail('The selected campus is outside your SFAO scope.');
+                }
+            }],
+            'academic_year' => ['nullable', 'regex:/^(all|\d{4}-\d{4})$/'],
+            'scholarship_id' => ['nullable', function ($attribute, $value, $fail) {
+                if ($value !== null && $value !== 'all' && ! Scholarship::whereKey($value)->exists()) {
+                    $fail('The selected scholarship is invalid.');
+                }
+            }],
+        ]);
+
+        $selectedCampus = $filters['campus'] ?? 'all';
+        if ($selectedCampus !== 'all') {
+            $campuses = $campuses->where('id', (int) $selectedCampus)->values();
+        }
+
+        $query = Application::query()
+            ->join('users', 'applications.user_id', '=', 'users.id')
+            ->where('users.role', 'student')
+            ->whereIn('users.campus_id', $campuses->pluck('id'));
+
+        if (($filters['academic_year'] ?? 'all') !== 'all') {
+            [$startYear, $endYear] = array_map('intval', explode('-', $filters['academic_year']));
+            $query->whereBetween('applications.created_at', [
+                Carbon::create($startYear, 8, 1)->startOfDay(),
+                Carbon::create($endYear, 7, 31)->endOfDay(),
+            ]);
+        }
+        if (($filters['scholarship_id'] ?? 'all') !== 'all') {
+            $query->where('applications.scholarship_id', $filters['scholarship_id']);
+        }
+
+        $totals = $query->select(
+                'users.campus_id',
+                DB::raw('COUNT(DISTINCT applications.user_id) as applicants'),
+                DB::raw("SUM(CASE WHEN applications.status IN ('approved', 'claimed') THEN 1 ELSE 0 END) as approved")
+            )
+            ->groupBy('users.campus_id')
+            ->get()
+            ->keyBy('campus_id');
+
+        $rows = $campuses->map(fn ($campus) => [
+            'campus' => $campus->display_name ?? $campus->name,
+            'applicants' => (int) data_get($totals->get($campus->id), 'applicants', 0),
+            'approved' => (int) data_get($totals->get($campus->id), 'approved', 0),
+        ])->values();
+
+        return response()->json(['rows' => $rows]);
     }
 
     private function getAnalytics($campusIds)
@@ -368,6 +448,12 @@ class DashboardController extends Controller
             })
             ->where('status', 'pending')
             ->count();
+
+        $inProgressApplications = Application::whereHas('user', function($query) use ($campusIds) {
+                $query->whereIn('campus_id', $campusIds);
+            })
+            ->where('status', 'in_progress')
+            ->count();
             
         $approvedApplications = Application::whereHas('user', function($query) use ($campusIds) {
                 $query->whereIn('campus_id', $campusIds);
@@ -384,6 +470,7 @@ class DashboardController extends Controller
         $analytics['total_students'] = $totalStudents;
         $analytics['students_with_applications'] = $studentsWithApplications;
         $analytics['pending_applications'] = $pendingApplications;
+        $analytics['in_progress_applications'] = $inProgressApplications;
         $analytics['approved_applications'] = $approvedApplications;
         $analytics['rejected_applications'] = $rejectedApplications;
         $analytics['approval_rate'] = $studentsWithApplications > 0 ? round(($approvedApplications / $studentsWithApplications) * 100, 1) : 0;

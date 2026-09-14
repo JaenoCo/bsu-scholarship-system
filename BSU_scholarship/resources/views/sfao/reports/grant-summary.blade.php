@@ -28,7 +28,7 @@
             <h3 class="text-lg font-medium text-gray-600 mt-4 uppercase tracking-wide">Grant Summary Report</h3>
             <!-- Dynamic Campus Subtitle -->
             <div class="mt-2 inline-block px-4 py-1 rounded-full bg-red-50 text-bsu-red font-bold text-sm uppercase tracking-wider border border-red-100">
-                Campus: {{ $monitoredCampuses->where('id', $selectedCampusId)->first()->display_name ?? 'Unknown Campus' }}
+                Campus: {{ $selectedCampusId === 'all' ? 'All Campuses' : ($monitoredCampuses->where('id', $selectedCampusId)->first()->display_name ?? 'Unknown Campus') }}
             </div>
 
             <p class="text-sm text-gray-500 mt-4">Generated on {{ now()->format('F d, Y') }}</p>

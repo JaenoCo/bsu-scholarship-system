@@ -1,348 +1,169 @@
 @props(['user', 'sfaoCampus'])
 
-<!-- Navigation - Scrollable -->
-  <!-- Profile Section -->
-  <div class="p-6">
+@php
+    $dashboardUrl = route('sfao.dashboard', ['tab' => 'dashboard']);
+    $applicationFormsUrl = route('sfao.application-forms.index', ['tabs' => 'all-app-forms']);
+    $settingsUrl = route('sfao.settings', ['tabs' => 'account-info']);
+@endphp
+
+<div class="sidebar-profile p-6">
     <div class="flex flex-col items-center">
         <img src="{{ $user && $user->profile_picture ? asset('storage/profile_pictures/' . $user->profile_picture) . '?' . now()->timestamp : asset('images/default-avatar.png') }}"
              alt="Profile Picture"
              class="h-20 w-20 rounded-full border-4 border-gray-600 object-cover mb-3">
-        <h3 class="text-lg font-bold text-white text-center">{{ $user?->name ?? 'SFAO User' }}</h3>
-        <p class="text-sm text-gray-300 font-medium">SFAO Staff</p>
+        <h3 class="sidebar-label text-lg font-bold text-white text-center">{{ $user?->name ?? 'SFAO User' }}</h3>
+        <p class="sidebar-label text-sm text-gray-300 font-medium">SFAO Staff</p>
     </div>
-  </div>
+</div>
 
-<nav class="mt-6 px-4 pb-4 overflow-y-auto flex-1 space-y-4 custom-scrollbar" x-data="{
-    openMenu: null,
-    activeTab: 'analytics_scholarships',
-    init() {
-        const params = new URLSearchParams(window.location.search);
-        this.activeTab = this.normalizeTab(params.get('tabs') || localStorage.getItem('sfaoTab') || 'analytics_scholarships');
-        this.openMenu = this.sectionForTab(this.activeTab);
-        this.markActiveNav();
-        this.$watch('activeTab', () => this.markActiveNav());
-        this.$nextTick(() => this.$dispatch('sidebar-accordion-open', this.openMenu));
-    },
-    toggleMenu(menu) {
-        this.openMenu = this.openMenu === menu ? null : menu;
-    },
-    normalizeTab(tab) {
-        const map = {
-            overview: 'analytics',
-            all_scholarships: 'scholarships',
-            private_scholarships: 'scholarships-private',
-            government_scholarships: 'scholarships-government',
-            all_applicants: 'applicants',
-            applicants_in_progress: 'applicants-in_progress',
-            applicants_pending: 'applicants-pending',
-            applicants_approved: 'applicants-approved',
-            all_scholars: 'scholars',
-            new_scholars: 'scholars-new',
-            old_scholars: 'scholars-old',
-            reports_student_summary: 'reports-student_summary',
-            reports_grant_summary: 'reports-grant_summary',
-            account_settings: 'account-info'
-        };
-        return map[tab] || tab || 'analytics_scholarships';
-    },
-    sectionForTab(tab) {
-        const normalized = this.normalizeTab(tab);
-        if (normalized.startsWith('analytics')) return 'analytics';
-        if (normalized.startsWith('scholarships')) return 'scholarships';
-        if (normalized.startsWith('applicants')) return 'applicants';
-        if (normalized.startsWith('scholars')) return 'scholars';
-        if (normalized === 'all-app-forms' || normalized === 'up-app-form' || normalized === 'import-scholarships') return 'application_forms';
-        if (normalized.startsWith('reports')) return 'reports';
-        if (normalized.startsWith('account')) return 'settings';
-        return null;
-    },
-    switchTab(tab) {
-        this.activeTab = this.normalizeTab(tab);
-        this.openMenu = this.sectionForTab(tab);
-        this.$dispatch('sidebar-accordion-open', this.openMenu);
-        this.$dispatch('switch-tab', tab);
-    },
-    markActiveNav() {
-        this.$nextTick(() => {
-            this.$root.querySelectorAll('button').forEach((button) => {
-                const click = button.getAttribute('@click') || button.getAttribute('x-on:click') || '';
-                const match = click.match(/switch-tab'\s*,\s*'([^']+)'/);
-                const active = match && this.normalizeTab(match[1]) === this.activeTab;
-                button.classList.toggle('sidebar-tab-active', !!active);
-                if (active) button.setAttribute('aria-current', 'page');
-                else button.removeAttribute('aria-current');
-            });
+<nav class="mt-2 px-4 pb-4 overflow-y-auto flex-1 space-y-5 custom-scrollbar"
+     aria-label="SFAO navigation"
+     x-data="{
+        activeTab: 'dashboard',
+        openMenu: null,
+        init() {
+            const params = new URLSearchParams(window.location.search);
+            const requestedTab = params.get('tabs') || params.get('tab') || (window.location.pathname.endsWith('/sfao') ? null : localStorage.getItem('sfaoTab'));
+            this.activeTab = requestedTab ? this.normalizeTab(requestedTab) : 'dashboard';
+            this.openMenu = this.sectionForTab(this.activeTab);
+        },
+        normalizeTab(tab) {
+            const map = {
+                overview: 'analytics_scholarships',
+                analytics: 'analytics_scholarships',
+                all_scholarships: 'scholarships',
+                private_scholarships: 'scholarships-private',
+                government_scholarships: 'scholarships-government',
+                all_applicants: 'applicants',
+                applicants_in_progress: 'applicants-in_progress',
+                applicants_pending: 'applicants-pending',
+                applicants_approved: 'applicants-approved',
+                all_scholars: 'scholars',
+                new_scholars: 'scholars-new',
+                old_scholars: 'scholars-old',
+                reports_student_summary: 'reports',
+                reports_grant_summary: 'reports',
+                account_settings: 'account-info'
+            };
+            return map[tab] || tab || 'dashboard';
+        },
+        sectionForTab(tab) {
+            const normalized = this.normalizeTab(tab);
+            if (normalized.startsWith('scholarships') || normalized.startsWith('applicants') || normalized.startsWith('scholars')) return 'management';
+            if (normalized.startsWith('analytics')) return 'analytics';
+            if (normalized === 'all-app-forms' || normalized === 'up-app-form' || normalized === 'import-scholarships') return 'forms';
+            if (normalized.startsWith('reports')) return 'reports';
+            return null;
+        },
+        isActive(tab) {
+            return this.normalizeTab(tab) === this.activeTab;
+        },
+        navigate(tab) {
+            this.activeTab = this.normalizeTab(tab);
+            this.openMenu = this.sectionForTab(this.activeTab);
+            localStorage.setItem('sfaoTab', this.activeTab);
+            this.$dispatch('switch-tab', tab);
+        },
+        itemClass(tab) {
+            return this.isActive(tab) ? 'sidebar-tab-active' : '';
+        }
+     }"
+     x-on:switch-tab.window="activeTab = normalizeTab($event.detail); openMenu = sectionForTab(activeTab)">
 
-            this.$root.querySelectorAll('.space-y-1').forEach((section) => {
-                const trigger = section.querySelector(':scope > button');
-                if (!trigger) return;
-                const hasActiveChild = !!section.querySelector('.sidebar-tab-active');
-                trigger.classList.toggle('sidebar-section-active', hasActiveChild && !trigger.classList.contains('sidebar-tab-active'));
-            });
-        });
-    },
+    <a href="{{ $dashboardUrl }}"
+       class="sidebar-nav-item"
+       :class="itemClass('dashboard')"
+       :aria-current="isActive('dashboard') ? 'page' : null"
+       title="Dashboard">
+        <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9 9 9M5 10v10h14V10M9 20v-6h6v6" /></svg>
+        <span class="sidebar-label">Dashboard</span>
+    </a>
 
-}"
-x-on:switch-tab.window="activeTab = normalizeTab($event.detail); openMenu = sectionForTab($event.detail); $dispatch('sidebar-accordion-open', sectionForTab($event.detail))">
-  
-  <!-- Analytics Dropdown -->
-  <div class="space-y-1">
-    <button @click="toggleMenu('analytics')" 
-            class="w-full flex items-center justify-between px-4 py-3 text-sm md:text-base font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors active:bg-bsu-redDark">
-      <div class="flex items-center gap-2 min-h-44">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-        <span>Analytics</span>
-      </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0" :class="openMenu === 'analytics' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-      </svg>
-    </button>
-    
-    <div x-show="openMenu === 'analytics'" 
-         x-cloak
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 -translate-y-2"
-         x-transition:enter-end="opacity-100 translate-y-0"
-         class="space-y-1">
-        <button @click="$dispatch('switch-tab', 'analytics_scholarships')"
-                class="w-full text-left pr-4 py-3 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white active:bg-bsu-redDark" style="padding-left: 2.5rem; min-height: 44px;">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path d="M12 14l9-5-9-5-9 5 9 5z" />
-            <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-          </svg>
-          Scholarships
+    <section class="sidebar-section" aria-labelledby="sidebar-management-heading">
+        <button type="button" id="sidebar-management-heading" class="sidebar-section-toggle" @click="openMenu = openMenu === 'management' ? null : 'management'" :aria-expanded="openMenu === 'management'">
+            <span class="sidebar-section-title sidebar-label">Scholarship Management</span>
+            <svg class="sidebar-chevron sidebar-label" :class="openMenu === 'management' ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
         </button>
-        <button @click="$dispatch('switch-tab', 'analytics_applications')"
-                class="w-full text-left pr-4 py-3 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white active:bg-bsu-redDark" style="padding-left: 2.5rem; min-height: 44px;">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          Applicants
-        </button>
-        <button @click="$dispatch('switch-tab', 'analytics_scholars')"
-                class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path d="M12 14l9-5-9-5-9 5 9 5z" />
-            <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-          </svg>
-          Scholars
-        </button>
-        <button @click="$dispatch('switch-tab', 'analytics_gwa')"
-                class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V5m0 14h10M9 5h10M5 5h.01M5 12h.01M5 19h.01" />
-          </svg>
-          GWA Prediction
-        </button>
-    </div>
-  </div>
+        <div x-show="openMenu === 'management'" x-cloak class="sidebar-submenu">
+            <button type="button" class="sidebar-nav-item" :class="itemClass('scholarships')" @click="navigate('scholarships')" title="Scholarship Programs">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3L3 8l9 5 9-5-9-5zM5 10v5c0 2 3 4 7 4s7-2 7-4v-5" /></svg>
+                <span class="sidebar-label">Scholarship Programs</span>
+            </button>
+            <button type="button" class="sidebar-nav-item" :class="itemClass('applicants')" @click="navigate('applicants')" title="Application Review">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5h6M7 3h10a2 2 0 012 2v16H5V5a2 2 0 012-2zm2 7l2 2 4-4" /></svg>
+                <span class="sidebar-label">Application Review</span>
+            </button>
+            <button type="button" class="sidebar-nav-item" :class="itemClass('scholars')" @click="navigate('scholars')" title="Scholar Management">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zm13 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
+                <span class="sidebar-label">Scholar Management</span>
+            </button>
+        </div>
+    </section>
 
-   <!-- Scholarships Dropdown -->
-  <div class="space-y-1">
-    <button @click="toggleMenu('scholarships')" 
-            class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
-      <div class="flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path d="M12 14l9-5-9-5-9 5 9 5z" />
-          <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-        </svg>
-        <span>Scholarships</span>
-      </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'scholarships' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-      </svg>
-    </button>
-    <div x-show="openMenu === 'scholarships'" x-cloak class="space-y-1">
-        <button @click="$dispatch('switch-tab', 'scholarships')"
-                class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-             <path d="M12 14l9-5-9-5-9 5 9 5z" />
-             <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-          </svg>
-          All
+    <section class="sidebar-section" aria-labelledby="sidebar-analytics-heading">
+        <button type="button" id="sidebar-analytics-heading" class="sidebar-section-toggle" @click="openMenu = openMenu === 'analytics' ? null : 'analytics'" :aria-expanded="openMenu === 'analytics'">
+            <span class="sidebar-section-title sidebar-label">Analytics &amp; Insights</span>
+            <svg class="sidebar-chevron sidebar-label" :class="openMenu === 'analytics' ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
         </button>
-        <button @click="$dispatch('switch-tab', 'scholarships-private')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-            Private
+        <div x-show="openMenu === 'analytics'" x-cloak class="sidebar-submenu">
+            <button type="button" class="sidebar-nav-item" :class="itemClass('analytics_scholarships')" @click="navigate('analytics_scholarships')" title="Scholarship Insights">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8V4" /></svg>
+                <span class="sidebar-label">Scholarship Insights</span>
+            </button>
+            <button type="button" class="sidebar-nav-item" :class="itemClass('analytics_applications')" @click="navigate('analytics_applications')" title="Applicant Insights">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8m8-1v6m-3-3h6" /></svg>
+                <span class="sidebar-label">Applicant Insights</span>
+            </button>
+            <button type="button" class="sidebar-nav-item" :class="itemClass('analytics_scholars')" @click="navigate('analytics_scholars')" title="Scholar Insights">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h4l3-8 4 16 3-8h4" /></svg>
+                <span class="sidebar-label">Scholar Insights</span>
+            </button>
+            <button type="button" class="sidebar-nav-item" :class="itemClass('analytics_gwa')" @click="navigate('analytics_gwa')" title="GWA Prediction">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17l6-6 4 4 6-8M20 7h-5m5 0v5" /></svg>
+                <span class="sidebar-label">GWA Prediction</span>
+            </button>
+        </div>
+    </section>
+
+    <section class="sidebar-section" aria-labelledby="sidebar-forms-heading">
+        <button type="button" id="sidebar-forms-heading" class="sidebar-section-toggle" @click="openMenu = openMenu === 'forms' ? null : 'forms'" :aria-expanded="openMenu === 'forms'">
+            <span class="sidebar-section-title sidebar-label">Tools</span>
+            <svg class="sidebar-chevron sidebar-label" :class="openMenu === 'forms' ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
         </button>
-        <button @click="$dispatch('switch-tab', 'scholarships-government')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-            </svg>
-            Government
+        <div x-show="openMenu === 'forms'" x-cloak class="sidebar-submenu">
+            <a href="{{ $applicationFormsUrl }}" class="sidebar-nav-item" :class="itemClass('all-app-forms')" title="Application Forms">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.59L19 7.41V19a2 2 0 01-2 2z" /></svg>
+                <span class="sidebar-label">Application Forms</span>
+            </a>
+            <button type="button" class="sidebar-nav-item" :class="itemClass('up-app-form')" @click="navigate('up-app-form')" title="Upload Application Form">
+                <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 0L8 8m4-4l4 4M5 20h14" /></svg>
+                <span class="sidebar-label">Upload Application Form</span>
+            </button>
+        </div>
+    </section>
+
+    <section class="sidebar-section" aria-labelledby="sidebar-reports-heading">
+        <button type="button" id="sidebar-reports-heading" class="sidebar-section-toggle" @click="openMenu = openMenu === 'reports' ? null : 'reports'" :aria-expanded="openMenu === 'reports'">
+            <span class="sidebar-section-title sidebar-label">Reports</span>
+            <svg class="sidebar-chevron sidebar-label" :class="openMenu === 'reports' ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
         </button>
-    </div>
-  </div>
-  
-  <!-- Applicants Dropdown -->
-  <div class="space-y-1">
-     <button @click="toggleMenu('applicants')" 
-             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
-       <div class="flex items-center gap-2">
-         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-         </svg>
-         <span>Application Review</span>
-       </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-200" :class="openMenu === 'applicants' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-       </svg>
-     </button>
-     <div x-show="openMenu === 'applicants'" x-cloak class="space-y-1">
-          <button @click="$dispatch('switch-tab', 'applicants')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-             </svg>
-             All
-          </button>
-          <button @click="$dispatch('switch-tab', 'applicants-in_progress')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-             </svg>
-             In Progress
-          </button>
-          <button @click="$dispatch('switch-tab', 'applicants-pending')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-             </svg>
-             Pending
-          </button>
-          <button @click="$dispatch('switch-tab', 'applicants-approved')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-             </svg>
-             Approved
-          </button>
-     </div>
-   </div>
- 
-    <!-- Scholars Dropdown -->
-   <div class="space-y-1">
-     <button @click="toggleMenu('scholars')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
-       <div class="flex items-center gap-2">
-         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-           <path d="M12 14l9-5-9-5-9 5 9 5z" />
-           <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-         </svg>
-         <span>Scholars</span>
-       </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'scholars' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-     </button>
-     <div x-show="openMenu === 'scholars'" x-cloak class="space-y-1">
-         <button @click="$dispatch('switch-tab', 'scholars')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path d="M12 14l9-5-9-5-9 5 9 5z" />
-               <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-             </svg>
-             All
-         </button>
-         <button @click="$dispatch('switch-tab', 'scholars-new')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 3.214L18 21l-6-3-6 3 2.714-5.786L3 12l5.714-3.214L10 2z" />
-             </svg>
-             New Scholars
-         </button>
-         <button @click="$dispatch('switch-tab', 'scholars-old')" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-             </svg>
-             Continuing Scholars
-         </button>
-     </div>
-   </div>
- 
-   <!-- Application Forms Dropdown -->
-   <div class="space-y-1">
-     <button @click="toggleMenu('application_forms')" 
-             class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
-       <div class="flex items-center gap-2">
-         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-         </svg>
-         <span class="whitespace-nowrap">App Forms</span>
-       </div>
-       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'application_forms' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-       </svg>
-     </button>
-     <div x-show="openMenu === 'application_forms'" x-cloak class="space-y-1">
-         <a href="{{ route('sfao.application-forms.index', ['tabs' => 'all-app-forms']) }}" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-             </svg>
-             All
-          </a>
-          <a href="{{ route('sfao.application-forms.index', ['tabs' => 'up-app-form']) }}" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-             </svg>
-             Upload
-          </a>
-     </div>
-   </div>
+        <div x-show="openMenu === 'reports'" x-cloak class="sidebar-submenu">
+        <a href="{{ route('sfao.reports.student-summary', ['student_type' => 'applicants', 'campus_id' => 'all']) }}" class="sidebar-nav-item sidebar-nav-item-sub" title="Generate Student Summary">
+            <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012 2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <span class="sidebar-label">Student Summary</span>
+        </a>
+        <a href="{{ route('sfao.reports.grant-summary', ['campus_id' => 'all']) }}" class="sidebar-nav-item sidebar-nav-item-sub" title="Generate Grant Summary">
+            <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span class="sidebar-label">Grant Summary</span>
+        </a>
+        </div>
+    </section>
 
-  <!-- Reports Dropdown -->
-  <div class="space-y-1">
-    <button @click="toggleMenu('reports')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
-      <div class="flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        <span>Reports</span>
-      </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'reports' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-    </button>
-    <div x-show="openMenu === 'reports'" x-cloak class="space-y-1">
-         <a href="{{ route('sfao.reports.student-summary', ['student_type' => 'applicants', 'campus_id' => 'all']) }}" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            Student Summary
-         </a>
-         <a href="{{ route('sfao.reports.grant-summary', ['campus_id' => 4]) }}" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Grant Summary
-         </a>
-    </div>
-  </div>
-
-  <!-- Settings Dropdown -->
-  <div class="space-y-1">
-    <button @click="toggleMenu('settings')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase bg-transparent">
-      <div class="flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        <span>Settings</span>
-      </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" :class="openMenu === 'settings' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-    </button>
-    <div x-show="openMenu === 'settings'" x-cloak class="space-y-1">
-         <a href="{{ route('sfao.settings', ['tabs' => 'account-info']) }}" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            Account Information
-         </a>
-         <a href="{{ route('sfao.settings', ['tabs' => 'account-security']) }}" class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white" style="padding-left: 2.5rem">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Login & Security
-         </a>
-    </div>
-  </div>
-
+    <section class="sidebar-section" aria-labelledby="sidebar-system-heading">
+        <div id="sidebar-system-heading" class="sidebar-section-heading sidebar-label">System</div>
+        <a href="{{ $settingsUrl }}" class="sidebar-nav-item" :class="window.location.pathname.includes('/sfao/settings') ? 'sidebar-tab-active' : ''" title="Settings">
+            <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm7.94-2.5a7.98 7.98 0 000-2l2.06-1.6-2-3.46-2.48 1a8.1 8.1 0 00-1.73-1L13.5 3h-4l-.3 2.94a8.1 8.1 0 00-1.73 1l-2.48-1-2 3.46L5.06 11a7.98 7.98 0 000 2L3 14.6l2 3.46 2.48-1a8.1 8.1 0 001.73 1L9.5 21h4l.3-2.94a8.1 8.1 0 001.73-1l2.48 1 2-3.46L19.94 13z" /></svg>
+            <span class="sidebar-label">Settings</span>
+        </a>
+    </section>
 </nav>

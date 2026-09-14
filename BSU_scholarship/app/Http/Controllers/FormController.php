@@ -27,22 +27,28 @@ class FormController extends Controller
         
         // 1. Save and Navigate
         if ($request->has('save_and_navigate') && $request->save_and_navigate) {
-            return redirect($request->save_and_navigate)->with('success', 'Application saved successfully.');
+            return redirect($request->save_and_navigate)
+                ->with('success', 'Application saved successfully.')
+                ->with('success_action', 'sfao_form');
         }
 
         // 2. Print after Save
         if ($request->has('print_after_save') && $request->print_after_save) {
             if ($request->filled('scholarship_id')) {
                 return redirect()->route('student.print-application.scholarship', ['scholarship_id' => $request->scholarship_id])
-                    ->with('success', 'Application saved successfully. Preparing your document...');
+                    ->with('success', 'Application saved successfully. Preparing your document...')
+                    ->with('success_action', 'sfao_form');
             } else {
                 return redirect()->route('student.print-application')
-                    ->with('success', 'Application saved successfully. Preparing your document...');
+                    ->with('success', 'Application saved successfully. Preparing your document...')
+                    ->with('success_action', 'sfao_form');
             }
         }
 
         // 3. Default Redirect
-        return redirect('/student')->with('success', 'Application saved successfully.');
+        return redirect('/student')
+            ->with('success', 'Application saved successfully.')
+            ->with('success_action', 'sfao_form');
     }
 }
 

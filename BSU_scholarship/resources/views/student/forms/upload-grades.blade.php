@@ -819,19 +819,19 @@
                 <input type="text" name="grades[${gradeIndex}][subject_code]" placeholder="IT101" required class="input">
             </div>
 
-            <div class="field">
-                <label>Units</label>
-                <input type="text" inputmode="decimal" pattern="[0-9.]*" name="grades[${gradeIndex}][units]" placeholder="3" required class="input units-input">
-            </div>
-
             <div class="field subject-name">
                 <label>Subject Name</label>
                 <input type="text" name="grades[${gradeIndex}][subject_name]" placeholder="Introduction to Computing" required class="input">
             </div>
 
             <div class="field">
+                <label>Units</label>
+                <input type="text" inputmode="decimal" pattern="[0-9.]*" name="grades[${gradeIndex}][units]" placeholder="3" required class="input units-input">
+            </div>
+
+            <div class="field">
                 <label>Grade</label>
-                <input type="number" name="grades[${gradeIndex}][grade]" min="0" max="100" step="0.01" placeholder="90" required class="input">
+                <input type="number" name="grades[${gradeIndex}][grade]" min="1.00" max="5.00" step="0.25" placeholder="1.75" required class="input">
             </div>
 
             <div class="remove-wrapper">

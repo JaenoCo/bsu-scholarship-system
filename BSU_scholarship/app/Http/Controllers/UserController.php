@@ -1027,7 +1027,8 @@ class UserController extends Controller
 
         return redirect()
             ->route('student.dashboard')
-            ->with('success', 'Documents uploaded successfully and you are now applied to this scholarship.');
+            ->with('success', 'Documents uploaded successfully and you are now applied to this scholarship.')
+            ->with('success_action', 'applications');
     }
 
     // =====================================================
@@ -1449,7 +1450,8 @@ class UserController extends Controller
         );
 
         return redirect()->route('student.dashboard')
-            ->with('success', 'Application submitted successfully! Your application is now under review.');
+            ->with('success', 'Application submitted successfully! Your application is now under review.')
+            ->with('success_action', 'applications');
     }
 
     /**

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
-use App\Models\Invitation;
+//use App\Models\Invitation;
 use App\Models\Scholar;
 
 /**
@@ -31,7 +31,7 @@ class AuthController extends Controller
             }
             return redirect(match (session('role')) {
                 'student' => route('student.dashboard'),
-                'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
+                'sfao'    => route('sfao.dashboard', ['tabs' => 'dashboard']),
                 default   => '/'
             });
         }
@@ -75,7 +75,7 @@ class AuthController extends Controller
 
         return redirect(match ($user->role) {
             'student' => route('student.dashboard', ['tab' => 'announcements']),
-            'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
+            'sfao'    => route('sfao.dashboard', ['tabs' => 'dashboard']),
             default   => '/'
         });
     }
@@ -92,7 +92,7 @@ class AuthController extends Controller
             }
             return redirect(match (session('role')) {
                 'student' => route('student.dashboard'),
-                'sfao'    => route('sfao.dashboard', ['tabs' => 'analytics_scholarships']),
+                'sfao'    => route('sfao.dashboard', ['tabs' => 'dashboard']),
                 default   => '/'
             });
         }

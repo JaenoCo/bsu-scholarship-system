@@ -201,7 +201,9 @@ class StudentGradesController extends Controller
             ->with(
                 'success',
                 'Grades submitted successfully. Your uploaded record is now saved and ready for review.'
-            )->with('grade_submission_id', $submission->id);
+            )
+            ->with('success_action', 'grades')
+            ->with('grade_submission_id', $submission->id);
     }
 
     /**

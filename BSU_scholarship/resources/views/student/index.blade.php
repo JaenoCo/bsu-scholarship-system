@@ -271,6 +271,24 @@
 
     </div>
 
+    @php
+        $successAction = match (session('success_action')) {
+            'grades' => [
+                'url' => route('student.dashboard', ['tab' => 'grade_history']),
+                'label' => 'View Submitted Grades',
+            ],
+            'applications' => [
+                'url' => route('student.dashboard', ['tab' => 'applied_scholarships']),
+                'label' => 'View Applications',
+            ],
+            'sfao_form' => [
+                'url' => route('student.dashboard', ['tab' => 'sfao_form']),
+                'label' => 'View SFAO Form',
+            ],
+            default => null,
+        };
+    @endphp
+
     {{-- Success Message Modal --}}
     @if(session('success'))
         <div x-data="{ showModal: true }" x-show="showModal" x-cloak
@@ -310,14 +328,20 @@
                 </div>
 
                 {{-- Action Button --}}
-                <a href="{{ route('student.dashboard', ['tab' => 'grade_history']) }}"
-                    class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
-                    View Submitted Grades
-                    <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3">
-                        </path>
-                    </svg>
-                </a>
+                @if($successAction)
+                    <a href="{{ $successAction['url'] }}"
+                        class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
+                        {{ $successAction['label'] }}
+                        <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </a>
+                @else
+                    <button type="button" @click="showModal = false"
+                        class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
+                        Continue
+                    </button>
+                @endif
             </div>
         </div>
     @endif

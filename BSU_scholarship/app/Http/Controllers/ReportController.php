@@ -14,9 +14,46 @@ use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Services\ScholarshipInsightsService;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
+    /** Browser-ready report for printing; uses the same authorization and filters as downloads. */
+    public function printAnalytics(Request $request, ScholarshipInsightsService $insights)
+    {
+        $user = User::with('campus')->findOrFail(session('user_id'));
+        $filters = $request->validate([
+            'campus' => 'nullable', 'college' => 'nullable|string', 'program' => 'nullable|string', 'track' => 'nullable|string',
+            'view' => 'nullable|in:scholarships,applicants,scholars,gwa', 'scholarship_id' => 'nullable', 'scholarship' => 'nullable|string', 'status' => 'nullable|string', 'academic_year' => 'nullable|string', 'semester' => 'nullable|in:all,first,second',
+        ]);
+        $data = $insights->build($user->campus->getAllCampusesUnder()->pluck('id'), $filters);
+        return Pdf::loadView('sfao.reports.analytics', compact('data', 'filters'))->stream(str($data['report']['title'])->slug().'.pdf');
+    }
+
+    /** Download the filtered Scholarship Insights report as PDF or Excel. */
+    public function exportAnalytics(Request $request, string $format, ScholarshipInsightsService $insights)
+    {
+        $user = User::with('campus')->findOrFail(session('user_id'));
+        $filters = $request->validate([
+            'campus' => 'nullable', 'college' => 'nullable|string', 'program' => 'nullable|string', 'track' => 'nullable|string',
+            'view' => 'nullable|in:scholarships,applicants,scholars,gwa', 'scholarship_id' => 'nullable', 'scholarship' => 'nullable|string', 'status' => 'nullable|string', 'academic_year' => 'nullable|string', 'semester' => 'nullable|in:all,first,second',
+        ]);
+        $data = $insights->build($user->campus->getAllCampusesUnder()->pluck('id'), $filters);
+        if ($format === 'pdf') return Pdf::loadView('sfao.reports.analytics', compact('data', 'filters'))->download(str($data['report']['title'])->slug().'.pdf');
+
+        $book = new Spreadsheet(); $sheet = $book->getActiveSheet();
+        $sheet->fromArray([$data['report']['title']], null, 'A1');
+        $sheet->fromArray(['Scope', $data['report']['focus']], null, 'A2');
+        $sheet->fromArray(['Metric', 'Value'], null, 'A3');
+        foreach (['total' => 'Total Applications', 'approved' => 'Approved Scholars', 'pending' => 'Pending Applications', 'underReview' => 'Under Review', 'rejected' => 'Rejected Applications', 'approvalRate' => 'Approval Rate (%)', 'activePrograms' => 'Active Programs'] as $key => $label) $sheet->fromArray([[$label, $data['summary'][$key]]], null, 'A'.($sheet->getHighestRow()+1));
+        $sheet->fromArray(['Program', 'Applications', 'Approved', 'Pending', 'Under Review', 'Rejected'], null, 'A'.($sheet->getHighestRow()+2));
+        foreach ($data['programs'] as $row) $sheet->fromArray([[$row['name'], $row['total'], $row['approved'], $row['pending'], $row['under_review'], $row['rejected']]], null, 'A'.($sheet->getHighestRow()+1));
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true); $sheet->getStyle('A3:B3')->getFont()->setBold(true);
+        foreach (range('A', 'F') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        $writer = new Xlsx($book);
+        return response()->streamDownload(fn () => $writer->save('php://output'), str($data['report']['title'])->slug().'.xlsx');
+    }
     // =====================================================
     // SFAO REPORT METHODS
     // =====================================================
@@ -601,15 +638,11 @@ class ReportController extends Controller
 
         // Apply filters
         $selectedCampusId = $request->get('campus_id', (string) $campus->id);
-        if ($selectedCampusId === 'all') {
-            $selectedCampusId = (string) $campus->id;
-        }
-
-        if (! $monitoredCampuses->pluck('id')->map(fn ($id) => (string) $id)->contains((string) $selectedCampusId)) {
+        if ($selectedCampusId !== 'all' && ! $monitoredCampuses->pluck('id')->map(fn ($id) => (string) $id)->contains((string) $selectedCampusId)) {
             abort(403, 'The selected campus is outside your SFAO scope.');
         }
 
-        if ($selectedCampusId) {
+        if ($selectedCampusId !== 'all') {
             $query->whereHas('user', function($q) use ($selectedCampusId) {
                 $q->where('campus_id', $selectedCampusId);
             });
@@ -1205,10 +1238,6 @@ class ReportController extends Controller
         // Filters
         $studentType = $request->get('student_type', 'applicants'); // applicants, scholars
         $campusId = $request->get('campus_id', (string) $campus->id);
-        if ($campusId === 'all') {
-            $campusId = (string) $campus->id;
-        }
-        
         // If specific campus selected
         if ($campusId !== 'all') {
             $monitoredCampuses = $monitoredCampuses->where('id', $campusId);

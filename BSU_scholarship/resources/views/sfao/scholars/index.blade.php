@@ -12,7 +12,6 @@
             new: {{ $scholarCounts["new"] ?? $scholars->where("type", "new")->count() }},
             old: {{ $scholarCounts["old"] ?? $scholars->where("type", "old")->count() }}
         },
-        campusOptions: @json($campusOptions),
         colleges: @json($colleges),
         programs: @json($programs),
         tracks: @json($tracks),
@@ -38,21 +37,6 @@
                         <option value="all">All Scholarships</option>
                         @foreach($activeScholarshipsList as $scholarship)
                             <option value="{{ $scholarship->id }}">{{ $scholarship->scholarship_name }}</option>
-                        @endforeach
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
-                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Campus -->
-            <div class="flex-1 min-w-[140px]">
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Campus</label>
-                <div class="relative">
-                    <select x-model="filters.campus" class="block w-full px-3 py-2 text-base border border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none cursor-pointer">
-                        @foreach($campusOptions as $campus)
-                            <option value="{{ $campus['id'] }}">{{ $campus['name'] }}</option>
                         @endforeach
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">

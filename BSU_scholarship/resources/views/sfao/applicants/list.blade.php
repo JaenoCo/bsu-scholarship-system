@@ -55,7 +55,7 @@
                                             $status = $application->status ?? 'not_applied';
                                             $statusLabel = match ($status) {
                                                 'approved' => 'Approved',
-                                                'in_progress' => 'In Progress',
+                                                'in_progress' => 'Under Review',
                                                 'pending' => 'Pending',
                                                 'rejected' => 'Rejected',
                                                 default => 'Not Applied',

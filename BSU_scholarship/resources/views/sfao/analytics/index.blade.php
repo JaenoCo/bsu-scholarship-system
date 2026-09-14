@@ -9,16 +9,50 @@
      x-transition:enter-start="opacity-0 transform scale-95"
      x-transition:enter-end="opacity-100 transform scale-100"
      x-cloak 
-     x-data='sfaoStatisticsTab({ analytics: @json($analytics ?? []), campusOptions: @json($campusOptions) })'
+     x-data='sfaoStatisticsTab({ analytics: @json($analytics ?? []), campusOptions: @json($campusOptions), insightsEndpoint: @json(route("sfao.analytics.insights")) })'
      @tab-changed.window="handleTabChange($event.detail)">
     <div class="space-y-6">
-        
-       
+        <header class="analytics-hero rounded-xl p-6 shadow-sm">
+            <p class="analytics-eyebrow">SFAO Analytics</p>
+            <h1 class="analytics-title mt-2 text-2xl font-bold tracking-tight md:text-3xl" x-text="analyticsPage.title">Scholarship Insights</h1>
+            <p class="analytics-description mt-2 max-w-3xl text-sm leading-6" x-text="analyticsPage.description">Monitor scholarship applications, scholar distribution, program performance, and institutional trends across campuses and scholarship programs.</p>
+        </header>
 
 
         <!-- Filter Controls -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
             <div class="flex flex-wrap gap-4 items-end">
+                <!-- Campus Filter -->
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Campus</label>
+                    <div class="relative">
+                        <select x-model="filters.campus" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none" style="border-width: 1px;">
+                            <option value="all">All Campuses</option>
+                            <template x-for="campus in campusOptions" :key="campus.id">
+                                <option :value="campus.id" x-text="campus.name"></option>
+                            </template>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scholarship Program Filter -->
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Scholarship Program</label>
+                    <div class="relative">
+                        <select x-model="filters.search" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none" style="border-width: 1px;">
+                            <option value="">All Programs</option>
+                            <template x-for="scholarship in (analyticsData.available_scholarships || [])" :key="scholarship.id">
+                                <option :value="scholarship.scholarship_name" x-text="scholarship.scholarship_name"></option>
+                            </template>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                </div>
    
                 <!-- College Filter (Global) -->
                 <div class="flex-1 min-w-[200px]">
@@ -95,63 +129,78 @@
                     </div>
                 </div>
 
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Semester</label>
+                    <select x-model="filters.semester" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center" style="border-width: 1px;">
+                        <option value="all">All Semesters</option><option value="first">First Semester</option><option value="second">Second Semester</option>
+                    </select>
+                </div>
+
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Application Status</label>
+                    <select x-model="filters.status" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center" style="border-width: 1px;">
+                        <option value="all">All Statuses</option><option value="pending">Pending</option><option value="under_review">Under Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+                    </select>
+                </div>
+
+                <button type="button" @click="resetFilters()" class="min-h-[42px] rounded-full border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-600 transition hover:border-red-500 hover:text-red-700 dark:border-gray-600 dark:text-gray-300 dark:hover:border-red-400 dark:hover:text-red-300">Reset</button>
+                <a :href="analyticsExportUrl('pdf')" class="min-h-[42px] rounded-full bg-red-700 px-5 py-2 text-sm font-semibold text-white hover:bg-red-800" x-text="`Export ${analyticsPage.title} PDF`">Export PDF</a>
+                <a :href="analyticsExportUrl('xlsx')" class="min-h-[42px] rounded-full border border-red-700 px-5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" x-text="`Export ${analyticsPage.title} Excel`">Export Excel</a>
+                <a :href="analyticsExportUrl('print')" target="_blank" rel="noopener" class="min-h-[42px] rounded-full border border-gray-400 px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">Print Report</a>
+
             </div>
             
             <!-- Global Legend Buttons (Row 2) -->
             <div class="mt-4 flex flex-wrap justify-between gap-4 w-full">
                  <!-- Applicants Mode Legend -->
                 <template x-if="subTab === 'applicants'">
-                    <div class="flex flex-wrap justify-between w-full gap-2">
+                    <div class="grid w-full grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Toggle application statuses on charts">
                         <!-- Approved -->
-                         <button @click="chartLegend.approved = !chartLegend.approved"
-                                :class="chartLegend.approved ? 'text-white ring-2 ring-red-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.approved ? 'background-color: #7F1D1D;' : ''"
-                                class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
-                                <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.approved"></span>
+                         <button @click="chartLegend.approved = !chartLegend.approved" :aria-pressed="chartLegend.approved"
+                                :class="{ 'is-active': chartLegend.approved }"
+                                class="analytics-legend-toggle legend-approved">
+                                <span class="analytics-legend-swatch"></span>
                                 Approved
                         </button>
                         <!-- Rejected -->
-                        <button @click="chartLegend.rejected = !chartLegend.rejected"
-                                :class="chartLegend.rejected ? 'text-white ring-2 ring-red-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.rejected ? 'background-color: #991B1B;' : ''"
-                                class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
-                                <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.rejected"></span>
+                        <button @click="chartLegend.rejected = !chartLegend.rejected" :aria-pressed="chartLegend.rejected"
+                                :class="{ 'is-active': chartLegend.rejected }"
+                                class="analytics-legend-toggle legend-rejected">
+                                <span class="analytics-legend-swatch"></span>
                                 Rejected
                         </button>
                         <!-- Pending -->
-                         <button @click="chartLegend.pending = !chartLegend.pending"
-                                :class="chartLegend.pending ? 'text-white ring-2 ring-red-600' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.pending ? 'background-color: #B91C1C;' : ''"
-                                class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
-                                <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.pending"></span>
+                         <button @click="chartLegend.pending = !chartLegend.pending" :aria-pressed="chartLegend.pending"
+                                :class="{ 'is-active': chartLegend.pending }"
+                                class="analytics-legend-toggle legend-pending">
+                                <span class="analytics-legend-swatch"></span>
                                 Pending
                         </button>
-                        <!-- In Progress -->
-                        <button @click="chartLegend.inProgress = !chartLegend.inProgress"
-                                :class="chartLegend.inProgress ? 'text-white ring-2 ring-red-500' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                :style="chartLegend.inProgress ? 'background-color: #DC2626;' : ''"
-                                class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
-                                <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.inProgress"></span>
-                                In Progress
+                        <!-- Under Review (stored as in_progress) -->
+                        <button @click="chartLegend.inProgress = !chartLegend.inProgress" :aria-pressed="chartLegend.inProgress"
+                                :class="{ 'is-active': chartLegend.inProgress }"
+                                class="analytics-legend-toggle legend-review">
+                                <span class="analytics-legend-swatch"></span>
+                                Under Review
                         </button>
                     </div>
                 </template>
 
                  <!-- Scholars Mode Legend -->
                  <template x-if="subTab === 'scholars'">
-                    <div class="flex flex-wrap justify-between w-full gap-2">
+                    <div class="grid w-full grid-cols-2 gap-2" aria-label="Toggle scholar types on charts">
                         <!-- Old Scholars -->
-                        <button @click="chartLegend.oldScholars = !chartLegend.oldScholars"
-                                :class="chartLegend.oldScholars ? 'bg-green-500 text-white ring-2 ring-green-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
-                                <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.oldScholars"></span>
-                                Old Scholars
+                        <button @click="chartLegend.oldScholars = !chartLegend.oldScholars" :aria-pressed="chartLegend.oldScholars"
+                                :class="{ 'is-active': chartLegend.oldScholars }"
+                                class="analytics-legend-toggle legend-continuing">
+                                <span class="analytics-legend-swatch"></span>
+                                Continuing Scholars
                         </button>
                         <!-- New Scholars -->
-                        <button @click="chartLegend.newScholars = !chartLegend.newScholars"
-                                :class="chartLegend.newScholars ? 'bg-blue-500 text-white ring-2 ring-blue-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'"
-                                class="flex-1 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 focus:outline-none flex items-center justify-center shadow-sm">
-                                <span class="w-2 h-2 rounded-full mr-2 bg-white" x-show="chartLegend.newScholars"></span>
+                        <button @click="chartLegend.newScholars = !chartLegend.newScholars" :aria-pressed="chartLegend.newScholars"
+                                :class="{ 'is-active': chartLegend.newScholars }"
+                                class="analytics-legend-toggle legend-new">
+                                <span class="analytics-legend-swatch"></span>
                                 New Scholars
                         </button>
                     </div>
@@ -324,35 +373,45 @@
              x-transition:enter-start="opacity-0 translate-y-2"
              x-transition:enter-end="opacity-100 translate-y-0"
              class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6 mb-6">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center" x-text="getComparisonChartTitle()"></h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">Scholarship Applications by Program</h3>
             
-            <!-- Scholarship Status Distribution Metrics -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                 <!-- Total Applicants -->
-                 <div x-on:click="openStudentDetails('comparison', 'applicants')"
-                      x-on:keydown.enter.prevent="openStudentDetails('comparison', 'applicants')"
-                      x-on:keydown.space.prevent="openStudentDetails('comparison', 'applicants')"
-                      role="button"
-                      tabindex="0"
-                      class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 cursor-pointer hover:ring-1 hover:ring-blue-300 transition">
-                     <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Total Applicants</p>
-                     <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="filteredData.scholarshipDistribution?.applicantsInCampus || 0"></p>
-                 </div>
-                 <!-- Approved Applicants (Scholars) -->
-                 <div x-on:click="openStudentDetails('comparison', 'scholars')"
-                      x-on:keydown.enter.prevent="openStudentDetails('comparison', 'scholars')"
-                      x-on:keydown.space.prevent="openStudentDetails('comparison', 'scholars')"
-                      role="button"
-                      tabindex="0"
-                      class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 cursor-pointer hover:ring-1 hover:ring-green-300 transition">
-                     <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Approved Applicants (Scholars)</p>
-                     <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.scholarshipDistribution?.approvedApplicants || 0"></p>
-                 </div>
+            <!-- Scholarship Insights KPI Summary -->
+            <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 xl:grid-cols-3">
+                <div class="rounded-lg border border-blue-100 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Total Applications</p>
+                    <p class="mt-2 text-2xl font-bold text-blue-700 dark:text-blue-300" x-text="filteredData.scholarshipDistribution?.totalApplications || 0"></p>
+                    <p class="mt-1 text-xs text-blue-700/70 dark:text-blue-300/70">Submitted applications in the selected scope</p>
+                </div>
+                <div class="rounded-lg border border-green-100 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">Approved Scholars</p>
+                    <p class="mt-2 text-2xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.scholarshipDistribution?.approvedApplications || 0"></p>
+                    <p class="mt-1 text-xs text-green-700/70 dark:text-green-300/70">Approved applications in the selected scope</p>
+                </div>
+                <div class="rounded-lg border border-yellow-100 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-400">Pending Applications</p>
+                    <p class="mt-2 text-2xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.scholarshipDistribution?.pendingApplications || 0"></p>
+                    <p class="mt-1 text-xs text-yellow-700/70 dark:text-yellow-300/70">Applications still under evaluation</p>
+                </div>
+                <div class="rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Rejected Applications</p>
+                    <p class="mt-2 text-2xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.scholarshipDistribution?.rejectedApplications || 0"></p>
+                    <p class="mt-1 text-xs text-red-700/70 dark:text-red-300/70">Applications not approved in the selected scope</p>
+                </div>
+                <div class="rounded-lg border border-indigo-100 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Approval Rate</p>
+                    <p class="mt-2 text-2xl font-bold text-indigo-700 dark:text-indigo-300" x-text="(filteredData.scholarshipDistribution?.approvalRate || 0) + '%' "></p>
+                    <p class="mt-1 text-xs text-indigo-700/70 dark:text-indigo-300/70">Approved applications out of all submitted applications</p>
+                </div>
+                <div class="rounded-lg border border-purple-100 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">Active Scholarship Programs</p>
+                    <p class="mt-2 text-2xl font-bold text-purple-700 dark:text-purple-300" x-text="filteredData.scholarshipDistribution?.activePrograms || 0"></p>
+                    <p class="mt-1 text-xs text-purple-700/70 dark:text-purple-300/70">Currently available scholarship programs</p>
+                </div>
             </div>
 
-            <!-- Scholarship Ranking (by number of applicants) -->
+            <!-- Most Applied Scholarship Programs -->
             <div class="bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-100 dark:border-gray-700 p-4 mb-6">
-                <h4 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 text-center uppercase tracking-wide">Scholarship Rankings (by Applicants)</h4>
+                <h4 class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 text-center uppercase tracking-wide">Most Applied Scholarship Programs</h4>
                 <template x-if="!filteredData.scholarshipDistribution?.ranking || filteredData.scholarshipDistribution.ranking.length === 0">
                     <p class="text-sm text-gray-500 dark:text-gray-400 text-center py-2">No applicant data available for this selection.</p>
                 </template>
@@ -362,6 +421,13 @@
                 </div>
             </div>
 
+            <div class="mb-3 mt-8 flex items-center justify-between gap-3">
+                <h4 class="text-base font-bold text-gray-900 dark:text-white">Scholarship Applications and Scholars by College</h4>
+            </div>
+            <div class="analytics-chart-legend mb-4" aria-label="Chart legend">
+                <span class="analytics-legend-key legend-applicants"><span class="analytics-legend-swatch"></span>Applicants</span>
+                <span class="analytics-legend-key legend-approved-scholars"><span class="analytics-legend-swatch"></span>Approved Scholars</span>
+            </div>
             <div class="relative h-96 w-full mb-6">
                  <div x-show="chartStatus.comparison" class="h-full w-full">
                     <canvas id="sfaoComparisonChart"></canvas>
@@ -378,6 +444,28 @@
                 </div>
             </div>
 
+            <!-- Scholarship Applications Trend -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h4 class="text-md font-bold text-gray-900 dark:text-white mb-1 text-center">Scholarship Applications Trend</h4>
+                <p class="mb-4 text-center text-sm text-gray-500 dark:text-gray-400">Track application and scholar activity over time for the selected filters.</p>
+                <div class="relative h-64 w-full">
+                    <div x-show="chartStatus.trend" class="h-full w-full">
+                        <canvas id="sfaoTrendChart"></canvas>
+                    </div>
+                    <div x-show="!chartStatus.trend" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">No trend data available for this selection.</p>
+                    </div>
+                </div>
+            </div>
+
+            <section class="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
+                <h4 class="text-base font-bold text-gray-900 dark:text-white">Key Insights</h4>
+                <ul class="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                    <template x-for="insight in (serverInsights?.insights || [])" :key="insight"><li>• <span x-text="insight"></span></li></template>
+                    <li x-show="!serverInsights">• Loading filter-specific insights…</li>
+                </ul>
+            </section>
+
             <!-- Scholarships (Comparison) Mode Legend (Moved Here) -->
 
         </div>
@@ -388,9 +476,15 @@
              x-transition:enter-start="opacity-0 translate-y-2"
              x-transition:enter-end="opacity-100 translate-y-0"
              class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mt-6">
-            <!-- Header Section (Centered) -->
-            <div class="text-center mb-6">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white" x-text="getChartTitle()">Scholarship Status</h3>
+            <!-- College Chart Header -->
+            <div class="mb-4 text-center">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white" x-text="getChartTitle()">Scholarship Distribution by Campus</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" x-text="filters.campus === 'all' ? 'Compare applicants and approved scholars across campuses.' : 'Compare applicants and approved scholars across colleges.'">Compare applicants and approved scholars across campuses.</p>
+            </div>
+
+            <div class="analytics-chart-legend mb-6 justify-center" aria-label="College chart legend">
+                <span class="analytics-legend-key legend-applicants"><span class="analytics-legend-swatch"></span>Applicants</span>
+                <span class="analytics-legend-key legend-approved-scholars"><span class="analytics-legend-swatch"></span>Approved Scholars</span>
             </div>
 
 
@@ -436,7 +530,7 @@
                           role="button"
                           tabindex="0"
                           class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800 cursor-pointer hover:ring-1 hover:ring-yellow-300 transition">
-                         <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Pending/In Progress</p>
+                         <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Pending / Under Review</p>
                          <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.counts?.active || 0"></p>
                      </div>
                      <!-- Rate -->
@@ -508,18 +602,6 @@
                 </div>
             </div>
 
-            <!-- Trend Graph (Integrated) -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
-                <h4 class="text-md font-bold text-gray-900 dark:text-white mb-4 text-center">Trend Analysis</h4>
-                <div class="relative h-64 w-full">
-                    <div x-show="chartStatus.trend" class="h-full w-full">
-                        <canvas id="sfaoTrendChart"></canvas>
-                    </div>
-                    <div x-show="!chartStatus.trend" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">No trend data available for this selection.</p>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Student Details Modal -->

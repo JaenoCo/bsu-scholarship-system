@@ -34,7 +34,7 @@
         userId: @json($user->id), 
         userRole: @json(session("role")),
         campusList: @json($allCampuses->map(fn($c) => ["id" => $c->id, "name" => $c->name, "slug" => Str::slug($c->name)])),
-        activeTab: @json($activeTab ?? "analytics") 
+        activeTab: @json($activeTab ?? "dashboard")
     })'>
 
         <!-- Toasts -->
@@ -42,6 +42,7 @@
 
         <!-- Tabs -->
         <div>
+           @include('sfao.dashboard.overview') <!-- Operational overview -->
            @include('sfao.scholarships.index') <!-- Scholarship Lists -->
            @include('sfao.applicants.index')   <!-- Applicants Lists -->
            @include('sfao.scholars.index')     <!-- Scholars Lists -->

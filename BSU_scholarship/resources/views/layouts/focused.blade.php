@@ -82,6 +82,7 @@
 
     <!-- Logout Modal (Standard Global Modal) -->
     <x-modals.logout />
+    <x-modals.success />
     
     <!-- Redirect Warning Modal -->
     <x-modals.redirect-warning url="{{ route('sfao.dashboard') }}" />

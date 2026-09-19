@@ -29,7 +29,7 @@ class ScholarAcademicRiskService
             'latest_gwa' => $latestGwa,
             'previous_gwa' => $previousGwa,
             'gwa_delta' => $delta,
-            'trend' => $delta === null ? 'unknown' : ($delta > 0 ? 'worsening' : ($delta < 0 ? 'improving' : 'stable')),
+            'trend' => $delta === null ? 'unknown' : ($delta > 0 ? 'declining' : ($delta < 0 ? 'improving' : 'stable')),
             'graduation' => $graduation,
             'retention' => $retention,
             'status' => $this->highestStatus($graduation['status'], $retention['status']),
@@ -52,10 +52,10 @@ class ScholarAcademicRiskService
 
         if ($gwa > $requirement || ($delta !== null && $delta >= config('academic_risk.worsening_critical_delta') && $margin <= config('academic_risk.retention_warning_margin'))) {
             $status = 'Critical';
-            $reasons[] = $gwa > $requirement ? 'Latest GWA is below the scholarship retention requirement' : 'GWA is worsening sharply near the retention threshold';
+            $reasons[] = $gwa > $requirement ? 'Latest GWA is below the scholarship retention requirement' : 'GWA is declining sharply near the retention threshold';
         } elseif ($margin <= config('academic_risk.retention_warning_margin') || ($delta !== null && $delta >= config('academic_risk.worsening_warning_delta'))) {
             $status = 'At-Risk';
-            $reasons[] = $margin <= config('academic_risk.retention_warning_margin') ? 'Latest GWA is close to the scholarship retention threshold' : 'GWA trend is worsening';
+            $reasons[] = $margin <= config('academic_risk.retention_warning_margin') ? 'Latest GWA is close to the scholarship retention threshold' : 'GWA trend is declining';
         }
 
         return ['status' => $status, 'score' => $score, 'reasons' => $reasons];

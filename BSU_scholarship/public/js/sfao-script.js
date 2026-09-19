@@ -45,6 +45,166 @@ window.addEventListener("pageshow", function (event) {
     }
 })();
 
+// Focused, server-backed analytics dashboards.  This intentionally consumes the
+// scoped JSON endpoints instead of exposing the full campus dataset in the page.
+window.sfaoInsightsDashboard = function (config = {}) {
+    const charts = { primary: null, secondary: null, trend: null };
+    const colors = ["#2563EB", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#14B8A6", "#F97316"];
+    const empty = () => ({ filters: {}, summary: {}, programs: [], campuses: [], colleges: [], gender: [], status: [], trend: [], insights: [] });
+
+    return {
+        endpoints: config.endpoints || {}, scholarships: config.scholarships || [], colleges: config.colleges || [],
+        view: "scholarships", data: empty(), loading: false, error: "", request: null, requestSequence: 0,
+        filters: { academic_year: "all", semester: "all", college: "all", scholarship_id: "all" },
+        academicYears: ["all", ...Array.from({ length: 7 }, (_, index) => {
+            const year = new Date().getFullYear() - index;
+            return `${year}-${year + 1}`;
+        })],
+        init() {
+            const tab = new URLSearchParams(window.location.search).get("tabs") || new URLSearchParams(window.location.search).get("tab");
+            this.setViewFromTab(tab);
+            this.$nextTick(() => this.load());
+        },
+        get page() {
+            return {
+                scholarships: { title: "Scholarship Insights", description: "Compare applicant demand, enrolled scholars, active scholars, and outcomes for every scholarship program." },
+                applicants: { title: "Applicant Insights", description: "Analyze applicant demographics, application activity, and approval outcomes across your campus scope." },
+                scholars: { title: "Scholar Insights", description: "Track scholar participation, status, program distribution, and retention outcomes." },
+            }[this.view];
+        },
+        get cards() {
+            const s = this.data.summary || {};
+            if (this.view === "applicants") return [
+                this.card("Total applicants", s.totalApplicants || 0, "Distinct students with applications", "border-blue-100 text-blue-700"),
+                this.card("Completed", s.completed || 0, "Students with an approved application", "border-emerald-100 text-emerald-700"),
+                this.card("Incomplete", s.incomplete || 0, "Pending or under review", "border-amber-100 text-amber-700"),
+                this.card("Withdrawn", s.withdrawn || 0, "Not tracked in the current data model", "border-rose-100 text-rose-700"),
+                this.card("New applicants", s.newApplicants || 0, "First activity in the last 30 days", "border-violet-100 text-violet-700"),
+                this.card("Approval rate", `${s.approvalRate || 0}%`, "Approved applicants", "border-cyan-100 text-cyan-700"),
+            ];
+            if (this.view === "scholars") return [
+                this.card("Total scholars", s.totalScholars || 0, "Distinct scholar records", "border-blue-100 text-blue-700"),
+                this.card("Active scholars", s.active || 0, "Currently active", "border-emerald-100 text-emerald-700"),
+                this.card("Completed", s.completed || 0, "Completed scholarships", "border-violet-100 text-violet-700"),
+                this.card("Ongoing", s.ongoing || 0, "Active scholar records", "border-amber-100 text-amber-700"),
+                this.card("At risk", s.atRisk || 0, "Inactive or suspended records", "border-rose-100 text-rose-700"),
+                this.card("Retention rate", `${s.retentionRate || 0}%`, "Active or completed records", "border-cyan-100 text-cyan-700"),
+            ];
+            return [
+                this.card("Active programs", s.activePrograms || 0, "Available scholarship programs", "border-blue-100 text-blue-700"),
+                this.card("Applicants", s.totalApplicants || 0, "Distinct applicants across programs", "border-violet-100 text-violet-700"),
+                this.card("Enrolled scholars", s.totalScholars || 0, "Distinct scholars across programs", "border-emerald-100 text-emerald-700"),
+                this.card("Active scholars", s.activeScholars || 0, "Currently active scholar records", "border-cyan-100 text-cyan-700"),
+                this.card("Applications", s.total || 0, "Submitted applications", "border-amber-100 text-amber-700"),
+                this.card("Approval rate", `${s.approvalRate || 0}%`, "Approved or claimed applications", "border-rose-100 text-rose-700"),
+            ];
+        },
+        card(label, value, hint, tone) { return { label, value, hint, tone }; },
+        get tableRows() {
+            return (this.data.programs || []).slice(0, 10).map(row => ({ name: row.name, total: row.total ?? row.applicants ?? row.scholars ?? 0, applicants: row.applicants, scholars: row.scholars, approved: row.approved }));
+        },
+        get tableTitle() { return this.view === "scholars" ? "Top Scholarship Programs by Scholars" : this.view === "applicants" ? "Top Scholarship Programs by Applicants" : "Scholarship Program Performance"; },
+        get hasData() { return this.tableRows.length > 0 || (this.data.status || []).length > 0; },
+        get isCampusScoped() { return false; },
+        get chartOne() {
+            if (this.isCampusScoped) {
+                return { title: this.view === "scholars" ? "Scholar Distribution by College" : this.view === "applicants" ? "Applicant Distribution by College" : "Scholarship Program Distribution" };
+            }
+            return { title: this.view === "scholars" ? "Scholar Distribution by College" : this.view === "applicants" ? "Applicants by Campus" : "Applicants and Scholars by Scholarship" };
+        },
+        get chartTwo() { return { title: this.view === "scholars" ? "Scholar Status Overview" : this.view === "applicants" ? "Applicant Gender Distribution" : "Application Status Overview" }; },
+        get chartThree() { return { title: this.view === "scholars" ? "Scholar Trend" : this.view === "applicants" ? "Application Trend" : "Scholarship Application Trend" }; },
+        rate(row) { return row.total ? `${Math.round(((row.approved || 0) / row.total) * 1000) / 10}%` : "0%"; },
+        handleTab(tab) { this.setViewFromTab(tab); },
+        setViewFromTab(tab) {
+            const next = String(tab || "");
+            // These names overlap: `analytics_scholarships` contains
+            // `analytics_scholars`.  Use exact normalized values so the program
+            // dashboard never falls through to the Scholar Insights endpoint.
+            const view = {
+                analytics_scholarships: "scholarships",
+                "analytics-scholarships": "scholarships",
+                analytics_scholars: "scholars",
+                "analytics-scholars": "scholars",
+                analytics_applications: "applicants",
+                analytics_applicants: "applicants",
+                "analytics-applications": "applicants",
+                "analytics-applicants": "applicants",
+            }[next] || "scholarships";
+            if (view !== this.view) { this.view = view; this.$nextTick(() => this.load()); }
+        },
+        reset() { this.filters = { academic_year: "all", semester: "all", college: "all", scholarship_id: "all" }; this.load(); },
+        async load() {
+            const endpoint = this.endpoints[this.view];
+            if (!endpoint) return;
+            if (this.request) this.request.abort();
+            this.request = new AbortController(); this.loading = true; this.error = "";
+            const requestId = ++this.requestSequence;
+            try {
+                const params = new URLSearchParams(this.filters);
+                const response = await fetch(`${endpoint}?${params}`, { cache: "no-store", headers: { Accept: "application/json", "Cache-Control": "no-cache" }, signal: this.request.signal });
+                if (!response.ok) throw new Error("Unable to load analytics for the selected filters.");
+                const payload = await response.json();
+                if (requestId !== this.requestSequence) return;
+                if (payload.dataset && payload.dataset !== this.view) {
+                    throw new Error("Received an unexpected analytics dataset. Please refresh the page and try again.");
+                }
+                this.data = payload;
+                this.$nextTick(() => requestAnimationFrame(() => this.renderCharts()));
+            } catch (error) {
+                if (requestId === this.requestSequence && error.name !== "AbortError") this.error = error.message || "Unable to load analytics.";
+            } finally { if (requestId === this.requestSequence) this.loading = false; }
+        },
+        destroyCharts() {
+            Object.keys(charts).forEach(key => {
+                if (charts[key]) charts[key].destroy();
+                charts[key] = null;
+            });
+            // Chart.js tracks canvases globally. Release any instance that might have
+            // survived a rapid Alpine DOM refresh before drawing on the same canvas.
+            if (typeof Chart !== "undefined" && typeof Chart.getChart === "function") {
+                [this.$refs.primaryChart, this.$refs.secondaryChart, this.$refs.trendChart].filter(Boolean).forEach(canvas => Chart.getChart(canvas)?.destroy());
+            }
+        },
+        renderCharts() {
+            if (typeof Chart === "undefined" || !this.$refs.primaryChart || !this.$refs.secondaryChart || !this.$refs.trendChart) return;
+            this.destroyCharts();
+            const programRows = this.tableRows;
+            const firstRows = this.isCampusScoped
+                ? (this.view === "scholarships" ? programRows : (this.data.colleges || []))
+                : (this.view === "scholars" ? (this.data.colleges || []) : this.view === "applicants" ? (this.data.campuses || []) : programRows);
+            const primaryIsDonut = this.isCampusScoped;
+            const scholarshipProgramChart = this.view === "scholarships" && !primaryIsDonut;
+            charts.primary = new Chart(this.$refs.primaryChart, {
+                type: primaryIsDonut ? "doughnut" : "bar",
+                data: { labels: firstRows.map(row => row.name), datasets: scholarshipProgramChart ? [
+                    { label: "Applicants", data: firstRows.map(row => row.applicants || 0), backgroundColor: "#2563EB", borderRadius: 6 },
+                    { label: "Scholars", data: firstRows.map(row => row.scholars || 0), backgroundColor: "#10B981", borderRadius: 6 },
+                ] : [{ label: "Total", data: firstRows.map(row => row.total), backgroundColor: firstRows.map((_, index) => colors[index % colors.length]), borderRadius: primaryIsDonut ? 0 : 6, borderWidth: primaryIsDonut ? 0 : 1 }] },
+                options: primaryIsDonut ? { responsive: true, maintainAspectRatio: false, cutout: "62%", plugins: { legend: { position: "bottom" } } } : this.options(scholarshipProgramChart, false)
+            });
+            const statusRows = this.view === "applicants" ? (this.data.gender || []) : (this.data.status || []);
+            const chartTextColor = document.documentElement.classList.contains("dark") ? "#E5E7EB" : "#334155";
+            charts.secondary = new Chart(this.$refs.secondaryChart, {
+                type: "doughnut", data: { labels: statusRows.map(row => this.label(row.name)), datasets: [{ data: statusRows.map(row => row.total), backgroundColor: colors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: "62%", plugins: { legend: { position: "bottom", labels: { color: chartTextColor } } } }
+            });
+            const trend = this.data.trend || [];
+            const trendSets = this.view === "scholars" ? [{ label: "Total scholars", key: "scholars", color: "#2563EB" }, { label: "New scholars", key: "new", color: "#10B981" }] : this.view === "applicants" ? [{ label: "Applicants", key: "applicants", color: "#2563EB" }, { label: "Approved", key: "approved", color: "#10B981" }] : [{ label: "Applications", key: "applications", color: "#2563EB" }, { label: "New scholars", key: "scholars", color: "#10B981" }];
+            charts.trend = new Chart(this.$refs.trendChart, { type: "line", data: { labels: trend.map(row => row.period), datasets: trendSets.map(set => ({ label: set.label, data: trend.map(row => row[set.key] || 0), borderColor: set.color, backgroundColor: set.color, tension: .3, fill: false })) }, options: this.options(false, false) });
+        },
+        options(horizontal = false, stacked = false) {
+            const dark = document.documentElement.classList.contains("dark");
+            const text = dark ? "#E5E7EB" : "#334155";
+            const grid = dark ? "rgba(229, 231, 235, .16)" : "rgba(15, 23, 42, .10)";
+            return { indexAxis: horizontal ? "y" : "x", responsive: true, maintainAspectRatio: false,
+                scales: { x: { beginAtZero: true, stacked, ticks: { precision: 0, color: text }, grid: { color: grid } }, y: { beginAtZero: true, stacked, ticks: { precision: 0, color: text }, grid: { color: grid } } },
+                plugins: { legend: { display: !horizontal, position: "bottom", labels: { color: text } } } };
+        },
+        label(value) { return String(value || "Unassigned").replaceAll("_", " ").replace(/\b\w/g, letter => letter.toUpperCase()); },
+    };
+};
+
 // SFAO Statistics Tab Component
 window.sfaoStatisticsTab = function (config = {}) {
     // Store chart instances globally or in a scoped tracking object (non-reactive)
@@ -55,6 +215,8 @@ window.sfaoStatisticsTab = function (config = {}) {
         comparison: null,
         trend: null,
         scholarshipRanking: null,
+        gwaQualification: null,
+        gwaDistribution: null,
     };
 
     return {
@@ -92,6 +254,8 @@ window.sfaoStatisticsTab = function (config = {}) {
         chartDebounceTimer: null,
         availablePrograms: [],
         insightsEndpoint: config.insightsEndpoint || null,
+        analyticsEndpoints: config.analyticsEndpoints || {},
+        isLoading: false,
         serverInsights: null,
         insightsRequest: null,
         filters: {
@@ -157,6 +321,12 @@ window.sfaoStatisticsTab = function (config = {}) {
                 // Initial Filters
                 if (this.campusOptions.length === 1) {
                     this.filters.campus = this.campusOptions[0].id;
+                } else if (this.subTab === "gwa") {
+                    if (chartInstances.gwaQualification && ctx.getBoundingClientRect().width > 0) {
+                        chartInstances.gwaQualification.resize();
+                    } else if (!chartInstances.gwaQualification && ctx.getBoundingClientRect().width > 0) {
+                        this.createGwaQualificationChart();
+                    }
                 } else {
                     const storedCampus =
                         localStorage.getItem("sfaoStatsCampus");
@@ -178,15 +348,11 @@ window.sfaoStatisticsTab = function (config = {}) {
                 }
                 this.$watch("viewMode", (val) => {
                     localStorage.setItem("sfao_view_mode", val);
-                    this.applyFilters();
                 });
 
                 // Auto-update search with debounce to avoid excessive filtering
                 this.$watch("filters.search", (val) => {
-                    clearTimeout(this.searchDebounceTimer);
-                    this.searchDebounceTimer = setTimeout(() => {
-                        this.applyFilters();
-                    }, 300); // 300ms debounce
+                    this.showSearchResults = false;
                 });
 
                 this.availableColleges = this.analyticsData.all_colleges || [];
@@ -208,24 +374,21 @@ window.sfaoStatisticsTab = function (config = {}) {
                     this.updateCollegesList(value);
                     this.updateProgramList();
                     this.updateTrackList();
-                    this.applyFilters();
                 });
 
                 // Auto-update on all filter changes
-                this.$watch("filters.timePeriod", () => this.applyFilters());
-                this.$watch("filters.semester", () => this.applyFilters());
-                this.$watch("filters.status", () => this.applyFilters());
-                this.$watch("viewMode", () => this.applyFilters()); // Watch Student Type (Applicants/Scholars)
+                this.$watch("filters.timePeriod", () => {});
+                this.$watch("filters.semester", () => {});
+                this.$watch("filters.status", () => {});
+                this.$watch("viewMode", () => {}); // Watch Student Type (Applicants/Scholars)
 
                 // Watch Local Filters
                 this.$watch("localFilters.college", (val) => {
                     this.updateProgramList();
                     this.updateTrackList();
-                    this.applyFilters();
                 });
                 this.$watch("localFilters.program", () => {
                     this.updateTrackList();
-                    this.applyFilters();
                 });
 
                 // Watch Chart Legend
@@ -238,7 +401,7 @@ window.sfaoStatisticsTab = function (config = {}) {
                 );
 
                 this.$watch("localFilters.track", () => {
-                    this.applyFilters();
+                    this.availableTracks = this.availableTracks;
                 });
 
                 // Detect SubTab from URL on Init
@@ -263,7 +426,7 @@ window.sfaoStatisticsTab = function (config = {}) {
 
                 // Initial Data Load triggering
                 this.$nextTick(() => {
-                    this.applyFilters();
+                    this.updateTrackList();
                 });
 
                 // Force initial load with delay to ensure DOM/Canvas is ready
@@ -311,6 +474,7 @@ window.sfaoStatisticsTab = function (config = {}) {
             }
             // Force chart update
             this.$nextTick(() => {
+                this.applyFilters();
                 this.updateCharts();
                 window.dispatchEvent(new Event("resize"));
             });
@@ -905,16 +1069,20 @@ window.sfaoStatisticsTab = function (config = {}) {
         },
 
         async loadServerInsights() {
-            if (!this.insightsEndpoint) return;
+            const endpoint = this.analyticsEndpoints[this.subTab] || this.insightsEndpoint;
+            if (!endpoint) return;
             if (this.insightsRequest) this.insightsRequest.abort();
             this.insightsRequest = new AbortController();
+            this.isLoading = true;
             const params = new URLSearchParams({ academic_year: this.filters.timePeriod, semester: this.filters.semester, campus: this.filters.campus, college: this.localFilters.college, program: this.localFilters.program, track: this.localFilters.track, scholarship: this.filters.search, status: this.filters.status });
             try {
-                const response = await fetch(`${this.insightsEndpoint}?${params.toString()}`, { headers: { Accept: "application/json" }, signal: this.insightsRequest.signal });
-                if (response.ok) this.serverInsights = await response.json();
+                const response = await fetch(`${endpoint}?${params.toString()}`, { headers: { Accept: "application/json" }, signal: this.insightsRequest.signal });
+                if (response.ok) {
+                    this.serverInsights = await response.json();
+                }
             } catch (error) {
                 if (error.name !== "AbortError") console.warn("Unable to refresh Scholarship Insights", error);
-            }
+            } finally { this.isLoading = false; }
         },
 
         computeGwaPrediction() {
@@ -941,7 +1109,8 @@ window.sfaoStatisticsTab = function (config = {}) {
             ].map(([label, min, max]) => ({ label, count: studentsWithGwa.filter((student) => Number(student.gwa) >= min && (max === null || Number(student.gwa) <= max)).length }));
             const evaluated = rows.reduce((sum, row) => sum + row.total_evaluated, 0);
             const qualified = rows.reduce((sum, row) => sum + row.qualified, 0);
-            return { summary: { total_students: students.length, students_with_gwa: studentsWithGwa.length, students_missing_gwa: students.length - studentsWithGwa.length, qualified_matches: qualified, near_miss_matches: rows.reduce((sum, row) => sum + row.near_miss, 0), qualification_rate: evaluated ? Math.round((qualified / evaluated) * 1000) / 10 : 0 }, bands, scholarships: rows };
+            const riskStudents = Array.isArray(source.risk_students) ? source.risk_students : (source.risk_students?.data || []);
+            return { summary: { total_students: students.length, students_with_gwa: studentsWithGwa.length, students_missing_gwa: students.length - studentsWithGwa.length, evaluated_matches: evaluated, qualified_matches: qualified, near_miss_matches: rows.reduce((sum, row) => sum + row.near_miss, 0), qualification_rate: evaluated ? Math.round((qualified / evaluated) * 1000) / 10 : 0 }, bands, scholarships: rows, risk_students: riskStudents.filter((student) => students.some((candidate) => candidate.id === student.student_id)) };
         },
 
         getGwaMetricStudents(metric) {
@@ -966,6 +1135,10 @@ window.sfaoStatisticsTab = function (config = {}) {
                 });
             });
             return students.filter((student) => matchingIds.has(student.id));
+        },
+
+        riskAction(student, action) {
+            window.dispatchEvent(new CustomEvent("sfao-risk-action", { detail: { action, student } }));
         },
 
         // Scholarship Status Distribution Metrics (Scholarships sub-tab summary cards)
@@ -1167,13 +1340,11 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.filters.search = name;
             this.selectedScholarshipName = name;
             this.showSearchResults = false;
-            this.applyFilters();
         },
 
         performSearch() {
             this.showSearchResults = false;
             this.selectedScholarshipName = this.filters.search;
-            this.applyFilters();
         },
 
         async openStudentDetails(scope, type = null) {
@@ -1659,6 +1830,8 @@ window.sfaoStatisticsTab = function (config = {}) {
             let primaryCanvasId = "sfaoCollegeChart";
             if (this.subTab === "scholarships") {
                 primaryCanvasId = "sfaoComparisonChart";
+            } else if (this.subTab === "gwa") {
+                primaryCanvasId = "sfaoGwaQualificationChart";
             }
 
             const ctx = document.getElementById(primaryCanvasId);
@@ -1737,6 +1910,52 @@ window.sfaoStatisticsTab = function (config = {}) {
             this.createTrendChart();
             this.createScholarshipStatusChart();
             this.createScholarshipRankingChart();
+            if (this.subTab === "gwa") {
+                this.createGwaQualificationChart();
+                this.createGwaDistributionChart();
+            }
+        },
+
+        createGwaQualificationChart() {
+            const canvas = document.getElementById("sfaoGwaQualificationChart");
+            if (!canvas || typeof Chart === "undefined") return;
+            if (chartInstances.gwaQualification) chartInstances.gwaQualification.destroy();
+            const rows = this.filteredData.gwa_prediction?.scholarships || [];
+            chartInstances.gwaQualification = new Chart(canvas, {
+                type: "bar",
+                data: {
+                    labels: rows.map((row) => row.scholarship_name),
+                    datasets: [
+                        { label: "Qualified", data: rows.map((row) => row.qualified), backgroundColor: "#16A34A", borderRadius: 4 },
+                        { label: "Near miss", data: rows.map((row) => row.near_miss), backgroundColor: "#D97706", borderRadius: 4 },
+                        { label: "Not qualified", data: rows.map((row) => Math.max(0, row.not_qualified - row.near_miss)), backgroundColor: "#CBD5E1", borderRadius: 4 },
+                    ],
+                },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { beginAtZero: true, stacked: true, ticks: { precision: 0, color: this.getTextColor() }, grid: { color: "#E2E8F0" } }, y: { stacked: true, ticks: { color: this.getTextColor() }, grid: { display: false } } },
+                    plugins: { legend: { position: "bottom", labels: { color: this.getTextColor() } }, tooltip: { mode: "index", intersect: false } },
+                },
+            });
+        },
+
+        createGwaDistributionChart() {
+            const canvas = document.getElementById("sfaoGwaBandChart");
+            if (!canvas || typeof Chart === "undefined") return;
+            if (chartInstances.gwaDistribution) chartInstances.gwaDistribution.destroy();
+            const bands = this.filteredData.gwa_prediction?.bands || [];
+            chartInstances.gwaDistribution = new Chart(canvas, {
+                type: "bar",
+                data: { labels: bands.map((band) => band.label), datasets: [{ label: "Students", data: bands.map((band) => band.count), backgroundColor: ["#15803D", "#65A30D", "#D97706", "#EA580C", "#DC2626"], borderRadius: 5 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0, color: this.getTextColor() }, grid: { color: "#E2E8F0" } }, x: { ticks: { color: this.getTextColor() }, grid: { display: false } } },
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => `${context.raw} students` } } },
+                },
+            });
         },
 
         createCollegeChart() {

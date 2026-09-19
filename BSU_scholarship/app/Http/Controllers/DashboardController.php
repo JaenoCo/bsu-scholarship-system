@@ -11,11 +11,11 @@ use App\Models\Scholarship;
 use App\Models\Report;
 use App\Models\Scholar;
 use App\Models\GradeSubmission;
-use App\Models\StudentSubmittedDocument;
 use App\Services\ScholarAcademicRiskService;
 use App\Services\ScholarshipInsightsService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -357,16 +357,51 @@ class DashboardController extends Controller
         ], $applicantData));
     }
 
-    /** JSON source for Scholarship Insights filters. Campus access is always derived from the signed-in SFAO user. */
+    /** JSON source for the SFAO analytics screens. Scope is always derived from the signed-in SFAO user. */
     public function sfaoInsights(Request $request, ScholarshipInsightsService $insights)
     {
         $user = User::with('campus')->findOrFail(session('user_id'));
-        $filters = $request->validate([
-            'campus' => 'nullable', 'college' => 'nullable|string', 'program' => 'nullable|string',
-            'track' => 'nullable|string', 'scholarship_id' => 'nullable', 'scholarship' => 'nullable|string', 'status' => 'nullable|string',
-            'academic_year' => ['nullable', 'regex:/^(all|\\d{4}-\\d{4})$/'], 'semester' => 'nullable|in:all,first,second',
+        return response()->json($insights->build($this->sfaoCampusIds($user), $this->analyticsFilters($request, $user)));
+    }
+
+    public function sfaoScholarshipAnalytics(Request $request, ScholarshipInsightsService $insights)
+    {
+        $user = User::with('campus')->findOrFail(session('user_id'));
+        return response()->json($insights->build($this->sfaoCampusIds($user), $this->analyticsFilters($request, $user) + ['view' => 'scholarships']));
+    }
+
+    public function sfaoApplicantAnalytics(Request $request, ScholarshipInsightsService $insights)
+    {
+        $user = User::with('campus')->findOrFail(session('user_id'));
+        return response()->json($insights->buildApplicants($this->sfaoCampusIds($user), $this->analyticsFilters($request, $user) + ['view' => 'applicants']));
+    }
+
+    public function sfaoScholarAnalytics(Request $request, ScholarshipInsightsService $insights)
+    {
+        $user = User::with('campus')->findOrFail(session('user_id'));
+        return response()->json($insights->buildScholars($this->sfaoCampusIds($user), $this->analyticsFilters($request, $user) + ['view' => 'scholars']));
+    }
+
+    private function sfaoCampusIds(User $user)
+    {
+        return $user->campus->getAllCampusesUnder()->pluck('id');
+    }
+
+    private function analyticsFilters(Request $request, User $user): array
+    {
+        $allowedCampusIds = $this->sfaoCampusIds($user)->map(fn ($id) => (string) $id)->all();
+        return $request->validate([
+            'campus' => ['nullable', function ($attribute, $value, $fail) use ($allowedCampusIds) {
+                if ($value !== null && $value !== 'all' && !in_array((string) $value, $allowedCampusIds, true)) $fail('The selected campus is outside your SFAO scope.');
+            }],
+            'college' => 'nullable|string|max:150', 'program' => 'nullable|string|max:150', 'track' => 'nullable|string|max:150',
+            'scholarship_id' => ['nullable', function ($attribute, $value, $fail) use ($allowedCampusIds) {
+                if ($value !== null && $value !== 'all' && !Scholarship::whereKey($value)->where(function ($query) use ($allowedCampusIds) { $query->whereHas('campuses', fn ($campuses) => $campuses->whereIn('campus_id', $allowedCampusIds))->orDoesntHave('campuses'); })->exists()) $fail('The selected scholarship is invalid for your SFAO scope.');
+            }],
+            'scholarship' => 'nullable|string|max:150',
+            'status' => 'nullable|in:all,pending,in_progress,under_review,approved,rejected,claimed,active,inactive,suspended,completed',
+            'academic_year' => ['nullable', 'regex:/^(all|\d{4}-\d{4})$/'], 'semester' => 'nullable|in:all,first,second',
         ]);
-        return response()->json($insights->build($user->campus->getAllCampusesUnder()->pluck('id'), $filters));
     }
 
     /** Campus comparison data used by the operational SFAO dashboard. */

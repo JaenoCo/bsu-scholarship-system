@@ -52,7 +52,7 @@
                 <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-6">
                     <button type="button" @click="showReleaseGrant_{{ $scholarship->id }} = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-bsu-red text-white rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-500/30 flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 7v10 M9 7h3.5a2.5 2.5 0 010 5H9 M6 9.5h9 M6 12h9"></path></svg>
                         Send Email Notifications
                     </button>
                 </div>

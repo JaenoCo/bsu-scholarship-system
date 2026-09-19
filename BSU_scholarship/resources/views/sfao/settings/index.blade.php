@@ -92,12 +92,6 @@
                     @csrf
                     @method('PUT')
                     
-                    @if(session('status') === 'profile-updated')
-                        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-green-900/20 dark:text-green-400" role="alert">
-                            <span class="font-medium">Success!</span> Profile information updated.
-                        </div>
-                    @endif
-
                     <!-- Personal Details Section -->
                     <div class="space-y-6">
                         <div class="flex items-center gap-2 mb-4">
@@ -209,12 +203,6 @@
         <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">
             Security Settings
         </h2>
-
-        @if(session('success'))
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-                <p>{{ session('success') }}</p>
-            </div>
-        @endif
 
         @if($errors->any())
             <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">

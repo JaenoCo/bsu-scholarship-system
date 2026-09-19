@@ -17,8 +17,6 @@
     </div>
 
     <!-- Report Content -->
-    @include('sfao.components.modals.success-report-submission')
-
     <div class="bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none">
         <!-- Report Header -->
         <div class="px-8 py-6 border-b border-gray-200 text-center">
@@ -140,6 +138,12 @@
                     @csrf
                     <input type="hidden" name="report_type" value="grant_summary">
                     <input type="hidden" name="campus_id" value="{{ $selectedCampusId }}">
+
+                    @if ($errors->any())
+                        <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                            {{ $errors->first() }}
+                        </div>
+                    @endif
 
                     <div>
                         <label for="report_description" class="block text-sm font-medium text-gray-700">Additional Notes / Description</label>

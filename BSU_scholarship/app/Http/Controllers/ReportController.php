@@ -776,11 +776,12 @@ class ReportController extends Controller
 
         $request->validate([
             'report_type' => 'required|in:student_summary,scholar_summary,grant_summary',
-            'frequency' => 'required|in:monthly,quarterly,semi-annual,annual',
+            'frequency' => 'nullable|in:monthly,quarterly,semi-annual,annual',
             'description' => 'nullable|string',
             'campus_id' => 'required'
         ]);
 
+        $frequency = $request->input('frequency', 'monthly');
         $user = User::with('campus')->find(session('user_id'));
         $campus = $user->campus;
 
@@ -833,13 +834,13 @@ class ReportController extends Controller
             'sfao_user_id' => session('user_id'),
             'campus_id' => $reportCampusId, 
             'original_campus_selection' => $campusSelection,
-            'report_type' => $request->report_type . '_' . $request->frequency,
+            'report_type' => $request->report_type . '_' . $frequency,
             'student_type' => $request->student_type, // New
             'college_id' => ($request->college && $request->college != 'all') ? \App\Models\College::where('short_name', $request->college)->value('id') : null, // New
             'program_id' => ($request->program && $request->program != 'all') ? \App\Models\Program::where('name', $request->program)->value('id') : null, // New
             'track_id' => ($request->track && $request->track != 'all') ? \App\Models\ProgramTrack::where('name', $request->track)->value('id') : null, // New
             'academic_year' => ($request->academic_year && $request->academic_year != 'all') ? $request->academic_year : null, // New
-            'title' => $request->dynamic_title ?? ($title . ' - ' . ucfirst($request->frequency)), // Use dynamic title if provided
+            'title' => $request->dynamic_title ?? ($title . ' - ' . ucfirst($frequency)), // Use dynamic title if provided
             'description' => $request->description,
             'report_period_start' => now()->startOfMonth(),
             'report_period_end' => now()->endOfMonth(),

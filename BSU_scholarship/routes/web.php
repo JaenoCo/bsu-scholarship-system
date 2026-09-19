@@ -275,6 +275,9 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::get('/dashboard/campus-comparison', [DashboardController::class, 'campusComparison'])->name('dashboard.campus-comparison');
     Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
     Route::get('/analytics/insights', [DashboardController::class, 'sfaoInsights'])->name('analytics.insights');
+    Route::get('/analytics/scholarships', [DashboardController::class, 'sfaoScholarshipAnalytics'])->name('analytics.scholarships');
+    Route::get('/analytics/applicants', [DashboardController::class, 'sfaoApplicantAnalytics'])->name('analytics.applicants');
+    Route::get('/analytics/scholars', [DashboardController::class, 'sfaoScholarAnalytics'])->name('analytics.scholars');
 
     // Applicants
     Route::get('/applicants/{user_id}/documents', [ApplicationController::class, 'viewDocuments'])->name('viewDocuments');

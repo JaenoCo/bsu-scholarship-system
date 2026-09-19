@@ -4,45 +4,41 @@
     $gwaPredictionRows = collect($gwaPrediction['scholarships'] ?? []);
 @endphp
 
-<div x-show="tab === 'analytics' || tab.startsWith('analytics_')" 
+@include('sfao.analytics.insights-dashboard')
+
+<div x-show="tab === 'analytics_gwa'"
      x-transition:enter="transition ease-out duration-300"
      x-transition:enter-start="opacity-0 transform scale-95"
      x-transition:enter-end="opacity-100 transform scale-100"
      x-cloak 
-     x-data='sfaoStatisticsTab({ analytics: @json($analytics ?? []), campusOptions: @json($campusOptions), insightsEndpoint: @json(route("sfao.analytics.insights")) })'
-     @tab-changed.window="handleTabChange($event.detail)">
+    x-data='sfaoStatisticsTab({ analytics: @json($analytics ?? []), campusOptions: @json($campusOptions), insightsEndpoint: @json(route("sfao.analytics.insights")), analyticsEndpoints: @json(["scholarships" => route("sfao.analytics.scholarships"), "applicants" => route("sfao.analytics.applicants"), "scholars" => route("sfao.analytics.scholars")]) })'
+    @tab-changed.window="handleTabChange($event.detail)"
+    class="sfao-gwa-analytics">
     <div class="space-y-6">
         <header class="analytics-hero rounded-xl p-6 shadow-sm">
-            <p class="analytics-eyebrow">SFAO Analytics</p>
-            <h1 class="analytics-title mt-2 text-2xl font-bold tracking-tight md:text-3xl" x-text="analyticsPage.title">Scholarship Insights</h1>
-            <p class="analytics-description mt-2 max-w-3xl text-sm leading-6" x-text="analyticsPage.description">Monitor scholarship applications, scholar distribution, program performance, and institutional trends across campuses and scholarship programs.</p>
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <p class="analytics-eyebrow">SFAO Analytics</p>
+                    <h1 class="analytics-title mt-2 text-2xl font-bold tracking-tight md:text-3xl" x-text="analyticsPage.title">Scholarship Insights</h1>
+                    <p class="analytics-description mt-2 max-w-3xl text-sm leading-6" x-text="analyticsPage.description">Monitor scholarship applications, scholar distribution, program performance, and institutional trends across campuses and scholarship programs.</p>
+                </div>
+                <!-- <div class="flex shrink-0 flex-wrap items-center gap-2" aria-label="Report export actions">
+                    <a :href="analyticsExportUrl('pdf')" class="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-red-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-900"><span aria-hidden="true">&#128196;</span> Export PDF</a>
+                    <a :href="analyticsExportUrl('xlsx')" class="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-red-800 px-4 py-2 text-sm font-semibold text-red-800 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/20"><span aria-hidden="true">&#128202;</span> Export Excel</a>
+                    <a :href="analyticsExportUrl('print')" target="_blank" rel="noopener" class="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"><span aria-hidden="true">&#128424;</span> Print Report</a>
+                </div> -->
+            </div>
         </header>
 
 
         <!-- Filter Controls -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
-            <div class="flex flex-wrap gap-4 items-end">
-                <!-- Campus Filter -->
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Campus</label>
-                    <div class="relative">
-                        <select x-model="filters.campus" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none" style="border-width: 1px;">
-                            <option value="all">All Campuses</option>
-                            <template x-for="campus in campusOptions" :key="campus.id">
-                                <option :value="campus.id" x-text="campus.name"></option>
-                            </template>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-400">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-                </div>
-
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <!-- Scholarship Program Filter -->
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Scholarship Program</label>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-gray-300">Scholarship program
                     <div class="relative">
-                        <select x-model="filters.search" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none" style="border-width: 1px;">
+                        <select x-model="filters.search" class="mt-1 block w-full rounded-lg border-slate-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="">All Programs</option>
                             <template x-for="scholarship in (analyticsData.available_scholarships || [])" :key="scholarship.id">
                                 <option :value="scholarship.scholarship_name" x-text="scholarship.scholarship_name"></option>
@@ -52,14 +48,15 @@
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
+                    </label>
                 </div>
    
                 <!-- College Filter (Global) -->
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">College</label>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-gray-300">College
                     <div class="relative">
                         <select x-model="localFilters.college" 
-                                class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none"
+                                class="mt-1 block w-full rounded-lg border-slate-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                 style="border-width: 1px;">
                             <option value="all">All</option>
                             <template x-for="college in availableColleges" :key="college.short_name">
@@ -70,15 +67,16 @@
                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
+                    </label>
                 </div>
 
                 <!-- Program Filter (Global) -->
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Program</label>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-gray-300">Program
                     <div class="relative">
                     <select x-model="localFilters.program" 
                                 :key="localFilters.college"
-                                class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none"
+                                class="mt-1 block w-full rounded-lg border-slate-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                 style="border-width: 1px;">
                             <option value="all">All</option>
                             <template x-for="prog in availablePrograms" :key="prog">
@@ -89,16 +87,17 @@
                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
+                    </label>
                 </div>
 
                 <!-- Track Filter (Global) -->
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Track / Major</label>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-gray-300">Track / Major
                     <div class="relative">
                     <select x-model="localFilters.track" 
                                 :disabled="!availableTracks || availableTracks.length === 0"
                                 :class="{'opacity-50 cursor-not-allowed': !availableTracks || availableTracks.length === 0}"
-                                class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none"
+                                class="mt-1 block w-full rounded-lg border-slate-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                 style="border-width: 1px;">
                             <option value="all" x-text="(!availableTracks || availableTracks.length === 0) ? 'No Tracks Available' : 'All'"></option>
                             <template x-for="track in availableTracks" :key="track">
@@ -109,14 +108,15 @@
                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
+                    </label>
                 </div>
 
                 <!-- Time Period Filter -->
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Academic Year</label>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-gray-300">Academic year
                     <div class="relative">
                         <select x-model="filters.timePeriod" 
-                                class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red focus:border-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center appearance-none"
+                                class="mt-1 block w-full rounded-lg border-slate-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                 style="border-width: 1px;">
                             <option value="all">All</option>
                             <template x-for="ay in academicYearOptions" :key="ay">
@@ -127,27 +127,26 @@
                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                     </div>
+                    </label>
                 </div>
 
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Semester</label>
-                    <select x-model="filters.semester" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center" style="border-width: 1px;">
+                <div>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-gray-300">Semester
+                    <select x-model="filters.semester" class="mt-1 block w-full rounded-lg border-slate-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="all">All Semesters</option><option value="first">First Semester</option><option value="second">Second Semester</option>
                     </select>
+                    </label>
                 </div>
 
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider text-center">Application Status</label>
-                    <select x-model="filters.status" class="block w-full px-3 py-2 text-base border-red-500 dark:border-red-500 focus:outline-none focus:ring-bsu-red sm:text-sm rounded-full dark:bg-gray-700 dark:text-white text-center" style="border-width: 1px;">
+                <div>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-gray-300">Application status
+                    <select x-model="filters.status" class="mt-1 block w-full rounded-lg border-slate-300 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="all">All Statuses</option><option value="pending">Pending</option><option value="under_review">Under Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                     </select>
+                    </label>
                 </div>
 
-                <button type="button" @click="resetFilters()" class="min-h-[42px] rounded-full border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-600 transition hover:border-red-500 hover:text-red-700 dark:border-gray-600 dark:text-gray-300 dark:hover:border-red-400 dark:hover:text-red-300">Reset</button>
-                <a :href="analyticsExportUrl('pdf')" class="min-h-[42px] rounded-full bg-red-700 px-5 py-2 text-sm font-semibold text-white hover:bg-red-800" x-text="`Export ${analyticsPage.title} PDF`">Export PDF</a>
-                <a :href="analyticsExportUrl('xlsx')" class="min-h-[42px] rounded-full border border-red-700 px-5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" x-text="`Export ${analyticsPage.title} Excel`">Export Excel</a>
-                <a :href="analyticsExportUrl('print')" target="_blank" rel="noopener" class="min-h-[42px] rounded-full border border-gray-400 px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">Print Report</a>
-
+                <div class="flex items-end gap-2"><button type="button" @click="applyFilters()" :disabled="isLoading" class="rounded-lg bg-red-800 px-4 py-2 text-sm font-semibold text-white hover:bg-red-900 disabled:opacity-60">Apply filters</button><button type="button" @click="resetFilters()" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 dark:border-gray-600 dark:text-gray-300">Reset</button></div>
             </div>
             
             <!-- Global Legend Buttons (Row 2) -->
@@ -210,6 +209,10 @@
             </div>
         </div>
 
+        <div x-show="isLoading" x-cloak class="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800" role="status">
+            Loading analytics...
+        </div>
+
         <!-- GWA Qualification Prediction -->
         <div x-show="subTab === 'gwa'" x-data="{ metricModal: null, riskFilter: 'all', visibleRiskStudents() { const students = this.filteredData.gwa_prediction?.risk_students || []; return students.filter(student => this.riskFilter === 'all' || student.status === this.riskFilter); } }" x-cloak class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 mb-6">
@@ -223,25 +226,30 @@
             </div>
 
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                <button type="button" @click="metricModal = 'verified'" class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center border border-gray-100 dark:border-gray-600 cursor-pointer hover:ring-2 hover:ring-gray-300 transition">
-                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Verified GWA</p>
-                    <p class="text-xl font-bold text-gray-900 dark:text-white" x-text="filteredData.gwa_prediction?.summary?.students_with_gwa || 0"></p>
+                <button type="button" @click="metricModal = 'verified'" class="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
+                    <div class="flex items-center justify-between"><span class="text-lg text-slate-500 dark:text-gray-300" aria-hidden="true">&#10003;</span><span class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Verified GWA</span></div>
+                    <p class="mt-3 text-2xl font-bold text-slate-900 dark:text-white" x-text="filteredData.gwa_prediction?.summary?.students_with_gwa || 0"></p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-gray-700"><div class="h-full rounded-full bg-slate-500 transition-all" :style="`width: ${filteredData.gwa_prediction?.summary?.total_students ? ((filteredData.gwa_prediction.summary.students_with_gwa / filteredData.gwa_prediction.summary.total_students) * 100) : 0}%`"></div></div>
                 </button>
-                <button type="button" @click="metricModal = 'missing'" class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center border border-red-100 dark:border-red-800 cursor-pointer hover:ring-2 hover:ring-red-300 transition">
-                    <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Unverified / Missing</p>
-                    <p class="text-xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.gwa_prediction?.summary?.students_missing_gwa || 0"></p>
+                <button type="button" @click="metricModal = 'missing'" class="group rounded-xl border border-red-100 bg-red-50 p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-red-800 dark:bg-red-900/20">
+                    <div class="flex items-center justify-between"><span class="text-lg text-red-600 dark:text-red-300" aria-hidden="true">&#9888;</span><span class="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Unverified / Missing</span></div>
+                    <p class="mt-3 text-2xl font-bold text-red-700 dark:text-red-300" x-text="filteredData.gwa_prediction?.summary?.students_missing_gwa || 0"></p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-red-100 dark:bg-red-950"><div class="h-full rounded-full bg-red-500 transition-all" :style="`width: ${filteredData.gwa_prediction?.summary?.total_students ? ((filteredData.gwa_prediction.summary.students_missing_gwa / filteredData.gwa_prediction.summary.total_students) * 100) : 0}%`"></div></div>
                 </button>
-                <button type="button" @click="metricModal = 'qualified'" class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 cursor-pointer hover:ring-2 hover:ring-green-300 transition">
-                    <p class="text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Qualified Matches</p>
-                    <p class="text-xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.gwa_prediction?.summary?.qualified_matches || 0"></p>
+                <button type="button" @click="metricModal = 'qualified'" class="group rounded-xl border border-green-100 bg-green-50 p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-green-800 dark:bg-green-900/20">
+                    <div class="flex items-center justify-between"><span class="text-lg text-green-600 dark:text-green-300" aria-hidden="true">&#10003;</span><span class="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">Qualified Matches</span></div>
+                    <p class="mt-3 text-2xl font-bold text-green-700 dark:text-green-300" x-text="filteredData.gwa_prediction?.summary?.qualified_matches || 0"></p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-green-100 dark:bg-green-950"><div class="h-full rounded-full bg-green-500 transition-all" :style="`width: ${filteredData.gwa_prediction?.summary?.evaluated_matches ? ((filteredData.gwa_prediction.summary.qualified_matches / filteredData.gwa_prediction.summary.evaluated_matches) * 100) : 0}%`"></div></div>
                 </button>
-                <button type="button" @click="metricModal = 'near-miss'" class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-100 dark:border-yellow-800 cursor-pointer hover:ring-2 hover:ring-yellow-300 transition">
-                    <p class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 uppercase">Near Misses</p>
-                    <p class="text-xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.gwa_prediction?.summary?.near_miss_matches || 0"></p>
+                <button type="button" @click="metricModal = 'near-miss'" class="group rounded-xl border border-yellow-100 bg-yellow-50 p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-yellow-800 dark:bg-yellow-900/20">
+                    <div class="flex items-center justify-between"><span class="text-lg text-yellow-600 dark:text-yellow-300" aria-hidden="true">&#8599;</span><span class="text-xs font-semibold uppercase tracking-wide text-yellow-600 dark:text-yellow-400">Near Misses</span></div>
+                    <p class="mt-3 text-2xl font-bold text-yellow-700 dark:text-yellow-300" x-text="filteredData.gwa_prediction?.summary?.near_miss_matches || 0"></p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-yellow-100 dark:bg-yellow-950"><div class="h-full rounded-full bg-yellow-500 transition-all" :style="`width: ${filteredData.gwa_prediction?.summary?.evaluated_matches ? ((filteredData.gwa_prediction.summary.near_miss_matches / filteredData.gwa_prediction.summary.evaluated_matches) * 100) : 0}%`"></div></div>
                 </button>
-                <button type="button" @click="metricModal = 'rate'" class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-100 dark:border-blue-800 cursor-pointer hover:ring-2 hover:ring-blue-300 transition">
-                    <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Prediction Rate</p>
-                    <p class="text-xl font-bold text-blue-700 dark:text-blue-300" x-text="(filteredData.gwa_prediction?.summary?.qualification_rate || 0) + '%' "></p>
+                <button type="button" @click="metricModal = 'rate'" class="group rounded-xl border border-blue-100 bg-blue-50 p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-blue-800 dark:bg-blue-900/20">
+                    <div class="flex items-center justify-between"><span class="text-lg text-blue-600 dark:text-blue-300" aria-hidden="true">&#9673;</span><span class="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Prediction Rate</span></div>
+                    <p class="mt-3 text-2xl font-bold text-blue-700 dark:text-blue-300" x-text="(filteredData.gwa_prediction?.summary?.qualification_rate || 0) + '%' "></p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-950"><div class="h-full rounded-full bg-blue-500 transition-all" :style="`width: ${filteredData.gwa_prediction?.summary?.qualification_rate || 0}%`"></div></div>
                 </button>
             </div>
 
@@ -344,23 +352,24 @@
                     </select>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
-                            <tr><th class="px-3 py-2 text-left">Student</th><th class="px-3 py-2 text-left">Scholarship</th><th class="px-3 py-2 text-left">GWA</th><th class="px-3 py-2 text-left">Graduation</th><th class="px-3 py-2 text-left">Retention</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-left">Reason</th></tr>
+                            <tr><th class="px-3 py-3 text-left">Student</th><th class="px-3 py-3 text-left">Scholarship</th><th class="px-3 py-3 text-left">Current GWA</th><th class="px-3 py-3 text-left">Graduation</th><th class="px-3 py-3 text-left">Retention</th><th class="px-3 py-3 text-left">Status</th><th class="px-3 py-3 text-left">Reason</th></tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                             <template x-for="student in visibleRiskStudents()" :key="student.student_id">
                                 <tr :class="student.status === 'Critical' ? 'bg-red-50 dark:bg-red-900/20' : (student.status === 'At-Risk' ? 'bg-yellow-50 dark:bg-yellow-900/20' : '')">
                                     <td class="px-3 py-2"><div class="font-semibold text-gray-900 dark:text-white" x-text="student.name || 'Unknown Student'"></div><div class="text-xs text-gray-500" x-text="student.sr_code || 'No SR code'"></div></td>
                                     <td class="px-3 py-2 text-gray-700 dark:text-gray-300" x-text="student.scholarship_name || 'No active scholarship'"></td>
-                                    <td class="px-3 py-2 font-semibold text-gray-900 dark:text-white" x-text="student.latest_gwa ? Number(student.latest_gwa).toFixed(2) : 'Missing'"></td>
+                                    <td class="px-3 py-2 font-semibold text-gray-900 dark:text-white"><span x-text="student.latest_gwa ? Number(student.latest_gwa).toFixed(2) : 'Missing'"></span><span class="ml-2 inline-flex items-center text-sm font-bold" :class="student.trend === 'improving' ? 'text-green-600 dark:text-green-400' : (student.trend === 'declining' ? 'text-red-600 dark:text-red-400' : 'text-gray-400')" :title="student.trend === 'improving' ? 'Improving GWA' : (student.trend === 'declining' ? 'Declining GWA' : 'Stable or limited GWA history')" x-text="student.trend === 'improving' ? '↓' : (student.trend === 'declining' ? '↑' : '↔')"></span></td>
                                     <td class="px-3 py-2" x-text="student.graduation?.status || 'On Track'"></td>
                                     <td class="px-3 py-2" x-text="student.retention?.status || 'On Track'"></td>
-                                    <td class="px-3 py-2"><span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold" :class="student.status === 'Critical' ? 'bg-red-100 text-red-800' : (student.status === 'At-Risk' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800')" x-text="student.status"></span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="student.status === 'Critical' ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200' : (student.status === 'At-Risk' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200')" x-text="student.status"></span></td>
                                     <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-300" x-text="student.reasons?.[0] || 'No immediate risk identified'"></td>
+                                    <!-- <td class="px-3 py-2"><div class="flex justify-end gap-1"><button type="button" @click="riskAction(student, 'contact')" class="rounded-md p-1.5 text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/30" title="Email" aria-label="Contact adviser"><span aria-hidden="true">&#9993;</span></button></div></td> -->
                                 </tr>
                             </template>
-                            <tr x-show="visibleRiskStudents().length === 0"><td colspan="7" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No scholars match this risk filter.</td></tr>
+                            <tr x-show="visibleRiskStudents().length === 0"><td colspan="8" class="px-3 py-10"><div class="mx-auto flex max-w-sm flex-col items-center text-center"><div class="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-2xl text-slate-500 dark:bg-gray-700 dark:text-gray-300" aria-hidden="true">&#128269;</div><p class="mt-3 font-semibold text-gray-900 dark:text-white">No scholars in this risk view</p><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try another status or reset the risk filter to review the full scholar population.</p><button type="button" @click="riskFilter = 'all'" class="mt-4 rounded-lg bg-red-800 px-4 py-2 text-sm font-semibold text-white hover:bg-red-900">Reset Risk Filters</button></div></td></tr>
                         </tbody>
                     </table>
                 </div>

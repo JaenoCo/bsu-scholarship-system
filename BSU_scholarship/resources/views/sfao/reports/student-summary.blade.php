@@ -197,6 +197,12 @@
                 @csrf
                 <input type="hidden" name="report_type" value="student_summary">
                 <input type="hidden" name="campus_id" value="{{ $campusId }}">
+
+                @if ($errors->any())
+                    <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
                 
                 <!-- Use alpine values to populate hidden fields before submit? -->
                 <!-- We can't rely on Alpine binding to hidden input for standard form submit if outside x-data scope, but here inside. 
@@ -210,7 +216,7 @@
                 <input type="hidden" name="academic_year" :value="academicYear">
                 <input type="hidden" name="scholarship_id" :value="scholarshipId">
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="grid grid-cols-1 gap-8">
                     <div>
                         <label for="description" class="block text-sm font-bold text-gray-700 mb-2">Additional Notes</label>
                         <textarea name="description" id="description" rows="1" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-bsu-red focus:border-bsu-red block w-full p-3 shadow-sm transition-colors hover:bg-white" placeholder="Optional remarks..."></textarea>

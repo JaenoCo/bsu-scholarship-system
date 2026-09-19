@@ -140,6 +140,7 @@
     
     <!-- Global Modals -->
     <x-modals.logout />
+    <x-modals.success />
     
     <!-- Page Specific Modals -->
     @yield('modals')

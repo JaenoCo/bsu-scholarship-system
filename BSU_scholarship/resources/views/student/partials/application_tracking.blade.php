@@ -19,6 +19,8 @@
         <!-- Application List (Unified Layout) -->
         <div class="grid grid-cols-1 gap-6">
             @foreach($applicationTracking as $application)
+                @php($sfaoCompleted = in_array($application->status, ['in_progress', 'approved', 'claimed'], true))
+                @php($reviewCompleted = in_array($application->status, ['approved', 'claimed'], true))
                 <div x-data="{ showModal: false }" class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
                     
                     <!-- Card Header / Main Content -->
@@ -128,7 +130,7 @@
                                             </div>
                                         </div>
                                         <span class="inline-flex px-3 py-1 text-sm font-bold uppercase tracking-wider rounded-full
-                                            {{ $application->status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
+                                            {{ $reviewCompleted ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
                                                ($application->status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
                                                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200') }}">
                                             {{ ucfirst($application->status) }}
@@ -161,9 +163,9 @@
                                             <!-- Step 2: SFAO Review -->
                                             <div class="flex flex-col items-center relative z-10">
                                                 <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-gray-800
-                                                    {{ $application->status === 'approved' || $application->status === 'rejected' ? 'bg-green-500 text-white' : 
+                                                    {{ $sfaoCompleted || $application->status === 'rejected' ? 'bg-green-500 text-white' : 
                                                        ($application->status === 'pending' ? 'bg-yellow-500 text-white' : 'bg-gray-300 text-gray-500') }}">
-                                                    @if($application->status === 'approved' || $application->status === 'rejected')
+                                                    @if($sfaoCompleted || $application->status === 'rejected')
                                                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                                         </svg>
@@ -179,7 +181,7 @@
                                                 </div>
                                                 <div class="mt-2 text-center">
                                                     <p class="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wide">SFAO Review</p>
-                                                    @if($application->status === 'approved' || $application->status === 'rejected')
+                                                    @if($sfaoCompleted || $application->status === 'rejected')
                                                         <p class="text-xs text-green-600 dark:text-green-400">Completed</p>
                                                     @elseif($application->status === 'pending')
                                                         <p class="text-xs text-yellow-600 dark:text-yellow-400">In Progress</p>
@@ -191,16 +193,20 @@
 
                                             <!-- Connector Line -->
                                             <div class="flex-1 h-1 mx-2 -mt-6
-                                                {{ $application->status === 'approved' ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700' }}"></div>
+                                                {{ $sfaoCompleted ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700' }}"></div>
 
                                             <!-- Step 3: Central Review -->
                                             <div class="flex flex-col items-center relative z-10">
                                                 <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-gray-800
-                                                    {{ $application->scholar_status === 'selected' ? 'bg-green-500 text-white' : 
-                                                       ($application->status === 'rejected' ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-500') }}">
-                                                    @if($application->scholar_status === 'selected')
+                                                                     {{ $reviewCompleted || $application->scholar_status === 'selected' ? 'bg-green-500 text-white' : 
+                                                                         ($application->status === 'in_progress' ? 'bg-yellow-500 text-white' : ($application->status === 'rejected' ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-500')) }}">
+                                                                     @if($reviewCompleted)
                                                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                        </svg>
+                                                    @elseif($application->status === 'in_progress')
+                                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                            <path fill-rule="evenodd" d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5a1 1 0 00-2 0v5a1 1 0 00.293.707l3 3a1 1 0 001.414-1.414L13 11.586V7z" clip-rule="evenodd"></path>
                                                         </svg>
                                                     @elseif($application->status === 'rejected')
                                                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -214,8 +220,10 @@
                                                 </div>
                                                 <div class="mt-2 text-center">
                                                     <p class="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wide">Central Review</p>
-                                                    @if($application->scholar_status === 'selected')
+                                                    @if($reviewCompleted || $application->scholar_status === 'selected')
                                                         <p class="text-xs text-green-600 dark:text-green-400">Completed</p>
+                                                    @elseif($application->status === 'in_progress')
+                                                        <p class="text-xs text-yellow-600 dark:text-yellow-400">In Progress</p>
                                                     @elseif($application->status === 'rejected')
                                                         <p class="text-xs text-red-600 dark:text-red-400">Completed</p>
                                                     @else
@@ -226,13 +234,13 @@
 
                                             <!-- Connector Line -->
                                             <div class="flex-1 h-1 mx-2 -mt-6
-                                                {{ $application->scholar_status === 'selected' || $application->status === 'rejected' ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700' }}"></div>
+                                                {{ $reviewCompleted || $application->scholar_status === 'selected' || $application->status === 'rejected' ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700' }}"></div>
 
                                             <!-- Step 4: Final Decision -->
                                             <div class="flex flex-col items-center relative z-10">
                                                 <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-gray-800
-                                                    {{ $application->scholar_status === 'selected' || $application->status === 'rejected' ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500' }}">
-                                                    @if($application->scholar_status === 'selected')
+                                                    {{ $reviewCompleted || $application->scholar_status === 'selected' || $application->status === 'rejected' ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500' }}">
+                                                    @if($reviewCompleted || $application->scholar_status === 'selected')
                                                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                                         </svg>
@@ -261,7 +269,7 @@
                                     </div>
 
                                     <!-- Evaluation Status Box -->
-                                    @if($application->status === 'pending' || $application->status === 'approved' || $application->status === 'rejected' || $application->scholar_status === 'selected')
+                                    @if($application->status === 'pending' || $application->status === 'in_progress' || $reviewCompleted || $application->status === 'rejected' || $application->scholar_status === 'selected')
                                     <div class="mb-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border-l-4 border-blue-400">
                                         <div class="flex items-start">
                                             <div class="flex-shrink-0">
@@ -274,7 +282,7 @@
                                             <div class="ml-3 flex-1">
                                                 <h4 class="text-sm font-bold text-blue-900 dark:text-blue-100">Current Status</h4>
                                                 <div class="mt-2 text-sm text-blue-800 dark:text-blue-200">
-                                                    @if($application->scholar_status === 'selected')
+                                                    @if($application->scholar_status === 'selected' || $application->status === 'claimed')
                                                         <p class="font-medium">Selected as Scholar</p>
                                                         <p class="mt-1 text-xs">Selected on {{ $application->scholar_selected_at?->format('M d, Y \a\t h:i A') }}</p>
                                                     @elseif($application->status === 'rejected')
@@ -283,6 +291,9 @@
                                                     @elseif($application->status === 'in_progress')
                                                         <p class="font-medium">SFAO Approved - Awaiting Central Review</p>
                                                         <p class="mt-1 text-xs">SFAO approved on {{ $application->updated_at?->format('M d, Y \a\t h:i A') }}. Central is reviewing for final selection.</p>
+                                                    @elseif($application->status === 'claimed')
+                                                        <p class="font-medium">Grant claimed</p>
+                                                        <p class="mt-1 text-xs">Grant claimed on {{ $application->updated_at?->format('M d, Y \a\t h:i A') }}. Your scholarship grant has been released.</p>
                                                     @elseif($application->status === 'approved')
                                                         <p class="font-medium">Central Approved - Eligible to Claim Grant</p>
                                                         <p class="mt-1 text-xs">Approved on {{ $application->updated_at?->format('M d, Y \a\t h:i A') }}. You are now eligible to claim your grant.</p>

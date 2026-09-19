@@ -173,6 +173,32 @@
 .dark .analytics-title { color: #f8fafc; }
 .dark .analytics-description { color: #cbd5e1; }
 
+/* GWA dashboard light-mode tokens. Keep these scoped so the dashboard remains
+   readable even when an older generated utility bundle is cached. */
+html:not(.dark) .sfao-gwa-analytics { color: #1f2937; }
+html:not(.dark) .sfao-gwa-analytics .bg-white { background-color: #ffffff !important; }
+html:not(.dark) .sfao-gwa-analytics .bg-gray-50 { background-color: #f8fafc !important; }
+html:not(.dark) .sfao-gwa-analytics .text-gray-900,
+html:not(.dark) .sfao-gwa-analytics .text-slate-900 { color: #111827 !important; }
+html:not(.dark) .sfao-gwa-analytics .text-gray-700,
+html:not(.dark) .sfao-gwa-analytics .text-slate-700 { color: #374151 !important; }
+html:not(.dark) .sfao-gwa-analytics .text-gray-600,
+html:not(.dark) .sfao-gwa-analytics .text-slate-600 { color: #4b5563 !important; }
+html:not(.dark) .sfao-gwa-analytics .text-gray-500,
+html:not(.dark) .sfao-gwa-analytics .text-slate-500 { color: #64748b !important; }
+html:not(.dark) .sfao-gwa-analytics .border-gray-200,
+html:not(.dark) .sfao-gwa-analytics .border-slate-200 { border-color: #cbd5e1 !important; }
+html:not(.dark) .sfao-gwa-analytics .border-gray-700,
+html:not(.dark) .sfao-gwa-analytics .border-gray-300,
+html:not(.dark) .sfao-gwa-analytics .border-slate-300 { border-color: #94a3b8 !important; }
+html:not(.dark) .sfao-gwa-analytics select {
+  background-color: #ffffff !important;
+  border-color: #94a3b8 !important;
+  color: #1f2937 !important;
+}
+html:not(.dark) .sfao-gwa-analytics th { color: #374151; }
+html:not(.dark) .sfao-gwa-analytics td { color: #4b5563; }
+
 .sfao-sidebar-collapsed .sidebar-profile,
 .sfao-sidebar-collapsed .sidebar-label,
 .sfao-sidebar-collapsed .sidebar-chevron {

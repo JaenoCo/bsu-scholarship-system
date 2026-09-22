@@ -18,7 +18,6 @@ class FormRequiredProgressTest extends TestCase
             'province' => 'Batangas',
             'zip_code' => '4200',
             'citizenship' => 'Filipino',
-            'previous_gwa' => 1.75,
             'units_enrolled' => 15,
             'semester' => '1st Semester',
             'academic_year' => '2025-2026',

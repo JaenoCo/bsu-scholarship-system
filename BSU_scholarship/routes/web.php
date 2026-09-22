@@ -220,6 +220,15 @@ Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')
     Route::get('/grades/history', [StudentGradesController::class, 'history'])
         ->name('grades.history');
 
+    Route::get('/grades/{submission}', [StudentGradesController::class, 'fetchForEdit'])
+        ->name('grades.show');
+
+    Route::put('/grades/{submission}', [StudentGradesController::class, 'updateJson'])
+        ->name('grades.update.json');
+
+    Route::post('/grades/{submission}', [StudentGradesController::class, 'updateJson'])
+        ->name('grades.update.json.post');
+
     Route::get('/grades/submissions/{submission}/document', [StudentGradesController::class, 'document'])
         ->name('grades.document');
 

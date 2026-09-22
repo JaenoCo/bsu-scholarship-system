@@ -600,6 +600,11 @@
                 @endif
             </div>
 
+            <div class="field" style="margin-top: 18px;">
+                <label>Calculated GWA</label>
+                <input type="text" value="{{ $latestSubmission?->verified_gwa ? number_format((float) $latestSubmission->verified_gwa, 2) : 'Not calculated' }}" class="input" disabled style="background:#f9fafb; color:#111827; cursor:default;">
+            </div>
+
             <div class="upload-section" style="margin-top: 20px; padding-top: 18px; border-top: 1px solid #e5e7eb;">
                 <div class="field">
                     <label>Supporting Document</label>
@@ -615,7 +620,7 @@
 
             <div class="submit-section" style="display:flex; justify-content:flex-end; margin-top: 20px;">
                <a
-    href="{{ route('student.grades.upload', ['edit' => 1]) }}"
+    href="{{ $latestSubmission ? route('student.grades.submissions.edit', $latestSubmission) : route('student.grades.upload', ['edit' => 1]) }}"
     class="submit-button"
     style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; padding:12px 20px; border-radius:8px; font-size:14px; font-weight:700; background:#b91c1c; color:white;"
 >
@@ -643,6 +648,8 @@
         <form
             x-data="{ submitting: false }"
             @submit="submitting = true"
+            id="gradeSubmissionForm"
+            data-draft-key="student-grade-draft-v2-{{ $user->id }}"
             action="{{ $isEditMode ? route('student.grades.upload.update') : route('student.grades.upload.submit') }}"
             method="POST"
             enctype="multipart/form-data"
@@ -690,7 +697,7 @@
                         <p class="card-description">Add all subjects included in this grade submission.</p>
                     </div>
 
-                    <button type="button" onclick="addGradeRow()" class="add-button">+ Add Subject</button>
+                    <button type="button" id="addSubjectButton" onclick="addGradeRow()" class="add-button">+ Add Subject</button>
                 </div>
 
                 <div id="grades-container" class="subjects-container">
@@ -751,6 +758,12 @@
                     @endif
                 </div>
 
+                <div class="field" style="margin-top: 18px;">
+                    <label for="calculatedGwa">Calculated GWA</label>
+                    <input type="text" id="calculatedGwa" value="Not calculated" class="input" readonly style="background:#f9fafb; color:#111827; cursor:default;">
+                    <div class="card-description">Calculated from the subject grades and units entered above.</div>
+                </div>
+
                 <div class="upload-section">
                     <div class="field">
                         <label>Supporting Document</label>
@@ -778,7 +791,12 @@
 </div>
 
 <script>
+    const maxSubjectRows = 9;
     let gradeIndex = {{ max($submittedGrades->count(), 1) }};
+    const gradeForm = document.getElementById('gradeSubmissionForm');
+    const draftKey = gradeForm?.dataset.draftKey;
+    const calculatedGwaInput = document.getElementById('calculatedGwa');
+    const addSubjectButton = document.getElementById('addSubjectButton');
 
     const fileInput = document.getElementById('studentDocument');
     const fileSelected = document.getElementById('file-selected');
@@ -808,30 +826,99 @@
         });
     }
 
-    function addGradeRow() {
+    function getGradeRows() {
+        return Array.from(document.querySelectorAll('#grades-container .grade-row'));
+    }
+
+    function calculateGwa() {
+        const values = getGradeRows().map((row) => ({
+            grade: Number(row.querySelector('[name$="[grade]"]')?.value),
+            units: Number(row.querySelector('[name$="[units]"]')?.value || 0),
+        })).filter(({ grade }) => Number.isFinite(grade) && grade > 0);
+        const totalUnits = values.reduce((sum, value) => sum + (value.units > 0 ? value.units : 0), 0);
+        const gwa = totalUnits > 0
+            ? values.reduce((sum, value) => sum + (value.grade * Math.max(value.units, 0)), 0) / totalUnits
+            : values.reduce((sum, value) => sum + value.grade, 0) / (values.length || 1);
+
+        if (calculatedGwaInput) calculatedGwaInput.value = values.length ? gwa.toFixed(2) : 'Not calculated';
+        if (addSubjectButton) {
+            addSubjectButton.disabled = getGradeRows().length >= maxSubjectRows;
+            addSubjectButton.title = addSubjectButton.disabled ? 'The maximum of 9 subjects has been reached' : 'Add subject';
+        }
+    }
+
+    function saveDraft() {
+        if (!gradeForm || !draftKey) return;
+        const draft = {
+            school_year: gradeForm.querySelector('[name="school_year"]')?.value || '',
+            semester: gradeForm.querySelector('[name="semester"]')?.value || '',
+            grades: getGradeRows().map((row) => ({
+                subject_code: row.querySelector('[name$="[subject_code]"]')?.value || '',
+                subject_name: row.querySelector('[name$="[subject_name]"]')?.value || '',
+                units: row.querySelector('[name$="[units]"]')?.value || '',
+                grade: row.querySelector('[name$="[grade]"]')?.value || '',
+            })),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+    }
+
+    function restoreDraft() {
+        if (!gradeForm || !draftKey) return;
+        let draft;
+        try { draft = JSON.parse(localStorage.getItem(draftKey) || 'null'); } catch { return; }
+        if (!draft || !Array.isArray(draft.grades) || !draft.grades.length) return;
+
+        const schoolYear = gradeForm.querySelector('[name="school_year"]');
+        const semester = gradeForm.querySelector('[name="semester"]');
+        if (schoolYear) schoolYear.value = draft.school_year || schoolYear.value;
+        if (semester) semester.value = draft.semester || semester.value;
+
         const container = document.getElementById('grades-container');
+        container.innerHTML = '';
+        gradeIndex = 0;
+        draft.grades.slice(0, maxSubjectRows).forEach((grade) => {
+            addGradeRow(grade);
+        });
+    }
+
+    function escapeAttribute(value) {
+        return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;',
+        }[character]));
+    }
+
+    function addGradeRow(values = {}) {
+        const container = document.getElementById('grades-container');
+        if (getGradeRows().length >= maxSubjectRows) {
+            calculateGwa();
+            return;
+        }
         const row = document.createElement('div');
         row.className = 'grade-row';
 
         row.innerHTML = `
             <div class="field">
                 <label>Subject Code</label>
-                <input type="text" name="grades[${gradeIndex}][subject_code]" placeholder="IT101" required class="input">
+                <input type="text" name="grades[${gradeIndex}][subject_code]" value="${escapeAttribute(values.subject_code)}" placeholder="IT101" required class="input">
             </div>
 
             <div class="field subject-name">
                 <label>Subject Name</label>
-                <input type="text" name="grades[${gradeIndex}][subject_name]" placeholder="Introduction to Computing" required class="input">
+                <input type="text" name="grades[${gradeIndex}][subject_name]" value="${escapeAttribute(values.subject_name)}" placeholder="Introduction to Computing" required class="input">
             </div>
 
             <div class="field">
                 <label>Units</label>
-                <input type="text" inputmode="decimal" pattern="[0-9.]*" name="grades[${gradeIndex}][units]" placeholder="3" required class="input units-input">
+                <input type="text" inputmode="decimal" pattern="[0-9.]*" name="grades[${gradeIndex}][units]" value="${escapeAttribute(values.units)}" placeholder="3" required class="input units-input">
             </div>
 
             <div class="field">
                 <label>Grade</label>
-                <input type="number" name="grades[${gradeIndex}][grade]" min="1.00" max="5.00" step="0.25" placeholder="1.75" required class="input">
+                <input type="number" name="grades[${gradeIndex}][grade]" min="1.00" max="5.00" step="0.25" value="${escapeAttribute(values.grade)}" placeholder="1.75" required class="input">
             </div>
 
             <div class="remove-wrapper">
@@ -841,6 +928,7 @@
 
         container.appendChild(row);
         gradeIndex++;
+        calculateGwa();
     }
 
     function removeGradeRow(button) {
@@ -850,6 +938,19 @@
         }
 
         button.closest('.grade-row').remove();
+        calculateGwa();
+    }
+
+    if (gradeForm) {
+        restoreDraft();
+        gradeForm.addEventListener('input', () => { calculateGwa(); saveDraft(); });
+        gradeForm.addEventListener('change', saveDraft);
+        gradeForm.addEventListener('submit', () => {
+            if (draftKey) localStorage.removeItem(draftKey);
+        });
+        calculateGwa();
+    } else if (draftKey) {
+        localStorage.removeItem(draftKey);
     }
 </script>
 

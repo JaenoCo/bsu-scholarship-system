@@ -28,11 +28,11 @@ class UsersTableSeeder extends Seeder
 
         for ($i = 0; $i < $targetStudentCount; $i++) {
             $studentId = $faker->unique()->numberBetween(100000, 999999);
-            $studentEmail = sprintf("99-%06d@g.batstate-u.edu.ph", $studentId);
+            $studentEmail = sprintf("43-%06d@g.batstate-u.edu.ph", $studentId);
 
             while (in_array($studentEmail, $existingStudentEmails, true)) {
                 $studentId = $faker->unique()->numberBetween(100000, 999999);
-                $studentEmail = sprintf("99-%06d@g.batstate-u.edu.ph", $studentId);
+                $studentEmail = sprintf("43-%06d@g.batstate-u.edu.ph", $studentId);
             }
 
             $existingStudentEmails[] = $studentEmail;

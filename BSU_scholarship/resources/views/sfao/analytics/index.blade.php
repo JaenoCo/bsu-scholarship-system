@@ -364,7 +364,7 @@
                                     <td class="px-3 py-2 font-semibold text-gray-900 dark:text-white"><span x-text="student.latest_gwa ? Number(student.latest_gwa).toFixed(2) : 'Missing'"></span><span class="ml-2 inline-flex items-center text-sm font-bold" :class="student.trend === 'improving' ? 'text-green-600 dark:text-green-400' : (student.trend === 'declining' ? 'text-red-600 dark:text-red-400' : 'text-gray-400')" :title="student.trend === 'improving' ? 'Improving GWA' : (student.trend === 'declining' ? 'Declining GWA' : 'Stable or limited GWA history')" x-text="student.trend === 'improving' ? '↓' : (student.trend === 'declining' ? '↑' : '↔')"></span></td>
                                     <td class="px-3 py-2" x-text="student.graduation?.status || 'On Track'"></td>
                                     <td class="px-3 py-2" x-text="student.retention?.status || 'On Track'"></td>
-                                    <td class="px-3 py-2"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="student.status === 'Critical' ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200' : (student.status === 'At-Risk' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200')" x-text="student.status"></span></td>
+                                    <td class="px-3 py-2"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset" :class="student.status === 'Critical' ? 'bg-red-100 text-red-900 ring-red-200 dark:bg-red-950/60 dark:text-red-100 dark:ring-red-800' : (student.status === 'At-Risk' ? 'bg-amber-100 text-amber-900 ring-amber-200 dark:bg-amber-950/60 dark:text-amber-100 dark:ring-amber-800' : 'bg-green-100 text-green-900 ring-green-200 dark:bg-green-950/60 dark:text-green-100 dark:ring-green-800')" x-text="student.status"></span></td>
                                     <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-300" x-text="student.reasons?.[0] || 'No immediate risk identified'"></td>
                                     <!-- <td class="px-3 py-2"><div class="flex justify-end gap-1"><button type="button" @click="riskAction(student, 'contact')" class="rounded-md p-1.5 text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/30" title="Email" aria-label="Contact adviser"><span aria-hidden="true">&#9993;</span></button></div></td> -->
                                 </tr>
@@ -735,7 +735,12 @@
                     },
                     plugins: {
                         legend: { position: 'bottom', labels: { color: textColor() } },
-                        tooltip: { mode: 'index', intersect: false }
+                        tooltip: {
+                            mode: 'nearest',
+                            axis: 'y',
+                            intersect: false,
+                            position: 'nearest'
+                        }
                     }
                 }
             });

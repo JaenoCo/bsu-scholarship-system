@@ -2,7 +2,7 @@
 
 @section('title', 'Report Details - Central Administration')
 @section('navbar-title', $report->title)
-@section('back-url', route('central.dashboard', ['tabs' => 'sfao_reports']))
+@section('back-url', ($viewerRole ?? 'central') === 'sfao' ? route('sfao.dashboard', ['tabs' => 'reports']) : route('central.dashboard', ['tabs' => 'sfao_reports']))
 @section('back-text', 'Back to Reports')
 @section('content-width', 'max-w-[95%] 2xl:max-w-full')
 
@@ -12,7 +12,7 @@
 
     <!-- Actions Bar (No-Print) -->
     <div class="mb-6 flex justify-end items-center gap-3 print:hidden">
-        @if($report->status === 'submitted')
+        @if(($viewerRole ?? 'central') === 'central' && $report->status === 'submitted')
             <button onclick="openReviewModal()" 
                     class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-bsu-red hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-bsu-red">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,6 +83,42 @@
                      'dynamicTitle' => 'Student Summary Report - ' . ucfirst($studentType),
                      'visualizationScope' => 'central',
                  ])
+
+             @elseif(\Illuminate\Support\Str::startsWith($report->report_type, 'grant_summary'))
+                 @php
+                    $reportDataRaw = $report->report_data;
+                    $statusStats = $reportDataRaw['status_stats'] ?? [];
+                    $typeStats = $reportDataRaw['type_stats'] ?? [];
+                 @endphp
+                 <div class="space-y-6">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div class="rounded-lg border border-blue-200 bg-blue-50 p-5"><p class="text-sm font-semibold text-blue-700">Total Grants</p><p class="mt-1 text-3xl font-bold text-blue-950">{{ number_format($reportDataRaw['total_grants'] ?? 0) }}</p></div>
+                        <div class="rounded-lg border border-green-200 bg-green-50 p-5"><p class="text-sm font-semibold text-green-700">Approved</p><p class="mt-1 text-3xl font-bold text-green-950">{{ number_format($statusStats['approved'] ?? 0) }}</p></div>
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-5"><p class="text-sm font-semibold text-amber-700">Claimed</p><p class="mt-1 text-3xl font-bold text-amber-950">{{ number_format($statusStats['claimed'] ?? 0) }}</p></div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div>
+                            <h3 class="mb-3 text-lg font-bold">Grant Status Breakdown</h3>
+                            <table class="w-full border-collapse text-sm"><thead><tr class="border-b text-left"><th class="py-2">Status</th><th class="py-2 text-right">Grants</th></tr></thead><tbody>
+                                @forelse($statusStats as $status => $total)
+                                    <tr class="border-b"><td class="py-2 capitalize">{{ $status }}</td><td class="py-2 text-right font-semibold">{{ number_format($total) }}</td></tr>
+                                @empty
+                                    <tr><td colspan="2" class="py-4 text-center text-gray-500">No grant records in this report.</td></tr>
+                                @endforelse
+                            </tbody></table>
+                        </div>
+                        <div>
+                            <h3 class="mb-3 text-lg font-bold">Scholarship Type Breakdown</h3>
+                            <table class="w-full border-collapse text-sm"><thead><tr class="border-b text-left"><th class="py-2">Type</th><th class="py-2 text-right">Grants</th></tr></thead><tbody>
+                                @forelse($typeStats as $type => $total)
+                                    <tr class="border-b"><td class="py-2 capitalize">{{ $type }}</td><td class="py-2 text-right font-semibold">{{ number_format($total) }}</td></tr>
+                                @empty
+                                    <tr><td colspan="2" class="py-4 text-center text-gray-500">No scholarship-type data in this report.</td></tr>
+                                @endforelse
+                            </tbody></table>
+                        </div>
+                    </div>
+                 </div>
                  
              @else
                 <!-- Fallback for other report types -->
@@ -186,6 +222,7 @@
 
     </div> <!-- End Report Paper -->
 
+    @if(($viewerRole ?? 'central') === 'central')
     <!-- Review Modal -->
     <div id="reviewModal" class="fixed z-10 inset-0 overflow-y-auto hidden no-print" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -250,4 +287,5 @@
             document.getElementById('reviewModal').classList.add('hidden');
         }
     </script>
+    @endif
 @endsection

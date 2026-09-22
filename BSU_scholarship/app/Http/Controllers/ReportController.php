@@ -235,6 +235,15 @@ class ReportController extends Controller
             ->with(['campus', 'reviewer'])
             ->findOrFail($id);
 
+        // Summary reports and analytics reports use different snapshot shapes.
+        // Normalize older summary-report snapshots before rendering the shared cards.
+        if (! empty($report->report_data) && empty($report->report_data['summary'])) {
+            $reportData = $report->report_data;
+            $reportData['summary'] = $this->buildSnapshotSummary($reportData);
+            $report->update(['report_data' => $reportData]);
+            $report->refresh();
+        }
+
         // If report_data is null or empty, regenerate it
         if (empty($report->report_data)) {
             try {
@@ -260,7 +269,9 @@ class ReportController extends Controller
             }
         }
 
-        return view('sfao.reports.show', compact('report'));
+        // Submitted reports use the same print-ready snapshot layout that Central reviews.
+        $viewerRole = 'sfao';
+        return view('central.reports.show', compact('report', 'viewerRole'));
     }
 
     /**
@@ -684,7 +695,8 @@ class ReportController extends Controller
         $report = Report::with(['sfaoUser', 'campus', 'reviewer'])
             ->findOrFail($id);
 
-        return view('central.reports.show', compact('report'));
+        $viewerRole = 'central';
+        return view('central.reports.show', compact('report', 'viewerRole'));
     }
 
     /**
@@ -1024,6 +1036,7 @@ class ReportController extends Controller
         return [
             'type' => 'student_summary',
             'details' => $reportData,
+            'summary' => $this->buildSnapshotSummary(['type' => 'student_summary', 'details' => $reportData]),
             'scholarship_id' => $scholarshipId
         ];
     }
@@ -1093,6 +1106,7 @@ class ReportController extends Controller
             'type' => 'scholar_summary',
             'details' => $reportData,
             'stats' => $summaryStats,
+            'summary' => $this->buildSnapshotSummary(['type' => 'scholar_summary', 'details' => $reportData, 'stats' => $summaryStats]),
             'scholarship_id' => $scholarshipId // Store which scholarship this was for
         ];
     }
@@ -1124,8 +1138,72 @@ class ReportController extends Controller
             'type' => 'grant_summary',
             'total_grants' => $totalGrants,
             'status_stats' => $statusStats,
-            'type_stats' => $typeStats
+            'type_stats' => $typeStats,
+            'summary' => $this->buildSnapshotSummary([
+                'type' => 'grant_summary',
+                'total_grants' => $totalGrants,
+                'status_stats' => $statusStats,
+                'type_stats' => $typeStats,
+            ])
         ];
+    }
+
+    /** Convert each report snapshot shape into the card schema used by the detail page. */
+    private function buildSnapshotSummary(array $reportData): array
+    {
+        $type = $reportData['type'] ?? null;
+
+        if ($type === 'student_summary') {
+            $students = collect($reportData['details'] ?? [])
+                ->flatMap(fn (array $campus) => $campus['students'] ?? []);
+            $statuses = $students->map(fn (array $student) => strtolower((string) ($student['status_remarks'] ?? '')));
+            $total = $students->count();
+            $approved = $statuses->filter(fn (string $status) => str_contains($status, 'approved') || str_contains($status, 'accepted') || str_contains($status, 'claimed'))->count();
+            $rejected = $statuses->filter(fn (string $status) => str_contains($status, 'rejected'))->count();
+            $pending = $statuses->filter(fn (string $status) => str_contains($status, 'pending') || str_contains($status, 'review'))->count();
+
+            return [
+                'total_applications' => $total,
+                'approved_applications' => $approved,
+                'rejected_applications' => $rejected,
+                'pending_applications' => $pending,
+                'approval_rate' => $total ? round($approved / $total * 100, 2) : 0,
+                'total_scholarships' => $students->pluck('scholarship')->filter(fn ($name) => $name && $name !== 'N/A')->unique()->count(),
+            ];
+        }
+
+        if ($type === 'scholar_summary') {
+            $stats = $reportData['stats'] ?? [];
+            $total = (int) ($stats['total'] ?? 0);
+
+            return [
+                'total_applications' => $total,
+                'approved_applications' => $total,
+                'rejected_applications' => 0,
+                'pending_applications' => 0,
+                'approval_rate' => $total ? 100 : 0,
+                'total_scholarships' => collect($reportData['details'] ?? [])
+                    ->flatMap(fn (array $campus) => $campus['scholars'] ?? [])
+                    ->pluck('scholarship')->filter(fn ($name) => $name && $name !== 'N/A')->unique()->count(),
+            ];
+        }
+
+        if ($type === 'grant_summary') {
+            $statuses = $reportData['status_stats'] ?? [];
+            $total = (int) ($reportData['total_grants'] ?? 0);
+            $approved = (int) ($statuses['approved'] ?? 0);
+
+            return [
+                'total_applications' => $total,
+                'approved_applications' => $approved,
+                'rejected_applications' => 0,
+                'pending_applications' => 0,
+                'approval_rate' => $total ? round($approved / $total * 100, 2) : 0,
+                'total_scholarships' => count($reportData['type_stats'] ?? []),
+            ];
+        }
+
+        return $reportData['summary'] ?? [];
     }
 
     private function generateCentralOverallScholarReportData()

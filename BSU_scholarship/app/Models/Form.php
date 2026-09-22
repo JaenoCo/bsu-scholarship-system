@@ -127,7 +127,6 @@ class Form extends Model
             'program',
             'year_level',
             'campus',
-            'previous_gwa',
             'units_enrolled',
             'semester',
             'academic_year',
@@ -162,7 +161,7 @@ class Form extends Model
             
             // Academic Data
             'sr_code', 'education_level', 'program', 'college_department', 'year_level',
-            'campus', 'previous_gwa', 'honors_received', 'units_enrolled',
+            'campus', 'honors_received', 'units_enrolled',
             'scholarship_applied', 'semester', 'academic_year', 'has_existing_scholarship',
             'existing_scholarship_details',
             

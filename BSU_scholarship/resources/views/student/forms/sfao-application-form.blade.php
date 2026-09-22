@@ -302,6 +302,7 @@ if (!$user) {
                 <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">College <span class="text-red-500">*</span></label>
                 <select name="college" x-model="selectedCollege" @change="updateCollege()" required class="w-full border-b-2 border-gray-300 dark:border-gray-600 px-2 py-1 focus:border-red-500 dark:focus:border-red-600 focus:outline-none bg-white dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50" :disabled="!selectedCampus">
                     <option value="">-- Select College --</option>
+                    <option x-show="selectedCollege && !colleges.some(college => college.value === selectedCollege)" :value="selectedCollege" x-text="selectedCollege"></option>
                     <template x-for="college in colleges" :key="college.value">
                       <option :value="college.value" x-text="college.name"></option>
                     </template>
@@ -328,6 +329,7 @@ if (!$user) {
                 <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">Program <span class="text-red-500">*</span></label>
                 <select name="program" x-model="selectedProgram" @change="updateProgram()" required class="w-full border-b-2 border-gray-300 dark:border-gray-600 px-2 py-1 focus:border-red-500 dark:focus:border-red-600 focus:outline-none bg-white dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50" :disabled="!selectedCollege">
                     <option value="">-- Select Program --</option>
+                    <option x-show="selectedProgram && !programs.some(program => program.name === selectedProgram)" :value="selectedProgram" x-text="selectedProgram"></option>
                     <template x-for="prog in programs" :key="prog.name">
                         <option :value="prog.name" x-text="prog.name"></option>
                     </template>
@@ -339,6 +341,7 @@ if (!$user) {
                  <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">Track / Major <span x-show="tracks.length > 0" class="text-red-500">*</span></label>
                  <select name="track" x-model="selectedTrack" :required="tracks.length > 0" :disabled="!selectedProgram || tracks.length === 0" class="w-full border-b-2 border-gray-300 dark:border-gray-600 px-2 py-1 focus:border-red-500 dark:focus:border-red-600 focus:outline-none bg-white dark:bg-gray-700 dark:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     <option value="">-- Select Track --</option>
+                    <option x-show="selectedTrack && !tracks.includes(selectedTrack)" :value="selectedTrack" x-text="selectedTrack"></option>
                     <template x-for="track of tracks" :key="track">
                         <option :value="track" x-text="track"></option>
                     </template>
@@ -347,14 +350,7 @@ if (!$user) {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-           <div>
-            <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">Previous GWA <span class="text-red-500">*</span></label>
-            <input type="number" name="previous_gwa" required step="0.01" min="1.00" max="5.00" 
-                   placeholder="0.00"
-                   value="{{ old('previous_gwa', $existingApplication->previous_gwa ?? '') }}"
-                   class="w-full border-b-2 border-gray-300 dark:border-gray-600 px-2 py-1 focus:border-red-500 dark:focus:border-red-600 focus:outline-none bg-white dark:bg-gray-700 dark:text-white transition-colors">
-           </div>
+        <div class="grid grid-cols-1 gap-4">
            <div>
             <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">Units Enrolled <span class="text-red-500">*</span></label>
             <input type="number" name="units_enrolled" required min="1" max="30"
@@ -1275,10 +1271,10 @@ if (!$user) {
     document.addEventListener('alpine:init', () => {
         Alpine.data('academicDropdowns', () => ({
             campusData: @json($campusData),
-            selectedCampus: @json(old('campus_id', $user->campus_id ?? '')), 
-            selectedCollege: @json(old('college', $user->college ?? '')),
-            selectedProgram: @json(old('program', $user->program ?? '')),
-            selectedTrack: @json(old('track', $user->track ?? '')),
+            selectedCampus: @json($academicSelections['campus_id'] ?? ''),
+            selectedCollege: @json($academicSelections['college'] ?? ''),
+            selectedProgram: @json($academicSelections['program'] ?? ''),
+            selectedTrack: @json($academicSelections['track'] ?? ''),
             
             get colleges() {
                 if (!this.selectedCampus || !this.campusData[this.selectedCampus]) return [];
@@ -1315,6 +1311,8 @@ if (!$user) {
               if (matchingCollege) {
                 this.selectedCollege = matchingCollege[0];
               }
+              // Do not clear saved dependent selections while option data is
+              // loading. Fallback options above keep legacy selections usable.
             }
         }));
     });

@@ -32,20 +32,28 @@
         ? round(($approvedApplications / $decidedApplications) * 100, 1)
         : 0;
 
-    $campusLabels = collect($campuses ?? [])->map(fn ($campus) => $campus->name)->values();
-    $campusApplicationCounts = collect($campuses ?? [])->map(function ($campus) use ($allApplicationsData, $applicationsCollection) {
-        $fromAnalytics = $allApplicationsData->where('campus_id', $campus->id)->count();
+    // Campus chart labels follow the active filter scope: constituents in the
+    // overview, or the selected constituent's extensions in a drilldown.
+    $chartCampuses = ($campusFilter ?? 'all') === 'all'
+        ? collect($campuses ?? [])
+        : (($extensionCampusFilter ?? 'all') !== 'all'
+            ? collect($extensionOptions ?? [])->where('id', (int) $extensionCampusFilter)
+            : (collect($extensionOptions ?? [])->isNotEmpty() ? collect($extensionOptions) : collect([$selectedConstituent])));
+    $campusLabels = $chartCampuses->filter()->map(fn($campus) => $campus->name)->values();
+    $campusApplicationCounts = $chartCampuses->filter()->map(function ($campus) use ($allApplicationsData, $applicationsCollection) {
+        $campusIds = $campus->getAllCampusesUnder()->pluck('id');
+        $fromAnalytics = $allApplicationsData->whereIn('campus_id', $campusIds)->count();
         if ($fromAnalytics > 0) {
             return $fromAnalytics;
         }
-        return $applicationsCollection->filter(fn ($application) => optional(optional($application)->user)->campus_id === $campus->id)->count();
+        return $applicationsCollection->filter(fn($application) => $campusIds->contains(optional(optional($application)->user)->campus_id))->count();
     })->values();
 
     $distributionSource = $allApplicationsData->isNotEmpty()
-        ? $allApplicationsData->groupBy(fn ($item) => $item->scholarship_type ?: 'Unspecified')->map->count()
-        : $applicationsCollection->groupBy(fn ($application) => optional(optional($application)->scholarship)->scholarship_type ?: 'Unspecified')->map->count();
+        ? $allApplicationsData->groupBy(fn($item) => $item->scholarship_type ?: 'Unspecified')->map->count()
+        : $applicationsCollection->groupBy(fn($application) => optional(optional($application)->scholarship)->scholarship_type ?: 'Unspecified')->map->count();
 
-    $distributionLabels = $distributionSource->keys()->map(fn ($label) => ucfirst((string) $label))->values();
+    $distributionLabels = $distributionSource->keys()->map(fn($label) => ucfirst((string) $label))->values();
     $distributionValues = $distributionSource->values();
 
     $monthlyTrendLabels = data_get($applicationStats, 'monthly_trends.labels', []);
@@ -55,7 +63,7 @@
     $statusValues = [$approvedApplications, $claimedApplications, $pendingApplications, $inProgressApplications, $rejectedApplications];
 
     $recentApplications = $applicationsCollection
-        ->sortByDesc(fn ($application) => $application->created_at)
+        ->sortByDesc(fn($application) => $application->created_at)
         ->take(15)
         ->values();
 
@@ -101,7 +109,7 @@
         default => 'Dashboard',
     };
 
-    $navActive = fn (...$tabs) => in_array($activeTab, $tabs, true) ? ' active' : '';
+    $navActive = fn(...$tabs) => in_array($activeTab, $tabs, true) ? ' active' : '';
     $headerNotifications = $headerNotifications ?? collect();
     $unreadNotificationCount = $unreadNotificationCount ?? 0;
     $centralScholarshipRows = $centralScholarshipRows ?? collect();
@@ -140,8 +148,8 @@
     $studentGwaRecords = collect($gwaPrediction['students'] ?? []);
     $gwaMetricStudents = [
         'verified' => $studentGwaRecords
-            ->filter(fn ($student) => is_numeric($student['gwa'] ?? null) && (float) $student['gwa'] > 0)
-            ->map(fn ($student) => [
+            ->filter(fn($student) => is_numeric($student['gwa'] ?? null) && (float) $student['gwa'] > 0)
+            ->map(fn($student) => [
                 'id' => $student['id'],
                 'name' => $student['name'] ?? 'Unnamed student',
                 'sr_code' => $student['sr_code'] ?? 'Not provided',
@@ -151,8 +159,8 @@
             ->values()
             ->all(),
         'missing' => $studentGwaRecords
-            ->filter(fn ($student) => !(is_numeric($student['gwa'] ?? null) && (float) $student['gwa'] > 0))
-            ->map(fn ($student) => [
+            ->filter(fn($student) => !(is_numeric($student['gwa'] ?? null) && (float) $student['gwa'] > 0))
+            ->map(fn($student) => [
                 'id' => $student['id'],
                 'name' => $student['name'] ?? 'Unnamed student',
                 'sr_code' => $student['sr_code'] ?? 'Not provided',
@@ -232,6 +240,7 @@
 
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -253,7 +262,7 @@
             --bsu-info: #3B82F6;
             --bsu-gray: #64748b;
             --bsu-border: #e5e7eb;
-            --bsu-shadow: 0 2px 10px rgba(0,0,0,.05);
+            --bsu-shadow: 0 2px 10px rgba(0, 0, 0, .05);
             --bsu-radius: 12px;
         }
 
@@ -442,11 +451,30 @@
             gap: .55rem !important;
         }
 
-        .bsu-kpi-icon-primary { background: rgba(123,17,19,.1); color: var(--bsu-primary); }
-        .bsu-kpi-icon-success { background: rgba(34,197,94,.12); color: var(--bsu-success); }
-        .bsu-kpi-icon-warning { background: rgba(245,158,11,.14); color: var(--bsu-warning); }
-        .bsu-kpi-icon-danger { background: rgba(239,68,68,.12); color: var(--bsu-danger); }
-        .bsu-kpi-icon-info { background: rgba(59,130,246,.12); color: var(--bsu-info); }
+        .bsu-kpi-icon-primary {
+            background: rgba(123, 17, 19, .1);
+            color: var(--bsu-primary);
+        }
+
+        .bsu-kpi-icon-success {
+            background: rgba(34, 197, 94, .12);
+            color: var(--bsu-success);
+        }
+
+        .bsu-kpi-icon-warning {
+            background: rgba(245, 158, 11, .14);
+            color: var(--bsu-warning);
+        }
+
+        .bsu-kpi-icon-danger {
+            background: rgba(239, 68, 68, .12);
+            color: var(--bsu-danger);
+        }
+
+        .bsu-kpi-icon-info {
+            background: rgba(59, 130, 246, .12);
+            color: var(--bsu-info);
+        }
 
         .bsu-trend {
             display: inline-flex;
@@ -458,12 +486,12 @@
         }
 
         .bsu-trend-up {
-            background: rgba(34,197,94,.12);
+            background: rgba(34, 197, 94, .12);
             color: #15803d;
         }
 
         .bsu-trend-down {
-            background: rgba(239,68,68,.12);
+            background: rgba(239, 68, 68, .12);
             color: #b91c1c;
         }
 
@@ -561,7 +589,7 @@
             margin-bottom: .25rem;
         }
 
-        .bsu-kpi-grid > [class*="col-"] {
+        .bsu-kpi-grid>[class*="col-"] {
             width: 100%;
         }
 
@@ -599,7 +627,7 @@
                 display: block;
                 position: fixed;
                 inset: 72px 0 0;
-                background: rgba(15,23,42,.35);
+                background: rgba(15, 23, 42, .35);
                 z-index: 1020;
             }
 
@@ -631,13 +659,15 @@
         }
     </style>
 </head>
+
 <body>
     <div id="bsuDashboardShell" class="bsu-shell">
         <nav class="navbar bsu-topbar fixed-top px-3 px-lg-4">
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-outline-secondary btn-icon border-0" id="sidebarToggle" type="button" aria-label="Toggle navigation">
+                <button class="btn btn-outline-secondary btn-icon border-0" id="sidebarToggle" type="button"
+                    aria-label="Toggle navigation">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 6h16M4 12h16M4 18h16"/>
+                        <path d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
                 <img src="{{ asset('images/lugo.png') }}" alt="Batangas State University" class="bsu-logo">
@@ -647,37 +677,47 @@
                 </div>
             </div>
 
-            <form class="bsu-search flex-grow-1 mx-4 position-relative" role="search" id="globalSearchForm" autocomplete="off">
+            <form class="bsu-search flex-grow-1 mx-4 position-relative" role="search" id="globalSearchForm"
+                autocomplete="off">
                 <span class="bsu-search-icon position-absolute">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
                     </svg>
                 </span>
-                <input class="form-control" id="globalSearch" type="search" placeholder="Search applicants, scholarships, campuses..." aria-label="Global search">
-                <div class="dropdown-menu shadow border-0 w-100 mt-2 p-0 overflow-hidden" id="globalSearchResults"></div>
+                <input class="form-control" id="globalSearch" type="search"
+                    placeholder="Search applicants, scholarships, campuses..." aria-label="Global search">
+                <div class="dropdown-menu shadow border-0 w-100 mt-2 p-0 overflow-hidden" id="globalSearchResults">
+                </div>
             </form>
 
             <div class="d-flex align-items-center gap-2">
                 <div class="dropdown">
-                    <button class="btn btn-light btn-icon position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    <button class="btn btn-light btn-icon position-relative" type="button" data-bs-toggle="dropdown"
+                        aria-expanded="false" aria-label="Notifications">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                         </svg>
                         @if($unreadNotificationCount > 0)
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ min($unreadNotificationCount, 99) }}</span>
+                            <span
+                                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ min($unreadNotificationCount, 99) }}</span>
                         @endif
                     </button>
                     <div class="dropdown-menu dropdown-menu-end shadow-sm border-0 p-0" style="width: 320px;">
                         <div class="px-3 py-2 border-bottom fw-bold">Notifications</div>
                         @forelse($headerNotifications as $notification)
-                            <a class="dropdown-item py-3 text-wrap" href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}">
+                            <a class="dropdown-item py-3 text-wrap"
+                                href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}">
                                 <div class="d-flex justify-content-between gap-2">
                                     <span class="fw-semibold">{{ $notification->title }}</span>
                                     @unless($notification->is_read)
                                         <span class="badge text-bg-danger">New</span>
                                     @endunless
                                 </div>
-                                <div class="small text-secondary">{{ \Illuminate\Support\Str::limit($notification->message, 80) }}</div>
+                                <div class="small text-secondary">
+                                    {{ \Illuminate\Support\Str::limit($notification->message, 80) }}</div>
                             </a>
                         @empty
                             <div class="px-3 py-4 text-center text-secondary small">No notifications yet.</div>
@@ -685,15 +725,22 @@
                     </div>
                 </div>
                 <div class="dropdown">
-                    <button class="btn btn-light d-flex align-items-center gap-2 rounded-pill px-2 px-sm-3" data-bs-toggle="dropdown" type="button" aria-expanded="false">
-                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle text-white fw-bold" style="width:32px;height:32px;background:var(--bsu-primary);">
+                    <button class="btn btn-light d-flex align-items-center gap-2 rounded-pill px-2 px-sm-3"
+                        data-bs-toggle="dropdown" type="button" aria-expanded="false">
+                        <span
+                            class="d-inline-flex align-items-center justify-content-center rounded-circle text-white fw-bold"
+                            style="width:32px;height:32px;background:var(--bsu-primary);">
                             {{ strtoupper(substr($user->name ?? 'CA', 0, 2)) }}
                         </span>
                         <span class="d-none d-sm-inline fw-semibold">{{ $user->name ?? 'Central Admin' }}</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                        <li><a class="dropdown-item" href="{{ route('central.dashboard', ['tabs' => 'account_settings']) }}">Settings</a></li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item"
+                                href="{{ route('central.dashboard', ['tabs' => 'account_settings']) }}">Settings</a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
                         <li><a class="dropdown-item text-danger" href="{{ url('/logout') }}">Logout</a></li>
                     </ul>
                 </div>
@@ -703,34 +750,65 @@
         <aside class="bsu-sidebar">
             <div class="bsu-nav-section">
                 <div class="bsu-nav-label">Insights</div>
-                <a class="bsu-nav-link{{ $navActive('all_statistics') }}" href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16V9M12 16V5M17 16v-3"/></svg>
+                <a class="bsu-nav-link{{ $navActive('all_statistics') }}"
+                    href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18" />
+                        <path d="M7 16V9M12 16V5M17 16v-3" />
+                    </svg>
                     <span class="bsu-nav-text">Dashboard & Analytics</span>
                 </a>
-                <a class="bsu-nav-link{{ $navActive(...$scholarshipTabs) }}" href="{{ route('central.dashboard', ['tabs' => 'all_scholarships']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z"/></svg>
+                <a class="bsu-nav-link{{ $navActive(...$scholarshipTabs) }}"
+                    href="{{ route('central.dashboard', ['tabs' => 'all_scholarships']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" />
+                    </svg>
                     <span class="bsu-nav-text">Scholarship Programs</span>
                 </a>
-                <a class="bsu-nav-link{{ $navActive(...$scholarTabs) }}" href="{{ route('central.dashboard', ['tabs' => 'all_scholars']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+                <a class="bsu-nav-link{{ $navActive(...$scholarTabs) }}"
+                    href="{{ route('central.dashboard', ['tabs' => 'all_scholars']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z" />
+                        <path d="M6 12v5c3 2 9 2 12 0v-5" />
+                    </svg>
                     <span class="bsu-nav-text">Student Scholars</span>
                 </a>
-                <a class="bsu-nav-link{{ $navActive(...$applicantTabs) }}" href="{{ route('central.dashboard', ['tabs' => 'endorsed_applicants']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
+                <a class="bsu-nav-link{{ $navActive(...$applicantTabs) }}"
+                    href="{{ route('central.dashboard', ['tabs' => 'endorsed_applicants']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="m16 11 2 2 4-4" />
+                    </svg>
                     <span class="bsu-nav-text">Applications</span>
                 </a>
-                <a class="bsu-nav-link{{ $navActive('sfao_reports') }}" href="{{ route('central.dashboard', ['tabs' => 'sfao_reports']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+                <a class="bsu-nav-link{{ $navActive('sfao_reports') }}"
+                    href="{{ route('central.dashboard', ['tabs' => 'sfao_reports']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                        <path d="M14 2v6h6M8 13h8M8 17h5" />
+                    </svg>
                     <span class="bsu-nav-text">Reports</span>
                 </a>
 
                 <div class="bsu-nav-label">Administration</div>
-                <a class="bsu-nav-link{{ $navActive('staff') }}" href="{{ route('central.dashboard', ['tabs' => 'staff']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <a class="bsu-nav-link{{ $navActive('staff') }}"
+                    href="{{ route('central.dashboard', ['tabs' => 'staff']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
                     <span class="bsu-nav-text">User Management</span>
                 </a>
-                <a class="bsu-nav-link{{ $navActive('account_settings') }}" href="{{ route('central.dashboard', ['tabs' => 'account_settings']) }}">
-                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.36.3.76.3 1.17V10a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></svg>
+                <a class="bsu-nav-link{{ $navActive('account_settings') }}"
+                    href="{{ route('central.dashboard', ['tabs' => 'account_settings']) }}">
+                    <svg class="bsu-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.36.3.76.3 1.17V10a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z" />
+                    </svg>
                     <span class="bsu-nav-text">Settings</span>
                 </a>
             </div>
@@ -739,586 +817,644 @@
 
         <main class="bsu-main">
             @if(in_array($activeTab, $dashboardTabs, true))
-            <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-4">
-                <div>
-                    <h1 class="bsu-page-title h2 mb-1">{{ $activeTab === 'all_statistics' ? 'Scholarship Analytics' : 'Central Dashboard' }}</h1>
-                    <p class="text-secondary mb-0">Executive overview of scholarship applications, approvals, campus distribution, and program performance.</p>
-                </div>
-                <div class="text-xl-end">
-                    <div class="small text-secondary">Last updated</div>
-                    <div class="fw-bold">{{ $lastUpdated }}</div>
-                    <a href="{{ url()->full() }}" class="btn btn-bsu btn-sm mt-2" id="refreshDashboard">Refresh Dashboard</a>
-                </div>
-            </div>
-
-            <div class="row g-3 g-xl-4 bsu-kpi-grid mb-4">
-                <div class="col-12 col-sm-6 col-xl">
-                    @include('central.components.bootstrap-kpi-card', [
-                        'title' => 'Total Applicants',
-                        'value' => number_format($totalApplicants),
-                        'trend' => '12.4%',
-                        'trendDirection' => 'up',
-                        'variant' => 'primary',
-                        'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>',
-                    ])
-                </div>
-                <div class="col-12 col-sm-6 col-xl">
-                    @include('central.components.bootstrap-kpi-card', [
-                        'title' => 'Approved Applications',
-                        'value' => number_format($approvedApplications),
-                        'trend' => '8.1%',
-                        'trendDirection' => 'up',
-                        'variant' => 'success',
-                        'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
-                    ])
-                </div>
-                <div class="col-12 col-sm-6 col-xl">
-                    @include('central.components.bootstrap-kpi-card', [
-                        'title' => 'Pending Applications',
-                        'value' => number_format($pendingApplications),
-                        'trend' => '3.7%',
-                        'trendDirection' => 'up',
-                        'variant' => 'warning',
-                        'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
-                    ])
-                </div>
-                <div class="col-12 col-sm-6 col-xl">
-                    @include('central.components.bootstrap-kpi-card', [
-                        'title' => 'Rejected Applications',
-                        'value' => number_format($rejectedApplications),
-                        'trend' => '2.2%',
-                        'trendDirection' => 'down',
-                        'variant' => 'danger',
-                        'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>',
-                    ])
-                </div>
-                <div class="col-12 col-sm-6 col-xl">
-                    @include('central.components.bootstrap-kpi-card', [
-                        'title' => 'Approval Rate',
-                        'value' => $approvalRate . '%',
-                        'trend' => '5.6%',
-                        'trendDirection' => 'up',
-                        'variant' => 'info',
-                        'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',
-                    ])
-                </div>
-            </div>
-
-            @unless($hasCampusFilter)
-            <div class="row g-4 mb-4">
-                <div class="col-12 col-xl-7">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Applications by Campus</h2>
-                                <p class="bsu-card-subtitle">Number of applications submitted across university campuses.</p>
-                            </div>
-                            <span class="badge text-bg-light">{{ $campusLabels->count() }} campuses</span>
-                        </div>
-                        <div class="bsu-chart-box">
-                            <canvas id="campusApplicationsChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-                <div class="col-12 col-xl-5">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Application Status</h2>
-                                <p class="bsu-card-subtitle">Current composition of scholarship applications.</p>
-                            </div>
-                            <span class="badge text-bg-light">{{ number_format($totalApplications) }} total</span>
-                        </div>
-                        <div class="bsu-chart-box">
-                            <canvas id="statusBreakdownChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-            </div>
-
-            <div class="row g-4 mb-4">
-                <div class="col-12 col-xl-5">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Scholarship Distribution</h2>
-                                <p class="bsu-card-subtitle">Application share by scholarship category.</p>
-                            </div>
-                            <span class="badge text-bg-light">{{ number_format($scholarshipStats['total'] ?? 0) }} programs</span>
-                        </div>
-                        <div class="bsu-chart-box">
-                            <canvas id="scholarshipDistributionChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-                <div class="col-12 col-xl-7">
-                    <section class="bsu-card h-100">
-                        <div class="bsu-card-header">
-                            <div>
-                                <h2 class="bsu-card-title">Monthly Application Trends</h2>
-                                <p class="bsu-card-subtitle">Submission volume throughout the current year.</p>
-                            </div>
-                        </div>
-                        <div class="bsu-chart-box">
-                            <canvas id="monthlyTrendsChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-            </div>
-            @endunless
-
-            <section class="bsu-card mb-4">
-                <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-4">
                     <div>
-                        <h2 class="bsu-card-title">GWA Qualification Prediction</h2>
-                        <p class="bsu-card-subtitle">Predicted scholarship fit from student GWA against active scholarship GWA requirements.</p>
+                        <h1 class="bsu-page-title h2 mb-1">
+                            {{ $activeTab === 'all_statistics' ? 'Scholarship Analytics' : 'Central Dashboard' }}</h1>
+                        <p class="text-secondary mb-0">Executive overview of scholarship applications, approvals, campus
+                            distribution, and program performance.</p>
                     </div>
-                    <span class="badge text-bg-light">{{ number_format($gwaPredictionSummary['scholarships_with_gwa_rule'] ?? 0) }} GWA-based programs</span>
-                </div>
-                <div class="p-3 p-lg-4 border-bottom">
-                    <div class="row g-3">
-                        <div class="col-6 col-xl">
-                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="verified" aria-label="View verified GWA students">
-                                <div class="small text-secondary fw-bold text-uppercase">Verified GWA</div>
-                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['students_with_gwa'] ?? 0) }}</div>
-                            </button>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="missing" aria-label="View missing GWA students">
-                                <div class="small text-secondary fw-bold text-uppercase">Unverified / Missing</div>
-                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['students_missing_gwa'] ?? 0) }}</div>
-                            </button>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="qualified" aria-label="View qualified matches">
-                                <div class="small text-secondary fw-bold text-uppercase">Qualified Matches</div>
-                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['qualified_matches'] ?? 0) }}</div>
-                            </button>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="near-miss" aria-label="View near misses">
-                                <div class="small text-secondary fw-bold text-uppercase">Near Misses</div>
-                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['near_miss_matches'] ?? 0) }}</div>
-                            </button>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <button type="button" class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white" data-gwa-metric="rate" aria-label="View qualification rate details">
-                                <div class="small text-secondary fw-bold text-uppercase">Prediction Rate</div>
-                                <div class="h4 mb-0 text-dark">{{ number_format($gwaPredictionSummary['qualification_rate'] ?? 0, 1) }}%</div>
-                            </button>
-                        </div>
+                    <div class="text-xl-end">
+                        <div class="small text-secondary">Last updated</div>
+                        <div class="fw-bold">{{ $lastUpdated }}</div>
+                        <a href="{{ url()->full() }}" class="btn btn-bsu btn-sm mt-2" id="refreshDashboard">Refresh
+                            Dashboard</a>
                     </div>
                 </div>
-                <!-- <div class="row g-0">
-                    <div class="col-12 col-xl-7 border-end">
-                        <div class="bsu-card-header border-0 pb-0">
-                            <div>
-                                <h3 class="bsu-card-title">Predicted Qualification by Scholarship</h3>
-                                <p class="bsu-card-subtitle">Top active scholarships with a GWA condition.</p>
-                            </div>
-                        </div>
-                        <div class="bsu-chart-box bsu-chart-box-lg">
-                            <canvas id="gwaQualificationChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="col-12 col-xl-5">
-                        <div class="bsu-card-header border-0 pb-0">
-                            <div>
-                                <h3 class="bsu-card-title">Student GWA Distribution</h3>
-                                <p class="bsu-card-subtitle">Students grouped by submitted GWA.</p>
-                            </div>
-                        </div>
-                        <div class="bsu-chart-box bsu-chart-box-lg">
-                            <canvas id="gwaBandChart"></canvas>
-                        </div>
-                    </div>
-                </div> -->
-                <div class="table-responsive border-top">
-                    <table class="table bsu-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Scholarship</th>
-                                <th>Required GWA</th>
-                                <th>Evaluated</th>
-                                <th>Predicted Qualified</th>
-                                <th>Near Miss</th>
-                                <th>Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($gwaPredictionRows->take(6) as $row)
-                                <tr>
-                                    <td>
-                                        <div class="fw-semibold text-dark">{{ $row['scholarship_name'] }}</div>
-                                        <div class="small text-secondary">{{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</div>
-                                    </td>
-                                    <td>{{ number_format($row['required_gwa'], 2) }} or better</td>
-                                    <td>{{ number_format($row['total_evaluated']) }}</td>
-                                    <td><span class="badge text-bg-success">{{ number_format($row['qualified']) }}</span></td>
-                                    <td><span class="badge text-bg-warning">{{ number_format($row['near_miss']) }}</span></td>
-                                    <td>{{ number_format($row['qualification_rate'], 1) }}%</td>
-                                </tr>
-                            @empty
-                                <tr class="bsu-empty-row"><td colspan="6" class="text-center py-5 text-secondary">No active scholarships with a GWA requirement found for this scope.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </section>
 
-            {{-- ================================================================
-                 CHANGED: Academic Risk Monitoring section
-                 - Marked the <section> as a js-data-table (same client-side
-                   pagination engine that already powers the "Recent
-                   Applications" table below, plus the Scholarships / Scholars
-                   / Applicants / Reports / Staff tabs).
-                 - Added a search box + rows-per-page selector to the header,
-                   matching the pattern used on those other client-paginated
-                   tables (scoped with .js-table-search / .js-page-size so it
-                   doesn't collide with the global #tableSearch / #pageSize
-                   controls used by Recent Applications).
-                 - Swapped the old conditional Laravel ->links() pagination
-                   block (which only rendered when $academicRiskStudents was
-                   an actual LengthAwarePaginator, so it silently disappeared
-                   for plain collections) for the same footer markup/classes
-                   used by Recent Applications: a .js-table-summary counter
-                   and a .js-table-pagination <ul>. Both are picked up
-                   automatically by the existing
-                   `document.querySelectorAll('.js-data-table').forEach(initDataTable)`
-                   call already in the page script, so no new JS was needed.
-                 ================================================================ --}}
-            <section class="bsu-card mb-4 js-data-table" data-default-page-size="10">
-                <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
-                    <div>
-                        <h2 class="bsu-card-title">Academic Risk Monitoring</h2>
-                        <p class="bsu-card-subtitle">Early-warning view based on verified semestral GWA history and scholarship requirements.</p>
+                <section class="bsu-card mb-4">
+                    <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                        <div>
+                            <h2 class="bsu-card-title">Analytics scope</h2>
+                            <p class="bsu-card-subtitle">Compare constituent campuses, then optionally drill into one of the
+                                selected constituent’s extension campuses.</p>
+                        </div>
+                        <form method="GET" action="{{ route('central.dashboard') }}"
+                            class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto" data-auto-submit-filters>
+                            <input type="hidden" name="tabs" value="{{ $activeTab }}">
+                            <select name="campus" class="form-select" aria-label="Filter analytics by constituent campus"
+                                onchange="this.form.submit()">
+                                <option value="all">All constituents</option>
+                                @foreach($campuses as $campus)
+                                    <option value="{{ $campus->id }}" @selected((string) $campusFilter === (string) $campus->id)>
+                                        {{ $campus->name }}</option>
+                                @endforeach
+                            </select>
+                            @if($selectedConstituent)
+                                <select name="extension_campus" class="form-select"
+                                    aria-label="Filter the selected constituent by extension campus"
+                                    onchange="this.form.submit()">
+                                    <option value="all">All extensions</option>
+                                    @foreach($extensionOptions as $extension)
+                                        <option value="{{ $extension->id }}" @selected((string) $extensionCampusFilter === (string) $extension->id)>{{ $extension->name }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
+                            <select name="academic_year" class="form-select" aria-label="Filter analytics by academic year"
+                                onchange="this.form.submit()">
+                                <option value="all">All academic years</option>
+                                @foreach($academicYearOptions as $academicYear)
+                                    <option value="{{ $academicYear }}" @selected($academicYearFilter === $academicYear)>
+                                        {{ $academicYear }}</option>
+                                @endforeach
+                            </select>
+                            @if($campusFilter !== 'all' || $extensionCampusFilter !== 'all' || $academicYearFilter !== 'all')
+                                <a href="{{ route('central.dashboard', ['tabs' => $activeTab]) }}"
+                                    class="btn btn-outline-secondary">Reset</a>
+                            @endif
+                        </form>
                     </div>
-                    {{-- CHANGED: search + page size controls, copied from the
-                         Recent Applications / Scholarships tables so this
-                         table gets the same client-side pagination UI. --}}
-                    <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto">
-                        <input type="search" class="form-control js-table-search" placeholder="Search students...">
-                        <select class="form-select js-page-size" style="max-width:120px">
-                            <option value="all" selected>All rows</option>
-                            <option value="5">5 rows</option>
-                            <option value="10">10 rows</option>
-                            <option value="15">15 rows</option>
-                        </select>
+                </section>
+
+                <div class="row g-3 g-xl-4 bsu-kpi-grid mb-4">
+                    <div class="col-12 col-sm-6 col-xl">
+                        @include('central.components.bootstrap-kpi-card', [
+                            'title' => 'Total Applicants',
+                            'value' => number_format($totalApplicants),
+                            'trend' => '12.4%',
+                            'trendDirection' => 'up',
+                            'variant' => 'primary',
+                            'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>',
+                        ])
                     </div>
-                    <!-- <div class="d-flex flex-wrap gap-2">
-                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn active" data-risk-filter="all" aria-label="Show all academic risk rows">
-                            <span class="badge text-bg-success">All {{ number_format(($academicRiskSummary['on_track'] ?? 0) + ($academicRiskSummary['at_risk'] ?? 0) + ($academicRiskSummary['critical'] ?? 0)) }}</span>
-                        </button>
-                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn" data-risk-filter="On Track" aria-label="Filter to On Track rows">
-                            <span class="badge text-bg-success">On Track {{ number_format($academicRiskSummary['on_track'] ?? 0) }}</span>
-                        </button>
-                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn" data-risk-filter="At-Risk" aria-label="Filter to At-Risk rows">
-                            <span class="badge text-bg-warning">At-Risk {{ number_format($academicRiskSummary['at_risk'] ?? 0) }}</span>
-                        </button>
-                        <button type="button" class="btn btn-link p-0 border-0 text-decoration-none risk-filter-btn" data-risk-filter="Critical" aria-label="Filter to Critical rows">
-                            <span class="badge text-bg-danger">Critical {{ number_format($academicRiskSummary['critical'] ?? 0) }}</span>
-                        </button>
+                    <div class="col-12 col-sm-6 col-xl">
+                        @include('central.components.bootstrap-kpi-card', [
+                            'title' => 'Approved Applications',
+                            'value' => number_format($approvedApplications),
+                            'trend' => '8.1%',
+                            'trendDirection' => 'up',
+                            'variant' => 'success',
+                            'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
+                        ])
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl">
+                        @include('central.components.bootstrap-kpi-card', [
+                            'title' => 'Pending Applications',
+                            'value' => number_format($pendingApplications),
+                            'trend' => '3.7%',
+                            'trendDirection' => 'up',
+                            'variant' => 'warning',
+                            'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+                        ])
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl">
+                        @include('central.components.bootstrap-kpi-card', [
+                            'title' => 'Rejected Applications',
+                            'value' => number_format($rejectedApplications),
+                            'trend' => '2.2%',
+                            'trendDirection' => 'down',
+                            'variant' => 'danger',
+                            'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+                        ])
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl">
+                        @include('central.components.bootstrap-kpi-card', [
+                            'title' => 'Approval Rate',
+                            'value' => $approvalRate . '%',
+                            'trend' => '5.6%',
+                            'trendDirection' => 'up',
+                            'variant' => 'info',
+                            'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',
+                        ])
+                    </div>
+                </div>
+
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-xl-7">
+                            <section class="bsu-card h-100">
+                                <div class="bsu-card-header">
+                                    <div>
+                                        <h2 class="bsu-card-title">Applications by Campus</h2>
+                                        <p class="bsu-card-subtitle">Number of applications for the selected campus scope.</p>
+                                    </div>
+                                    <span class="badge text-bg-light">{{ $campusLabels->count() }} campuses</span>
+                                </div>
+                                <div class="bsu-chart-box">
+                                    <canvas id="campusApplicationsChart"></canvas>
+                                </div>
+                            </section>
+                        </div>
+                        <div class="col-12 col-xl-5">
+                            <section class="bsu-card h-100">
+                                <div class="bsu-card-header">
+                                    <div>
+                                        <h2 class="bsu-card-title">Application Status</h2>
+                                        <p class="bsu-card-subtitle">Current composition of scholarship applications.</p>
+                                    </div>
+                                    <span class="badge text-bg-light">{{ number_format($totalApplications) }} total</span>
+                                </div>
+                                <div class="bsu-chart-box">
+                                    <canvas id="statusBreakdownChart"></canvas>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-xl-5">
+                            <section class="bsu-card h-100">
+                                <div class="bsu-card-header">
+                                    <div>
+                                        <h2 class="bsu-card-title">Scholarship Distribution</h2>
+                                        <p class="bsu-card-subtitle">Application share by scholarship category.</p>
+                                    </div>
+                                    <span class="badge text-bg-light">{{ number_format($scholarshipStats['total'] ?? 0) }}
+                                        programs</span>
+                                </div>
+                                <div class="bsu-chart-box">
+                                    <canvas id="scholarshipDistributionChart"></canvas>
+                                </div>
+                            </section>
+                        </div>
+                        <div class="col-12 col-xl-7">
+                            <section class="bsu-card h-100">
+                                <div class="bsu-card-header">
+                                    <div>
+                                        <h2 class="bsu-card-title">Monthly Application Trends</h2>
+                                        <p class="bsu-card-subtitle">Submission volume for the selected campus and academic-year scope.</p>
+                                    </div>
+                                </div>
+                                <div class="bsu-chart-box">
+                                    <canvas id="monthlyTrendsChart"></canvas>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+
+
+                <section class="bsu-card mb-4">
+                    <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                        <div>
+                            <h2 class="bsu-card-title">GWA Qualification Prediction</h2>
+                            <p class="bsu-card-subtitle">Predicted scholarship fit from student GWA against active
+                                scholarship GWA requirements.</p>
+                        </div>
+                        <span
+                            class="badge text-bg-light">{{ number_format($gwaPredictionSummary['scholarships_with_gwa_rule'] ?? 0) }}
+                            GWA-based programs</span>
+                    </div>
+                    <div class="p-3 p-lg-4 border-bottom">
+                        <div class="row g-3">
+                            <div class="col-6 col-xl">
+                                <button type="button"
+                                    class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white"
+                                    data-gwa-metric="verified" aria-label="View verified GWA students">
+                                    <div class="small text-secondary fw-bold text-uppercase">Verified GWA</div>
+                                    <div class="h4 mb-0 text-dark">
+                                        {{ number_format($gwaPredictionSummary['students_with_gwa'] ?? 0) }}</div>
+                                </button>
+                            </div>
+                            <div class="col-6 col-xl">
+                                <button type="button"
+                                    class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white"
+                                    data-gwa-metric="missing" aria-label="View missing GWA students">
+                                    <div class="small text-secondary fw-bold text-uppercase">Unverified / Missing</div>
+                                    <div class="h4 mb-0 text-dark">
+                                        {{ number_format($gwaPredictionSummary['students_missing_gwa'] ?? 0) }}</div>
+                                </button>
+                            </div>
+                            <div class="col-6 col-xl">
+                                <button type="button"
+                                    class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white"
+                                    data-gwa-metric="qualified" aria-label="View qualified matches">
+                                    <div class="small text-secondary fw-bold text-uppercase">Qualified Matches</div>
+                                    <div class="h4 mb-0 text-dark">
+                                        {{ number_format($gwaPredictionSummary['qualified_matches'] ?? 0) }}</div>
+                                </button>
+                            </div>
+                            <div class="col-6 col-xl">
+                                <button type="button"
+                                    class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white"
+                                    data-gwa-metric="near-miss" aria-label="View near misses">
+                                    <div class="small text-secondary fw-bold text-uppercase">Near Misses</div>
+                                    <div class="h4 mb-0 text-dark">
+                                        {{ number_format($gwaPredictionSummary['near_miss_matches'] ?? 0) }}</div>
+                                </button>
+                            </div>
+                            <div class="col-6 col-xl">
+                                <button type="button"
+                                    class="btn btn-link border rounded-3 p-3 h-100 w-100 text-start text-decoration-none bg-white"
+                                    data-gwa-metric="rate" aria-label="View qualification rate details">
+                                    <div class="small text-secondary fw-bold text-uppercase">Prediction Rate</div>
+                                    <div class="h4 mb-0 text-dark">
+                                        {{ number_format($gwaPredictionSummary['qualification_rate'] ?? 0, 1) }}%</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- <div class="row g-0">
+                        <div class="col-12 col-xl-7 border-end">
+                            <div class="bsu-card-header border-0 pb-0">
+                                <div>
+                                    <h3 class="bsu-card-title">Predicted Qualification by Scholarship</h3>
+                                    <p class="bsu-card-subtitle">Top active scholarships with a GWA condition.</p>
+                                </div>
+                            </div>
+                            <div class="bsu-chart-box bsu-chart-box-lg">
+                                <canvas id="gwaQualificationChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-12 col-xl-5">
+                            <div class="bsu-card-header border-0 pb-0">
+                                <div>
+                                    <h3 class="bsu-card-title">Student GWA Distribution</h3>
+                                    <p class="bsu-card-subtitle">Students grouped by submitted GWA.</p>
+                                </div>
+                            </div>
+                            <div class="bsu-chart-box bsu-chart-box-lg">
+                                <canvas id="gwaBandChart"></canvas>
+                            </div>
+                        </div>
                     </div> -->
-                </div>
-                <div class="table-responsive">
-                    <table class="table bsu-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Student</th>
-                                <th>Campus</th>
-                                <th>Scholarship</th>
-                                <th>Latest GWA</th>
-                                <th>Trend</th>
-                                <th>Graduation Risk</th>
-                                <th>Retention Risk</th>
-                                <th>Overall</th>
-                                <th>Reason</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($academicRiskStudents as $student)
-                                @php
-                                    $riskBadge = fn ($status) => match ($status) { 'Critical' => 'danger', 'At-Risk' => 'warning', default => 'success' };
-                                @endphp
-                                <tr data-risk-status="{{ $student['status'] ?? 'On Track' }}">
-                                    <td><div class="fw-semibold text-dark">{{ $student['name'] ?? 'Unknown Student' }}</div><div class="small text-secondary">{{ $student['sr_code'] ?? 'No SR code' }}</div></td>
-                                    <td>{{ $student['campus_name'] ?? 'Unassigned' }}</td>
-                                    <td>{{ $student['scholarship_name'] ?? 'No active scholarship' }}</td>
-                                    <td>{{ $student['latest_gwa'] !== null ? number_format($student['latest_gwa'], 2) : 'Missing' }}</td>
-                                    <td>{{ ucfirst($student['trend'] ?? 'unknown') }}</td>
-                                    <td><span class="badge text-bg-{{ $riskBadge($student['graduation']['status'] ?? 'On Track') }}">{{ $student['graduation']['status'] ?? 'On Track' }}</span></td>
-                                    <td><span class="badge text-bg-{{ $riskBadge($student['retention']['status'] ?? 'On Track') }}">{{ $student['retention']['status'] ?? 'On Track' }}</span></td>
-                                    <td><span class="badge text-bg-{{ $riskBadge($student['status'] ?? 'On Track') }}">{{ $student['status'] ?? 'On Track' }}</span></td>
-                                    <td class="small">{{ $student['reasons'][0] ?? 'No immediate risk identified' }}</td>
-                                </tr>
-                            @empty
-                                <tr class="bsu-empty-row"><td colspan="9" class="text-center py-5 text-secondary">No academic risk records available.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- CHANGED: replaced the old conditional Laravel ->links()
-                     block with the same footer structure/classes as the
-                     Recent Applications table's paginator, so it renders
-                     for both paginator and plain-collection cases and is
-                     driven by the shared initDataTable() JS. --}}
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
-                    <div class="small text-secondary js-table-summary">Showing 0 results</div>
-                    <nav aria-label="Academic risk monitoring pagination">
-                        <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
-                    </nav>
-                </div>
-            </section>
-
-            <section class="bsu-card mb-4">
-                <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
-                    <div>
-                        <h2 class="bsu-card-title">{{ $hasCampusFilter ? $statusReportScope . ' Scholarship Status' : 'Overall Scholarship Status' }}</h2>
-                        <p class="bsu-card-subtitle">{{ $hasCampusFilter ? 'Status and scholarship performance for the selected campus.' : 'University-wide status for all campuses, with campus-level drilldown for detailed scholarship performance.' }}</p>
-                    </div>
-                    <form method="GET" action="{{ route('central.dashboard') }}" class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto">
-                        <input type="hidden" name="tabs" value="all_statistics">
-                        <select name="campus" class="form-select" aria-label="Filter scholarship status by campus">
-                            <option value="all">All Campuses</option>
-                            @foreach($campuses as $campus)
-                                <option value="{{ $campus->id }}" @selected((string) $campusFilter === (string) $campus->id)>{{ $campus->name }}</option>
-                            @endforeach
-                        </select>
-                        <button type="submit" class="btn btn-bsu">View</button>
-                        @if($selectedStatusCampus)
-                            <a href="{{ route('central.dashboard', ['tabs' => 'all_statistics']) }}" class="btn btn-outline-secondary">Reset</a>
-                        @endif
-                    </form>
-                </div>
-
-                <div class="p-3 p-lg-4 border-bottom">
-                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
-                        <div>
-                            <div class="small text-secondary text-uppercase fw-bold">Current Scope</div>
-                            <div class="h5 mb-0">{{ $statusReportScope }}</div>
-                        </div>
-                        <div class="small text-secondary">
-                            Generated {{ $centralStatusReport['generated_at'] ?? $lastUpdated }}
-                        </div>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
-                                <div class="small text-secondary fw-bold text-uppercase">Students</div>
-                                <div class="h4 mb-0">{{ number_format($statusSummary['total_students'] ?? 0) }}</div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
-                                <div class="small text-secondary fw-bold text-uppercase">Applicants</div>
-                                <div class="h4 mb-0">{{ number_format($statusSummary['unique_applicants'] ?? 0) }}</div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
-                                <div class="small text-secondary fw-bold text-uppercase">Applications</div>
-                                <div class="h4 mb-0">{{ number_format($statusSummary['total_applications'] ?? 0) }}</div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
-                                <div class="small text-secondary fw-bold text-uppercase">Scholars</div>
-                                <div class="h4 mb-0">{{ number_format($statusSummary['total_scholars'] ?? 0) }}</div>
-                            </div>
-                        </div>
-                        <div class="col-6 col-xl">
-                            <div class="border rounded-3 p-3 h-100">
-                                <div class="small text-secondary fw-bold text-uppercase">Approval Rate</div>
-                                <div class="h4 mb-0">{{ number_format($statusSummary['approval_rate'] ?? 0, 1) }}%</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                
-
-                <div class="p-3 p-lg-4">
-                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
-                        <div>
-                            <h3 class="h6 fw-bold mb-1">Scholarship Details: {{ $statusReportScope }}</h3>
-                            <div class="small text-secondary">Counts are grouped by scholarship and follow the selected campus scope.</div>
-                        </div>
-                        <div class="d-flex flex-wrap gap-2 align-self-start">
-                            <span class="badge text-bg-warning">Pending {{ number_format($statusSummary['pending'] ?? 0) }}</span>
-                            <span class="badge text-bg-info">In Progress {{ number_format($statusSummary['in_progress'] ?? 0) }}</span>
-                            <span class="badge text-bg-success">Approved {{ number_format($statusSummary['approved'] ?? 0) }}</span>
-                            <span class="badge text-bg-danger">Rejected {{ number_format($statusSummary['rejected'] ?? 0) }}</span>
-                            <span class="badge text-bg-secondary">Claimed {{ number_format($statusSummary['claimed'] ?? 0) }}</span>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
+                    <div class="table-responsive border-top">
                         <table class="table bsu-table mb-0">
                             <thead>
                                 <tr>
                                     <th>Scholarship</th>
-                                    <th>Type</th>
-                                    <th>Applications</th>
-                                    <th>Pending</th>
-                                    <th>In Progress</th>
-                                    <th>Approved</th>
-                                    <th>Rejected</th>
-                                    <th>Claimed</th>
-                                    <th>Scholars</th>
-                                    <th>New / Old</th>
+                                    <th>Required GWA</th>
+                                    <th>Evaluated</th>
+                                    <th>Predicted Qualified</th>
+                                    <th>Near Miss</th>
                                     <th>Rate</th>
-                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($scholarshipStatusRows as $row)
+                                @forelse($gwaPredictionRows->take(6) as $row)
                                     <tr>
                                         <td>
                                             <div class="fw-semibold text-dark">{{ $row['scholarship_name'] }}</div>
-                                            <div class="small text-secondary">{{ number_format($row['unique_applicants']) }} unique applicant{{ (int) $row['unique_applicants'] === 1 ? '' : 's' }}</div>
+                                            <div class="small text-secondary">
+                                                {{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</div>
                                         </td>
-                                        <td><span class="badge text-bg-light">{{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</span></td>
-                                        <td>{{ number_format($row['total_applications']) }}</td>
-                                        <td>{{ number_format($row['pending']) }}</td>
-                                        <td>{{ number_format($row['in_progress']) }}</td>
-                                        <td>{{ number_format($row['approved']) }}</td>
-                                        <td>{{ number_format($row['rejected']) }}</td>
-                                        <td>{{ number_format($row['claimed']) }}</td>
-                                        <td>{{ number_format($row['total_scholars']) }}</td>
-                                        <td>{{ number_format($row['new_scholars']) }} / {{ number_format($row['old_scholars']) }}</td>
-                                        <td>{{ number_format($row['approval_rate'], 1) }}%</td>
-                                        <td><span class="badge text-bg-{{ $row['is_active'] ? 'success' : 'secondary' }}">{{ $row['is_active'] ? 'Active' : 'Archived' }}</span></td>
+                                        <td>{{ number_format($row['required_gwa'], 2) }} or better</td>
+                                        <td>{{ number_format($row['total_evaluated']) }}</td>
+                                        <td><span class="badge text-bg-success">{{ number_format($row['qualified']) }}</span>
+                                        </td>
+                                        <td><span class="badge text-bg-warning">{{ number_format($row['near_miss']) }}</span>
+                                        </td>
+                                        <td>{{ number_format($row['qualification_rate'], 1) }}%</td>
                                     </tr>
                                 @empty
-                                    <tr class="bsu-empty-row"><td colspan="12" class="text-center py-5 text-secondary">No scholarship activity found for this scope.</td></tr>
+                                    <tr class="bsu-empty-row">
+                                        <td colspan="6" class="text-center py-5 text-secondary">No active scholarships with a
+                                            GWA requirement found for this scope.</td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            @unless($hasCampusFilter)
-            <section class="bsu-card mb-4">
-                <div class="table-responsive border-bottom">
-                    <table class="table bsu-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Campus</th>
-                                <th>Students</th>
-                                <th>Applicants</th>
-                                <th>Applications</th>
-                                <th>Pending</th>
-                                <th>In Progress</th>
-                                <th>Approved</th>
-                                <th>Rejected</th>
-                                <th>Claimed</th>
-                                <th>Scholars</th>
-                                <th>Rate</th>
-                                <th>Detail</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($campusStatusRows as $row)
-                                <tr class="{{ $selectedStatusCampus && (int) $selectedStatusCampus['id'] === (int) $row['campus_id'] ? 'table-light' : '' }}">
-                                    <td>
-                                        <div class="fw-semibold text-dark">{{ $row['campus_name'] }}</div>
-                                        <div class="small text-secondary">{{ ucfirst($row['campus_type'] ?? 'campus') }}</div>
-                                    </td>
-                                    <td>{{ number_format($row['total_students']) }}</td>
-                                    <td>{{ number_format($row['unique_applicants']) }}</td>
-                                    <td>{{ number_format($row['total_applications']) }}</td>
-                                    <td><span class="badge text-bg-warning">{{ number_format($row['pending']) }}</span></td>
-                                    <td><span class="badge text-bg-info">{{ number_format($row['in_progress']) }}</span></td>
-                                    <td><span class="badge text-bg-success">{{ number_format($row['approved']) }}</span></td>
-                                    <td><span class="badge text-bg-danger">{{ number_format($row['rejected']) }}</span></td>
-                                    <td><span class="badge text-bg-secondary">{{ number_format($row['claimed']) }}</span></td>
-                                    <td>{{ number_format($row['total_scholars']) }}</td>
-                                    <td>{{ number_format($row['approval_rate'], 1) }}%</td>
-                                    <td>
-                                        <a href="{{ route('central.dashboard', ['tabs' => 'all_statistics', 'campus' => $row['campus_id']]) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Open</a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr class="bsu-empty-row"><td colspan="12" class="text-center py-5 text-secondary">No campus scholarship status data available.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-            @endunless
+                {{-- ================================================================
+                CHANGED: Academic Risk Monitoring section
+                - Marked the <section> as a js-data-table (same client-side
+                    pagination engine that already powers the "Recent
+                    Applications" table below, plus the Scholarships / Scholars
+                    / Applicants / Reports / Staff tabs).
+                    - Added a search box + rows-per-page selector to the header,
+                    matching the pattern used on those other client-paginated
+                    tables (scoped with .js-table-search / .js-page-size so it
+                    doesn't collide with the global #tableSearch / #pageSize
+                    controls used by Recent Applications).
+                    - Swapped the old conditional Laravel ->links() pagination
+                    block (which only rendered when $academicRiskStudents was
+                    an actual LengthAwarePaginator, so it silently disappeared
+                    for plain collections) for the same footer markup/classes
+                    used by Recent Applications: a .js-table-summary counter
+                    and a .js-table-pagination <ul>. Both are picked up
+                        automatically by the existing
+                        `document.querySelectorAll('.js-data-table').forEach(initDataTable)`
+                        call already in the page script, so no new JS was needed.
+                        ================================================================ --}}
+                        <section class="bsu-card mb-4 js-data-table" data-default-page-size="10">
+                            <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                                <div>
+                                    <h2 class="bsu-card-title">Academic Risk Monitoring</h2>
+                                    <p class="bsu-card-subtitle">Early-warning view based on verified semestral GWA history
+                                        and scholarship requirements.</p>
+                                </div>
+                                {{-- CHANGED: search + page size controls, copied from the
+                                Recent Applications / Scholarships tables so this
+                                table gets the same client-side pagination UI. --}}
+                                <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto">
+                                    <input type="search" class="form-control js-table-search"
+                                        placeholder="Search students...">
+                                    <select class="form-select js-page-size" style="max-width:120px">
+                                        <option value="all" selected>All rows</option>
+                                        <option value="5">5 rows</option>
+                                        <option value="10">10 rows</option>
+                                        <option value="15">15 rows</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table bsu-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Campus</th>
+                                            <th>Scholarship</th>
+                                            <th>Latest GWA</th>
+                                            <th>Trend</th>
+                                            <th>Graduation Risk</th>
+                                            <th>Retention Risk</th>
+                                            <th>Overall</th>
+                                            <th>Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($academicRiskStudents as $student)
+                                            @php
+                                                $riskBadge = fn($status) => match ($status) { 'Critical' => 'danger', 'At-Risk' => 'warning', default => 'success'};
+                                            @endphp
+                                            <tr data-risk-status="{{ $student['status'] ?? 'On Track' }}">
+                                                <td>
+                                                    <div class="fw-semibold text-dark">
+                                                        {{ $student['name'] ?? 'Unknown Student' }}</div>
+                                                    <div class="small text-secondary">{{ $student['sr_code'] ?? 'No SR code' }}
+                                                    </div>
+                                                </td>
+                                                <td>{{ $student['campus_name'] ?? 'Unassigned' }}</td>
+                                                <td>{{ $student['scholarship_name'] ?? 'No active scholarship' }}</td>
+                                                <td>{{ $student['latest_gwa'] !== null ? number_format($student['latest_gwa'], 2) : 'Missing' }}
+                                                </td>
+                                                <td>{{ ucfirst($student['trend'] ?? 'unknown') }}</td>
+                                                <td><span
+                                                        class="badge text-bg-{{ $riskBadge($student['graduation']['status'] ?? 'On Track') }}">{{ $student['graduation']['status'] ?? 'On Track' }}</span>
+                                                </td>
+                                                <td><span
+                                                        class="badge text-bg-{{ $riskBadge($student['retention']['status'] ?? 'On Track') }}">{{ $student['retention']['status'] ?? 'On Track' }}</span>
+                                                </td>
+                                                <td><span
+                                                        class="badge text-bg-{{ $riskBadge($student['status'] ?? 'On Track') }}">{{ $student['status'] ?? 'On Track' }}</span>
+                                                </td>
+                                                <td class="small">{{ $student['reasons'][0] ?? 'No immediate risk identified' }}
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr class="bsu-empty-row">
+                                                <td colspan="9" class="text-center py-5 text-secondary">No academic risk records
+                                                    available.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
 
-            <section class="bsu-card mb-4">
-                <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
-                    <div>
-                        <h2 class="bsu-card-title">Recent Applications</h2>
-                        <p class="bsu-card-subtitle">Latest scholarship submissions requiring administrative visibility.</p>
+                            {{-- CHANGED: replaced the old conditional Laravel ->links()
+                            block with the same footer structure/classes as the
+                            Recent Applications table's paginator, so it renders
+                            for both paginator and plain-collection cases and is
+                            driven by the shared initDataTable() JS. --}}
+                            <div
+                                class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                                <div class="small text-secondary js-table-summary">Showing 0 results</div>
+                                <nav aria-label="Academic risk monitoring pagination">
+                                    <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
+                                </nav>
+                            </div>
+                        </section>
+
+
+                        <section class="bsu-card mb-4 js-data-table">
+                                    <div class="bsu-card-header flex-column flex-xl-row align-items-xl-center">
+                                        <div>
+                                            <h2 class="bsu-card-title">Scholarship Distribution</h2>
+                                            <p class="bsu-card-subtitle">Distribution of students across different campuses</p>
+                                        </div>
+                                        <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-xl-auto">
+
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive border-bottom">
+                                        <table class="table bsu-table mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Campus</th>
+                                                    <th>Students</th>
+                                                    <th>Applicants</th>
+                                                    <th>Applications</th>
+                                                    <th>Pending</th>
+                                                    <th>In Progress</th>
+                                                    <th>Approved</th>
+                                                    <th>Rejected</th>
+                                                    <th>Claimed</th>
+                                                    <th>Scholars</th>
+                                                    <th>Rate</th>
+                                                    <th>Detail</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @forelse($campusStatusRows as $row)
+                                                    <tr
+                                                        class="{{ $selectedStatusCampus && (int) $selectedStatusCampus['id'] === (int) $row['campus_id'] ? 'table-light' : '' }}">
+                                                        <td>
+                                                            <div class="fw-semibold text-dark">{{ $row['campus_name'] }}</div>
+                                                            <div class="small text-secondary">{{ ucfirst($row['campus_type'] ?? 'campus') }}
+                                                            </div>
+                                                        </td>
+                                                        <td>{{ number_format($row['total_students']) }}</td>
+                                                        <td>{{ number_format($row['unique_applicants']) }}</td>
+                                                        <td>{{ number_format($row['total_applications']) }}</td>
+                                                        <td><span class="badge text-bg-warning">{{ number_format($row['pending']) }}</span>
+                                                        </td>
+                                                        <td><span class="badge text-bg-info">{{ number_format($row['in_progress']) }}</span>
+                                                        </td>
+                                                        <td><span class="badge text-bg-success">{{ number_format($row['approved']) }}</span>
+                                                        </td>
+                                                        <td><span class="badge text-bg-danger">{{ number_format($row['rejected']) }}</span>
+                                                        </td>
+                                                        <td><span
+                                                                class="badge text-bg-secondary">{{ number_format($row['claimed']) }}</span>
+                                                        </td>
+                                                        <td>{{ number_format($row['total_scholars']) }}</td>
+                                                        <td>{{ number_format($row['approval_rate'], 1) }}%</td>
+                                                        <td>
+                                                            <a href="{{ route('central.dashboard', ['tabs' => 'all_statistics', 'campus' => $row['campus_id']]) }}"
+                                                                class="btn btn-sm btn-outline-secondary rounded-pill">Open</a>
+                                                        </td>
+                                                    </tr>
+                                                @empty
+                                                    <tr class="bsu-empty-row">
+                                                        <td colspan="12" class="text-center py-5 text-secondary">No campus scholarship
+                                                            status data available.</td>
+                                                    </tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                            </section>
+  
+
+
+                    <section class="bsu-card mb-4">
+                        <div class="p-3 p-lg-4">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
+                                <div>
+                                    <h3 class="h6 fw-bold mb-1">Scholarship Details: {{ $statusReportScope }}</h3>
+                                    <div class="small text-secondary">Counts are grouped by scholarship and follow the selected
+                                        campus scope.</div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 align-self-start">
+                                    <span class="badge text-bg-warning">Pending
+                                        {{ number_format($statusSummary['pending'] ?? 0) }}</span>
+                                    <span class="badge text-bg-info">In Progress
+                                        {{ number_format($statusSummary['in_progress'] ?? 0) }}</span>
+                                    <span class="badge text-bg-success">Approved
+                                        {{ number_format($statusSummary['approved'] ?? 0) }}</span>
+                                    <span class="badge text-bg-danger">Rejected
+                                        {{ number_format($statusSummary['rejected'] ?? 0) }}</span>
+                                    <span class="badge text-bg-secondary">Claimed
+                                        {{ number_format($statusSummary['claimed'] ?? 0) }}</span>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table bsu-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Scholarship</th>
+                                            <th>Type</th>
+                                            <th>Applications</th>
+                                            <th>Pending</th>
+                                            <th>In Progress</th>
+                                            <th>Approved</th>
+                                            <th>Rejected</th>
+                                            <th>Claimed</th>
+                                            <th>Scholars</th>
+                                            <th>New / Old</th>
+                                            <th>Rate</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($scholarshipStatusRows as $row)
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold text-dark">{{ $row['scholarship_name'] }}</div>
+                                                    <div class="small text-secondary">{{ number_format($row['unique_applicants']) }}
+                                                        unique applicant{{ (int) $row['unique_applicants'] === 1 ? '' : 's' }}</div>
+                                                </td>
+                                                <td><span
+                                                        class="badge text-bg-light">{{ ucfirst($row['scholarship_type'] ?? 'Unspecified') }}</span>
+                                                </td>
+                                                <td>{{ number_format($row['total_applications']) }}</td>
+                                                <td>{{ number_format($row['pending']) }}</td>
+                                                <td>{{ number_format($row['in_progress']) }}</td>
+                                                <td>{{ number_format($row['approved']) }}</td>
+                                                <td>{{ number_format($row['rejected']) }}</td>
+                                                <td>{{ number_format($row['claimed']) }}</td>
+                                                <td>{{ number_format($row['total_scholars']) }}</td>
+                                                <td>{{ number_format($row['new_scholars']) }} /
+                                                    {{ number_format($row['old_scholars']) }}</td>
+                                                <td>{{ number_format($row['approval_rate'], 1) }}%</td>
+                                                <td><span
+                                                        class="badge text-bg-{{ $row['is_active'] ? 'success' : 'secondary' }}">{{ $row['is_active'] ? 'Active' : 'Archived' }}</span>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr class="bsu-empty-row">
+                                                <td colspan="12" class="text-center py-5 text-secondary">No scholarship activity
+                                                    found for this scope.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </section>
+
+                <section class="bsu-card mb-4">
+                    <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
+                        <div>
+                            <h2 class="bsu-card-title">Recent Applications</h2>
+                            <p class="bsu-card-subtitle">Latest scholarship submissions requiring administrative visibility.
+                            </p>
+                        </div>
+                        <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
+                            <input type="search" id="tableSearch" class="form-control" placeholder="Search table...">
+                            <select id="pageSize" class="form-select" style="max-width:120px">
+                                <option value="all" selected>All rows</option>
+                                <option value="5">5 rows</option>
+                                <option value="10">10 rows</option>
+                                <option value="15">15 rows</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
-                        <input type="search" id="tableSearch" class="form-control" placeholder="Search table...">
-                        <select id="pageSize" class="form-select" style="max-width:120px">
-                            <option value="all" selected>All rows</option>
-                            <option value="5">5 rows</option>
-                            <option value="10">10 rows</option>
-                            <option value="15">15 rows</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table bsu-table" id="applicationsTable">
-                        <thead>
-                            <tr>
-                                <th data-sort="student">Student ID</th>
-                                <th data-sort="name">Applicant Name</th>
-                                <th data-sort="campus">Campus</th>
-                                <th data-sort="scholarship">Scholarship</th>
-                                <th data-sort="status">Status</th>
-                                <th data-sort="date">Date Submitted</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($recentApplications as $application)
-                                @php
-                                    $student = $application->user;
-                                    $scholarship = $application->scholarship;
-                                    $submittedAt = $application->created_at;
-                                @endphp
+                    <div class="table-responsive">
+                        <table class="table bsu-table" id="applicationsTable">
+                            <thead>
                                 <tr>
-                                    <td data-value="{{ $student->sr_code ?? 'APP-' . str_pad((string) $application->id, 5, '0', STR_PAD_LEFT) }}">
-                                        <span class="fw-bold">{{ $student->sr_code ?? 'APP-' . str_pad((string) $application->id, 5, '0', STR_PAD_LEFT) }}</span>
-                                    </td>
-                                    <td data-value="{{ $student->name ?? 'Unknown Applicant' }}">
-                                        <div class="fw-semibold text-dark">{{ $student->name ?? 'Unknown Applicant' }}</div>
-                                        <div class="small text-secondary">{{ $student->email ?? 'No email' }}</div>
-                                    </td>
-                                    <td data-value="{{ optional($student?->campus)->name ?? 'Unassigned' }}">{{ optional($student?->campus)->name ?? 'Unassigned' }}</td>
-                                    <td data-value="{{ $scholarship->scholarship_name ?? 'Unknown Scholarship' }}">{{ $scholarship->scholarship_name ?? 'Unknown Scholarship' }}</td>
-                                    <td data-value="{{ $application->status }}">
-                                        <span class="badge text-bg-{{ $statusBadge($application->status) }}">{{ ucwords(str_replace('_', ' ', $application->status)) }}</span>
-                                    </td>
-                                    <td data-value="{{ optional($submittedAt)->timestamp ?? 0 }}">{{ optional($submittedAt)->format('M d, Y') ?? 'N/A' }}</td>
-                                    <td>
-                                        <a href="{{ route('central.dashboard', ['tabs' => 'endorsed_applicants']) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Review</a>
-                                    </td>
+                                    <th data-sort="student">Student ID</th>
+                                    <th data-sort="name">Applicant Name</th>
+                                    <th data-sort="campus">Campus</th>
+                                    <th data-sort="scholarship">Scholarship</th>
+                                    <th data-sort="status">Status</th>
+                                    <th data-sort="date">Date Submitted</th>
+                                    <th>Actions</th>
                                 </tr>
-                            @empty
-                                <tr class="bsu-empty-row">
-                                    <td colspan="7" class="text-center py-5 text-secondary">
-                                        No applications available yet.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
-                    <div class="small text-secondary" id="tableSummary">Showing 0 results</div>
-                    <nav aria-label="Recent applications pagination">
-                        <ul class="pagination pagination-sm mb-0" id="tablePagination"></ul>
-                    </nav>
-                </div>
-            </section>
+                            </thead>
+                            <tbody>
+                                @forelse($recentApplications as $application)
+                                    @php
+                                        $student = $application->user;
+                                        $scholarship = $application->scholarship;
+                                        $submittedAt = $application->created_at;
+                                    @endphp
+                                    <tr>
+                                        <td
+                                            data-value="{{ $student->sr_code ?? 'APP-' . str_pad((string) $application->id, 5, '0', STR_PAD_LEFT) }}">
+                                            <span
+                                                class="fw-bold">{{ $student->sr_code ?? 'APP-' . str_pad((string) $application->id, 5, '0', STR_PAD_LEFT) }}</span>
+                                        </td>
+                                        <td data-value="{{ $student->name ?? 'Unknown Applicant' }}">
+                                            <div class="fw-semibold text-dark">{{ $student->name ?? 'Unknown Applicant' }}</div>
+                                            <div class="small text-secondary">{{ $student->email ?? 'No email' }}</div>
+                                        </td>
+                                        <td data-value="{{ optional($student?->campus)->name ?? 'Unassigned' }}">
+                                            {{ optional($student?->campus)->name ?? 'Unassigned' }}</td>
+                                        <td data-value="{{ $scholarship->scholarship_name ?? 'Unknown Scholarship' }}">
+                                            {{ $scholarship->scholarship_name ?? 'Unknown Scholarship' }}</td>
+                                        <td data-value="{{ $application->status }}">
+                                            <span
+                                                class="badge text-bg-{{ $statusBadge($application->status) }}">{{ ucwords(str_replace('_', ' ', $application->status)) }}</span>
+                                        </td>
+                                        <td data-value="{{ optional($submittedAt)->timestamp ?? 0 }}">
+                                            {{ optional($submittedAt)->format('M d, Y') ?? 'N/A' }}</td>
+                                        <td>
+                                            <a href="{{ route('central.dashboard', ['tabs' => 'endorsed_applicants']) }}"
+                                                class="btn btn-sm btn-outline-secondary rounded-pill">Review</a>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr class="bsu-empty-row">
+                                        <td colspan="7" class="text-center py-5 text-secondary">
+                                            No applications available yet.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                        <div class="small text-secondary" id="tableSummary">Showing 0 results</div>
+                        <nav aria-label="Recent applications pagination">
+                            <ul class="pagination pagination-sm mb-0" id="tablePagination"></ul>
+                        </nav>
+                    </div>
+                </section>
             @elseif(in_array($activeTab, $scholarshipTabs, true))
                 @php
                     $isArchiveTab = $activeTab === 'archived_scholarships';
@@ -1329,14 +1465,21 @@
                 @endphp
                 <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
                     <div>
-                        <h1 class="bsu-page-title h2 mb-1">{{ $isArchiveTab ? 'Archived Scholarships' : 'Scholarship Programs' }}</h1>
-                        <p class="text-secondary mb-0">{{ $isArchiveTab ? 'View scholarship programs removed from active student applications.' : 'Manage university-wide scholarship programs and application capacity.' }}</p>
+                        <h1 class="bsu-page-title h2 mb-1">
+                            {{ $isArchiveTab ? 'Archived Scholarships' : 'Scholarship Programs' }}</h1>
+                        <p class="text-secondary mb-0">
+                            {{ $isArchiveTab ? 'View scholarship programs removed from active student applications.' : 'Manage university-wide scholarship programs and application capacity.' }}
+                        </p>
                     </div>
                     <div class="d-flex flex-wrap gap-2 align-self-start">
-                        <a href="{{ route('central.dashboard', ['tabs' => 'all_scholarships']) }}" class="btn btn-sm {{ $activeTab === 'all_scholarships' ? 'btn-bsu' : 'btn-outline-secondary' }}">All</a>
-                        <a href="{{ route('central.dashboard', ['tabs' => 'private_scholarships']) }}" class="btn btn-sm {{ $activeTab === 'private_scholarships' ? 'btn-bsu' : 'btn-outline-secondary' }}">Private</a>
-                        <a href="{{ route('central.dashboard', ['tabs' => 'government_scholarships']) }}" class="btn btn-sm {{ $activeTab === 'government_scholarships' ? 'btn-bsu' : 'btn-outline-secondary' }}">Government</a>
-                        <a href="{{ route('central.dashboard', ['tabs' => 'archived_scholarships']) }}" class="btn btn-sm {{ $isArchiveTab ? 'btn-bsu' : 'btn-outline-secondary' }}">Archived</a>
+                        <a href="{{ route('central.dashboard', ['tabs' => 'all_scholarships']) }}"
+                            class="btn btn-sm {{ $activeTab === 'all_scholarships' ? 'btn-bsu' : 'btn-outline-secondary' }}">All</a>
+                        <a href="{{ route('central.dashboard', ['tabs' => 'private_scholarships']) }}"
+                            class="btn btn-sm {{ $activeTab === 'private_scholarships' ? 'btn-bsu' : 'btn-outline-secondary' }}">Private</a>
+                        <a href="{{ route('central.dashboard', ['tabs' => 'government_scholarships']) }}"
+                            class="btn btn-sm {{ $activeTab === 'government_scholarships' ? 'btn-bsu' : 'btn-outline-secondary' }}">Government</a>
+                        <a href="{{ route('central.dashboard', ['tabs' => 'archived_scholarships']) }}"
+                            class="btn btn-sm {{ $isArchiveTab ? 'btn-bsu' : 'btn-outline-secondary' }}">Archived</a>
                         @unless($isArchiveTab)
                             <a href="{{ route('central.scholarships.create') }}" class="btn btn-sm btn-bsu">Add Scholarship</a>
                         @endunless
@@ -1346,14 +1489,18 @@
                 <section class="bsu-card js-data-table" data-default-page-size="10">
                     <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
                         <div>
-                            <h2 class="bsu-card-title">{{ $isArchiveTab ? 'Archived' : ($scholarshipTypeFilter ? ucfirst($scholarshipTypeFilter) : 'All') }} Scholarships</h2>
-                            <p class="bsu-card-subtitle">{{ $visibleScholarships->count() }} program{{ $visibleScholarships->count() === 1 ? '' : 's' }} found.</p>
+                            <h2 class="bsu-card-title">
+                                {{ $isArchiveTab ? 'Archived' : ($scholarshipTypeFilter ? ucfirst($scholarshipTypeFilter) : 'All') }}
+                                Scholarships</h2>
+                            <p class="bsu-card-subtitle">{{ $visibleScholarships->count() }}
+                                program{{ $visibleScholarships->count() === 1 ? '' : 's' }} found.</p>
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                             <input type="search" class="form-control js-table-search" placeholder="Search scholarships...">
                             <form method="GET" action="{{ route('central.dashboard') }}" class="d-flex">
                                 <input type="hidden" name="tabs" value="{{ $activeTab }}">
-                                <select name="scholarship_campus_filter" class="form-select" aria-label="Filter scholarships by campus" onchange="this.form.submit()">
+                                <select name="scholarship_campus_filter" class="form-select"
+                                    aria-label="Filter scholarships by campus" onchange="this.form.submit()">
                                     <option value="all" @selected($scholarshipCampusFilter === 'all')>All campuses</option>
                                     @foreach($campuses as $campus)
                                         <option value="{{ $campus->id }}" @selected((string) $scholarshipCampusFilter === (string) $campus->id)>{{ $campus->name }}</option>
@@ -1385,39 +1532,66 @@
                                     <tr data-status="{{ $scholarship->is_active ? 'active' : 'archived' }}">
                                         <td data-value="{{ $scholarship->scholarship_name }}">
                                             <div class="fw-semibold text-dark">{{ $scholarship->scholarship_name }}</div>
-                                            <div class="small text-secondary">{{ \Illuminate\Support\Str::limit($scholarship->description, 90) }}</div>
+                                            <div class="small text-secondary">
+                                                {{ \Illuminate\Support\Str::limit($scholarship->description, 90) }}</div>
                                         </td>
-                                        <td data-value="{{ $scholarship->scholarship_type }}"><span class="badge text-bg-light">{{ ucfirst($scholarship->scholarship_type) }}</span></td>
-                                        <td data-value="{{ $scholarship->grant_amount ?? 0 }}">{{ $scholarship->grant_amount ? 'PHP ' . number_format((float) $scholarship->grant_amount, 2) : 'TBD' }}</td>
-                                        <td data-value="{{ optional($scholarship->submission_deadline)->timestamp ?? 0 }}">{{ optional($scholarship->submission_deadline)->format('M d, Y') ?? 'No deadline' }}</td>
-                                        <td data-value="{{ ($scholarship->slots_available ?? PHP_INT_MAX) . '-' . $scholarship->applications_count }}">
-                                            <span class="fw-semibold">{{ $scholarship->slots_available !== null ? number_format($scholarship->slots_available) : 'Unlimited' }}</span>
-                                            <span class="text-secondary"> / {{ number_format($scholarship->applications_count) }}</span>
+                                        <td data-value="{{ $scholarship->scholarship_type }}"><span
+                                                class="badge text-bg-light">{{ ucfirst($scholarship->scholarship_type) }}</span>
+                                        </td>
+                                        <td data-value="{{ $scholarship->grant_amount ?? 0 }}">
+                                            {{ $scholarship->grant_amount ? 'PHP ' . number_format((float) $scholarship->grant_amount, 2) : 'TBD' }}
+                                        </td>
+                                        <td data-value="{{ optional($scholarship->submission_deadline)->timestamp ?? 0 }}">
+                                            {{ optional($scholarship->submission_deadline)->format('M d, Y') ?? 'No deadline' }}
+                                        </td>
+                                        <td
+                                            data-value="{{ ($scholarship->slots_available ?? PHP_INT_MAX) . '-' . $scholarship->applications_count }}">
+                                            <span
+                                                class="fw-semibold">{{ $scholarship->slots_available !== null ? number_format($scholarship->slots_available) : 'Unlimited' }}</span>
+                                            <span class="text-secondary"> /
+                                                {{ number_format($scholarship->applications_count) }}</span>
                                         </td>
                                         <td data-value="{{ $scholarship->is_active ? 'active' : 'inactive' }}">
-                                            <span class="badge text-bg-{{ $scholarship->is_active ? 'success' : 'secondary' }}">{{ $scholarship->is_active ? 'Active' : 'Archived' }}</span>
+                                            <span
+                                                class="badge text-bg-{{ $scholarship->is_active ? 'success' : 'secondary' }}">{{ $scholarship->is_active ? 'Active' : 'Archived' }}</span>
                                         </td>
                                         <td>
                                             <div class="dropdown">
-                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                    data-bs-toggle="dropdown">Actions</button>
                                                 <ul class="dropdown-menu dropdown-menu-end">
-                                                    <li><a class="dropdown-item" href="{{ route('central.scholarships.edit', $scholarship->id) }}">Edit</a></li>
+                                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal"
+                                                            data-bs-target="#scholarshipDetails{{ $scholarship->id }}">View
+                                                            details</button></li>
+                                                    <li><a class="dropdown-item"
+                                                            href="{{ route('central.scholarships.edit', $scholarship->id) }}">Edit</a>
+                                                    </li>
                                                     @if($scholarship->is_active)
-                                                        <li><hr class="dropdown-divider"></li>
                                                         <li>
-                                                            <form method="POST" action="{{ route('central.scholarships.archive', $scholarship->id) }}" onsubmit="return confirm('Archive {{ addslashes($scholarship->scholarship_name) }}?')">
+                                                            <hr class="dropdown-divider">
+                                                        </li>
+                                                        <li>
+                                                            <form method="POST"
+                                                                action="{{ route('central.scholarships.archive', $scholarship->id) }}"
+                                                                onsubmit="return confirm('Archive {{ addslashes($scholarship->scholarship_name) }}?')">
                                                                 @csrf
                                                                 @method('PATCH')
-                                                                <button type="submit" class="dropdown-item text-warning">Archive</button>
+                                                                <button type="submit"
+                                                                    class="dropdown-item text-warning">Archive</button>
                                                             </form>
                                                         </li>
                                                     @else
-                                                        <li><hr class="dropdown-divider"></li>
                                                         <li>
-                                                            <form method="POST" action="{{ route('central.scholarships.unarchive', $scholarship->id) }}" onsubmit="return confirm('Restore {{ addslashes($scholarship->scholarship_name) }}?')">
+                                                            <hr class="dropdown-divider">
+                                                        </li>
+                                                        <li>
+                                                            <form method="POST"
+                                                                action="{{ route('central.scholarships.unarchive', $scholarship->id) }}"
+                                                                onsubmit="return confirm('Restore {{ addslashes($scholarship->scholarship_name) }}?')">
                                                                 @csrf
                                                                 @method('PATCH')
-                                                                <button type="submit" class="dropdown-item text-success">Restore</button>
+                                                                <button type="submit"
+                                                                    class="dropdown-item text-success">Restore</button>
                                                             </form>
                                                         </li>
                                                     @endif
@@ -1426,16 +1600,75 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr class="bsu-empty-row"><td colspan="7" class="text-center py-5 text-secondary">No scholarships found.</td></tr>
+                                    <tr class="bsu-empty-row">
+                                        <td colspan="7" class="text-center py-5 text-secondary">No scholarships found.</td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                    <div
+                        class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
                         <div class="small text-secondary js-table-summary">Showing 0 results</div>
                         <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
                     </div>
                 </section>
+                @foreach($visibleScholarships as $scholarship)
+                    <div class="modal fade" id="scholarshipDetails{{ $scholarship->id }}" tabindex="-1"
+                        aria-labelledby="scholarshipDetailsLabel{{ $scholarship->id }}" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+                            <div class="modal-content border-0 shadow-lg">
+                                <div class="modal-header border-0">
+                                    <div>
+                                        <h2 class="modal-title h5 fw-bold" id="scholarshipDetailsLabel{{ $scholarship->id }}">
+                                            {{ $scholarship->scholarship_name }}</h2>
+                                        <p class="text-secondary small mb-0">{{ ucfirst($scholarship->scholarship_type) }}
+                                            scholarship program</p>
+                                    </div><button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-4">
+                                        <div class="col-md-7">
+                                            <h3 class="h6 fw-bold">Program details</h3>
+                                            <p class="text-secondary">
+                                                {{ $scholarship->description ?: 'No program description provided.' }}</p>
+                                            <dl class="row small mb-0">
+                                                <dt class="col-sm-5">Grant amount</dt>
+                                                <dd class="col-sm-7">
+                                                    {{ $scholarship->grant_amount ? 'PHP ' . number_format((float) $scholarship->grant_amount, 2) : 'TBD' }}
+                                                </dd>
+                                                <dt class="col-sm-5">Application deadline</dt>
+                                                <dd class="col-sm-7">
+                                                    {{ optional($scholarship->submission_deadline)->format('M d, Y') ?? 'No deadline' }}
+                                                </dd>
+                                                <dt class="col-sm-5">Available slots</dt>
+                                                <dd class="col-sm-7">{{ $scholarship->slots_available ?? 'Unlimited' }}</dd>
+                                            </dl>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <h3 class="h6 fw-bold">Eligibility</h3>
+                                            <ul class="small ps-3 mb-3">@forelse($scholarship->conditions as $condition)
+                                                <li>{{ ucfirst(str_replace('_', ' ', $condition->name)) }}:
+                                            {{ $condition->value }}</li>@empty<li>No additional conditions listed.</li>
+                                                    @endforelse
+                                            </ul>
+                                            <h3 class="h6 fw-bold">Required documents</h3>
+                                            <ul class="small ps-3 mb-0">@forelse($scholarship->requiredDocuments as $document)
+                                            <li>{{ $document->document_name }}</li>@empty<li>No required documents listed.
+                                                </li>@endforelse
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
+                                        data-bs-dismiss="modal">Close</button><a
+                                        href="{{ route('central.scholarships.edit', $scholarship->id) }}"
+                                        class="btn btn-bsu">Edit program</a></div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
             @elseif(in_array($activeTab, $scholarTabs, true))
                 @php
                     $scholarTypeFilter = $activeTab === 'new_scholars' ? 'new' : ($activeTab === 'old_scholars' ? 'old' : null);
@@ -1444,17 +1677,21 @@
                 @endphp
                 <div class="mb-4">
                     <h1 class="bsu-page-title h2 mb-1" id="scholarsPageTitle">Scholars | All</h1>
-                    <p class="text-secondary mb-0">Track accepted scholars, grants, campuses, and active scholarship records.</p>
+                    <p class="text-secondary mb-0">Track accepted scholars, grants, campuses, and active scholarship
+                        records.</p>
                 </div>
                 <section class="bsu-card js-data-table" data-default-page-size="10">
                     <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
                         <div>
-                            <h2 class="bsu-card-title">{{ $scholarTypeFilter ? ucfirst($scholarTypeFilter) : 'All' }} Scholars</h2>
-                            <p class="bsu-card-subtitle">{{ $visibleScholars->count() }} scholar{{ $visibleScholars->count() === 1 ? '' : 's' }} found.</p>
+                            <h2 class="bsu-card-title">{{ $scholarTypeFilter ? ucfirst($scholarTypeFilter) : 'All' }}
+                                Scholars</h2>
+                            <p class="bsu-card-subtitle">{{ $visibleScholars->count() }}
+                                scholar{{ $visibleScholars->count() === 1 ? '' : 's' }} found.</p>
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                             <input type="search" class="form-control js-table-search" placeholder="Search scholars...">
-                            <select class="form-select js-campus-filter" style="max-width:180px" aria-label="Filter scholars by campus">
+                            <select class="form-select js-campus-filter" style="max-width:180px"
+                                aria-label="Filter scholars by campus">
                                 <option value="all">All campuses</option>
                                 @foreach($campuses as $campus)
                                     <option value="{{ $campus->id }}">{{ $campus->name }}</option>
@@ -1482,28 +1719,41 @@
                             </thead>
                             <tbody>
                                 @forelse($visibleScholars as $scholar)
-                                    <tr data-status="{{ $scholar->status }}" data-campus="{{ $scholar->user->campus_id ?? '' }}">
+                                    <tr data-status="{{ $scholar->status }}"
+                                        data-campus="{{ $scholar->user->campus_id ?? '' }}">
                                         <td data-value="{{ $scholar->user->name ?? '' }}">
-                                            <div class="fw-semibold text-dark">{{ $scholar->user->name ?? 'Unknown Student' }}</div>
+                                            <div class="fw-semibold text-dark">{{ $scholar->user->name ?? 'Unknown Student' }}
+                                            </div>
                                             <div class="small text-secondary">{{ $scholar->user->email ?? 'No email' }}</div>
                                         </td>
-                                        <td data-value="{{ $scholar->user->campus->name ?? '' }}">{{ $scholar->user->campus->name ?? 'Unassigned' }}</td>
-                                        <td data-value="{{ $scholar->scholarship->scholarship_name ?? '' }}">{{ $scholar->scholarship->scholarship_name ?? 'Unknown Scholarship' }}</td>
-                                        <td data-value="{{ $scholar->type }}"><span class="badge text-bg-info">{{ ucfirst($scholar->type) }}</span></td>
-                                        <td data-value="{{ $scholar->grant_count }}">{{ number_format($scholar->grant_count) }}</td>
-                                        <td data-value="{{ $scholar->status }}"><span class="badge text-bg-{{ $scholar->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($scholar->status) }}</span></td>
+                                        <td data-value="{{ $scholar->user->campus->name ?? '' }}">
+                                            {{ $scholar->user->campus->name ?? 'Unassigned' }}</td>
+                                        <td data-value="{{ $scholar->scholarship->scholarship_name ?? '' }}">
+                                            {{ $scholar->scholarship->scholarship_name ?? 'Unknown Scholarship' }}</td>
+                                        <td data-value="{{ $scholar->type }}"><span
+                                                class="badge text-bg-info">{{ ucfirst($scholar->type) }}</span></td>
+                                        <td data-value="{{ $scholar->grant_count }}">{{ number_format($scholar->grant_count) }}
+                                        </td>
+                                        <td data-value="{{ $scholar->status }}"><span
+                                                class="badge text-bg-{{ $scholar->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($scholar->status) }}</span>
+                                        </td>
                                         <td>
-                                            <a href="{{ route('central.scholars.show', $scholar->id) }}" class="btn btn-sm btn-outline-secondary">View</a>
-                                            <a href="{{ route('central.scholars.edit', $scholar->id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                            <a href="{{ route('central.scholars.show', $scholar->id) }}"
+                                                class="btn btn-sm btn-outline-secondary">View</a>
+                                            <a href="{{ route('central.scholars.edit', $scholar->id) }}"
+                                                class="btn btn-sm btn-outline-primary">Edit</a>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr class="bsu-empty-row"><td colspan="7" class="text-center py-5 text-secondary">No scholars found.</td></tr>
+                                    <tr class="bsu-empty-row">
+                                        <td colspan="7" class="text-center py-5 text-secondary">No scholars found.</td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                    <div
+                        class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
                         <div class="small text-secondary js-table-summary">Showing 0 results</div>
                         <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
                     </div>
@@ -1514,25 +1764,31 @@
                         ? collect($endorsedApplicants ?? [])
                         : collect($rejectedApplicants ?? []);
                     $applicantStatusOptions = $visibleApplications
-                        ->map(fn ($record) => $activeTab === 'endorsed_applicants' ? ($record->status ?? 'in_progress') : 'rejected')
+                        ->map(fn($record) => $activeTab === 'endorsed_applicants' ? ($record->status ?? 'in_progress') : 'rejected')
                         ->filter()
                         ->unique()
                         ->sort()
                         ->values();
                 @endphp
                 <div class="mb-4">
-                    <h1 class="bsu-page-title h2 mb-1">{{ $activeTab === 'endorsed_applicants' ? 'Endorsed Applications' : 'Rejected Applications' }}</h1>
-                    <p class="text-secondary mb-0">Review SFAO-endorsed applications and Central Administration decisions.</p>
+                    <h1 class="bsu-page-title h2 mb-1">
+                        {{ $activeTab === 'endorsed_applicants' ? 'Endorsed Applications' : 'Rejected Applications' }}</h1>
+                    <p class="text-secondary mb-0">Review SFAO-endorsed applications and Central Administration decisions.
+                    </p>
                 </div>
                 <section class="bsu-card bsu-applicant-card js-data-table" data-default-page-size="10">
                     <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
                         <div>
-                            <h2 class="bsu-card-title">{{ $activeTab === 'endorsed_applicants' ? 'For Central Validation' : 'Rejected Records' }}</h2>
-                            <p class="bsu-card-subtitle">{{ $visibleApplications->count() }} record{{ $visibleApplications->count() === 1 ? '' : 's' }} found.</p>
+                            <h2 class="bsu-card-title">
+                                {{ $activeTab === 'endorsed_applicants' ? 'For Central Validation' : 'Rejected Records' }}
+                            </h2>
+                            <p class="bsu-card-subtitle">{{ $visibleApplications->count() }}
+                                record{{ $visibleApplications->count() === 1 ? '' : 's' }} found.</p>
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                             <input type="search" class="form-control js-table-search" placeholder="Search applicants...">
-                            <select class="form-select js-campus-filter" style="max-width:180px" aria-label="Filter applicants by campus">
+                            <select class="form-select js-campus-filter" style="max-width:180px"
+                                aria-label="Filter applicants by campus">
                                 <option value="all">All campuses</option>
                                 @foreach($campuses as $campus)
                                     <option value="{{ $campus->id }}">{{ $campus->name }}</option>
@@ -1564,50 +1820,70 @@
                                         $student = $activeTab === 'endorsed_applicants' ? $record->user : $record->user;
                                         $scholarship = $activeTab === 'endorsed_applicants' ? $record->scholarship : $record->scholarship;
                                     @endphp
-                                    <tr data-status="{{ $activeTab === 'endorsed_applicants' ? ($record->status ?? 'in_progress') : 'rejected' }}" data-campus="{{ $student->campus_id ?? '' }}">
+                                    <tr data-status="{{ $activeTab === 'endorsed_applicants' ? ($record->status ?? 'in_progress') : 'rejected' }}"
+                                        data-campus="{{ $student->campus_id ?? '' }}">
                                         <td data-value="{{ $student->name ?? '' }}">
                                             <div class="fw-semibold text-dark">{{ $student->name ?? 'Unknown Student' }}</div>
                                             <div class="small text-secondary">{{ $student->email ?? 'No email' }}</div>
                                         </td>
-                                        <td data-value="{{ $student->campus->name ?? '' }}">{{ $student->campus->name ?? 'Unassigned' }}</td>
-                                        <td data-value="{{ $scholarship->scholarship_name ?? '' }}">{{ $scholarship->scholarship_name ?? 'Unknown Scholarship' }}</td>
+                                        <td data-value="{{ $student->campus->name ?? '' }}">
+                                            {{ $student->campus->name ?? 'Unassigned' }}</td>
+                                        <td data-value="{{ $scholarship->scholarship_name ?? '' }}">
+                                            {{ $scholarship->scholarship_name ?? 'Unknown Scholarship' }}</td>
                                         <td data-value="{{ $activeTab === 'endorsed_applicants' ? 'endorsed' : 'rejected' }}">
-                                            <span class="badge text-bg-{{ $activeTab === 'endorsed_applicants' ? 'info' : 'danger' }}">{{ $activeTab === 'endorsed_applicants' ? 'Endorsed' : 'Rejected' }}</span>
+                                            <span
+                                                class="badge text-bg-{{ $activeTab === 'endorsed_applicants' ? 'info' : 'danger' }}">{{ $activeTab === 'endorsed_applicants' ? 'Endorsed' : 'Rejected' }}</span>
                                         </td>
-                                        <td data-value="{{ optional($record->updated_at ?? $record->rejected_at)->timestamp ?? 0 }}">{{ optional($record->updated_at ?? $record->rejected_at)->format('M d, Y') ?? 'N/A' }}</td>
+                                        <td
+                                            data-value="{{ optional($record->updated_at ?? $record->rejected_at)->timestamp ?? 0 }}">
+                                            {{ optional($record->updated_at ?? $record->rejected_at)->format('M d, Y') ?? 'N/A' }}
+                                        </td>
                                         <td>
                                             @if($activeTab === 'endorsed_applicants')
                                                 <div class="dropdown">
-                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                        data-bs-toggle="dropdown">Actions</button>
                                                     <ul class="dropdown-menu dropdown-menu-end">
-                                                        <li><a class="dropdown-item" href="{{ route('central.endorsed.validate', $record->id) }}">View</a></li>
+                                                        <li><a class="dropdown-item"
+                                                                href="{{ route('central.endorsed.validate', $record->id) }}">View</a>
+                                                        </li>
                                                         <li>
-                                                            <form method="POST" action="{{ route('central.endorsed.accept', $record->id) }}">
+                                                            <form method="POST"
+                                                                action="{{ route('central.endorsed.accept', $record->id) }}">
                                                                 @csrf
-                                                                <button type="submit" class="dropdown-item text-success">Approve</button>
+                                                                <button type="submit"
+                                                                    class="dropdown-item text-success">Approve</button>
                                                             </form>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="{{ route('central.endorsed.reject', $record->id) }}" class="js-reject-applicant-form">
+                                                            <form method="POST"
+                                                                action="{{ route('central.endorsed.reject', $record->id) }}"
+                                                                class="js-reject-applicant-form">
                                                                 @csrf
                                                                 <input type="hidden" name="rejection_reason">
-                                                                <button type="button" class="dropdown-item text-danger js-reject-applicant" data-name="{{ $student->name ?? 'this applicant' }}">Reject</button>
+                                                                <button type="button"
+                                                                    class="dropdown-item text-danger js-reject-applicant"
+                                                                    data-name="{{ $student->name ?? 'this applicant' }}">Reject</button>
                                                             </form>
                                                         </li>
                                                     </ul>
                                                 </div>
                                             @else
-                                                <span class="small text-secondary">{{ \Illuminate\Support\Str::limit($record->rejection_reason, 80) }}</span>
+                                                <span
+                                                    class="small text-secondary">{{ \Illuminate\Support\Str::limit($record->rejection_reason, 80) }}</span>
                                             @endif
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr class="bsu-empty-row"><td colspan="6" class="text-center py-5 text-secondary">No applicant records found.</td></tr>
+                                    <tr class="bsu-empty-row">
+                                        <td colspan="6" class="text-center py-5 text-secondary">No applicant records found.</td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                    <div
+                        class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
                         <div class="small text-secondary js-table-summary">Showing 0 results</div>
                         <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
                     </div>
@@ -1621,7 +1897,8 @@
                     <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
                         <div>
                             <h2 class="bsu-card-title">Reports</h2>
-                            <p class="bsu-card-subtitle">{{ collect($allReportsForReportsTab ?? [])->count() }} report{{ collect($allReportsForReportsTab ?? [])->count() === 1 ? '' : 's' }} found.</p>
+                            <p class="bsu-card-subtitle">{{ collect($allReportsForReportsTab ?? [])->count() }}
+                                report{{ collect($allReportsForReportsTab ?? [])->count() === 1 ? '' : 's' }} found.</p>
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                             <input type="search" class="form-control js-table-search" placeholder="Search reports...">
@@ -1647,20 +1924,32 @@
                             <tbody>
                                 @forelse(collect($allReportsForReportsTab ?? []) as $report)
                                     <tr>
-                                        <td data-value="{{ $report->title }}"><div class="fw-semibold text-dark">{{ $report->title }}</div></td>
+                                        <td data-value="{{ $report->title }}">
+                                            <div class="fw-semibold text-dark">{{ $report->title }}</div>
+                                        </td>
                                         <td data-value="{{ $report->campus_name }}">{{ $report->campus_name }}</td>
-                                        <td data-value="{{ $report->report_type_display }}">{{ $report->report_type_display }}</td>
-                                        <td data-value="{{ $report->status }}"><span class="badge text-bg-{{ $statusBadge($report->status) }}">{{ ucfirst($report->status) }}</span></td>
-                                        <td data-value="{{ optional($report->submitted_at ?? $report->created_at)->timestamp ?? 0 }}">{{ $report->display_submitted_at }}</td>
-                                        <td><a href="{{ route('central.reports.show', $report->id) }}" class="btn btn-sm btn-outline-secondary">{{ $report->status === 'submitted' ? 'Review' : 'View' }}</a></td>
+                                        <td data-value="{{ $report->report_type_display }}">{{ $report->report_type_display }}
+                                        </td>
+                                        <td data-value="{{ $report->status }}"><span
+                                                class="badge text-bg-{{ $statusBadge($report->status) }}">{{ ucfirst($report->status) }}</span>
+                                        </td>
+                                        <td
+                                            data-value="{{ optional($report->submitted_at ?? $report->created_at)->timestamp ?? 0 }}">
+                                            {{ $report->display_submitted_at }}</td>
+                                        <td><a href="{{ route('central.reports.show', $report->id) }}"
+                                                class="btn btn-sm btn-outline-secondary">{{ $report->status === 'submitted' ? 'Review' : 'View' }}</a>
+                                        </td>
                                     </tr>
                                 @empty
-                                    <tr class="bsu-empty-row"><td colspan="6" class="text-center py-5 text-secondary">No reports found.</td></tr>
+                                    <tr class="bsu-empty-row">
+                                        <td colspan="6" class="text-center py-5 text-secondary">No reports found.</td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                    <div
+                        class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
                         <div class="small text-secondary js-table-summary">Showing 0 results</div>
                         <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
                     </div>
@@ -1673,7 +1962,9 @@
                 <div class="row g-4">
                     <div class="col-12 col-xl-4">
                         <section class="bsu-card">
-                            <div class="bsu-card-header"><h2 class="bsu-card-title">Create SFAO Account</h2></div>
+                            <div class="bsu-card-header">
+                                <h2 class="bsu-card-title">Create SFAO Account</h2>
+                            </div>
                             <form method="POST" action="{{ route('central.staff.invite') }}" class="p-3">
                                 @csrf
                                 <div class="mb-3">
@@ -1702,7 +1993,8 @@
                             <div class="bsu-card-header flex-column flex-lg-row align-items-lg-center">
                                 <div>
                                     <h2 class="bsu-card-title">SFAO Staff</h2>
-                                    <p class="bsu-card-subtitle">{{ $centralStaffRows->count() }} staff account{{ $centralStaffRows->count() === 1 ? '' : 's' }} found.</p>
+                                    <p class="bsu-card-subtitle">{{ $centralStaffRows->count() }} staff
+                                        account{{ $centralStaffRows->count() === 1 ? '' : 's' }} found.</p>
                                 </div>
                                 <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-lg-auto">
                                     <input type="search" class="form-control js-table-search" placeholder="Search staff...">
@@ -1715,28 +2007,44 @@
                             </div>
                             <div class="table-responsive">
                                 <table class="table bsu-table mb-0">
-                                    <thead><tr><th data-sort="0">Name</th><th data-sort="1">Email</th><th data-sort="2">Campus</th><th>Status</th><th>Actions</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th data-sort="0">Name</th>
+                                            <th data-sort="1">Email</th>
+                                            <th data-sort="2">Campus</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
                                         @forelse($centralStaffRows as $staff)
                                             <tr>
                                                 <td data-value="{{ $staff->name }}">{{ $staff->name }}</td>
                                                 <td data-value="{{ $staff->email }}">{{ $staff->email }}</td>
-                                                <td data-value="{{ $staff->campus->name ?? '' }}">{{ $staff->campus->name ?? 'Unassigned' }}</td>
+                                                <td data-value="{{ $staff->campus->name ?? '' }}">
+                                                    {{ $staff->campus->name ?? 'Unassigned' }}</td>
                                                 <td><span class="badge text-bg-success">Active</span></td>
                                                 <td>
-                                                    <form method="POST" action="{{ route('central.staff.deactivate', $staff->id) }}" onsubmit="return confirm('Remove {{ addslashes($staff->name) }}?')">
+                                                    <form method="POST"
+                                                        action="{{ route('central.staff.deactivate', $staff->id) }}"
+                                                        onsubmit="return confirm('Remove {{ addslashes($staff->name) }}?')">
                                                         @csrf
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                                        <button type="submit"
+                                                            class="btn btn-sm btn-outline-danger">Remove</button>
                                                     </form>
                                                 </td>
                                             </tr>
                                         @empty
-                                            <tr class="bsu-empty-row"><td colspan="5" class="text-center py-5 text-secondary">No SFAO staff found.</td></tr>
+                                            <tr class="bsu-empty-row">
+                                                <td colspan="5" class="text-center py-5 text-secondary">No SFAO staff found.
+                                                </td>
+                                            </tr>
                                         @endforelse
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
+                            <div
+                                class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 border-top">
                                 <div class="small text-secondary js-table-summary">Showing 0 results</div>
                                 <ul class="pagination pagination-sm mb-0 js-table-pagination"></ul>
                             </div>
@@ -1751,14 +2059,20 @@
                 <div class="row g-4">
                     <div class="col-12 col-xl-5">
                         <section class="bsu-card h-100">
-                            <div class="bsu-card-header"><h2 class="bsu-card-title">Profile</h2></div>
+                            <div class="bsu-card-header">
+                                <h2 class="bsu-card-title">Profile</h2>
+                            </div>
                             <div class="p-4 text-center">
-                                <img src="{{ $user->profile_picture ? asset('storage/profile_pictures/' . $user->profile_picture) : asset('images/default-avatar.png') }}" alt="Profile" class="rounded-circle object-fit-cover mb-3" style="width: 112px; height: 112px;">
+                                <img src="{{ $user->profile_picture ? asset('storage/profile_pictures/' . $user->profile_picture) : asset('images/default-avatar.png') }}"
+                                    alt="Profile" class="rounded-circle object-fit-cover mb-3"
+                                    style="width: 112px; height: 112px;">
                                 <h2 class="h5 mb-1">{{ $user->name }}</h2>
                                 <p class="text-secondary mb-3">{{ $user->email }}</p>
-                                <form method="POST" action="{{ url('/upload-profile-picture/central') }}" enctype="multipart/form-data">
+                                <form method="POST" action="{{ url('/upload-profile-picture/central') }}"
+                                    enctype="multipart/form-data">
                                     @csrf
-                                    <input type="file" name="profile_picture" class="form-control mb-3" accept="image/*" required>
+                                    <input type="file" name="profile_picture" class="form-control mb-3" accept="image/*"
+                                        required>
                                     <button type="submit" class="btn btn-outline-secondary w-100">Upload Photo</button>
                                 </form>
                             </div>
@@ -1766,7 +2080,9 @@
                     </div>
                     <div class="col-12 col-xl-7">
                         <section class="bsu-card mb-4">
-                            <div class="bsu-card-header"><h2 class="bsu-card-title">Display Name</h2></div>
+                            <div class="bsu-card-header">
+                                <h2 class="bsu-card-title">Display Name</h2>
+                            </div>
                             <form method="POST" action="{{ route('central.update-name') }}" class="p-4">
                                 @csrf
                                 <div class="input-group">
@@ -1776,7 +2092,9 @@
                             </form>
                         </section>
                         <section class="bsu-card">
-                            <div class="bsu-card-header"><h2 class="bsu-card-title">Password</h2></div>
+                            <div class="bsu-card-header">
+                                <h2 class="bsu-card-title">Password</h2>
+                            </div>
                             <form method="POST" action="{{ route('central.change-password') }}" class="p-4">
                                 @csrf
                                 <div class="mb-3">
@@ -1799,7 +2117,8 @@
                     </div>
                 </div>
             @else
-                <div class="alert alert-warning">Unknown Central tab. <a href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Return to the dashboard</a>.</div>
+                <div class="alert alert-warning">Unknown Central tab. <a
+                        href="{{ route('central.dashboard', ['tabs' => 'dashboard']) }}">Return to the dashboard</a>.</div>
             @endif
         </main>
     </div>
@@ -1810,7 +2129,8 @@
                 <div class="modal-header border-0">
                     <div>
                         <h5 class="modal-title fw-bold" id="gwaMetricModalLabel">Metric Details</h5>
-                        <p class="mb-0 text-secondary small" id="gwaMetricModalDescription">Student records for this metric.</p>
+                        <p class="mb-0 text-secondary small" id="gwaMetricModalDescription">Student records for this
+                            metric.</p>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -2303,6 +2623,34 @@
 
         document.querySelectorAll('.js-data-table').forEach(initDataTable);
 
+        // Every data table can be folded away without losing its filters or
+        // pagination state. This is intentionally applied by structure so new
+        // Central tables inherit the behaviour automatically.
+        document.querySelectorAll('.bsu-card').forEach((card, index) => {
+            const tableArea = card.querySelector(':scope > .table-responsive, :scope > .p-3 > .table-responsive');
+            const header = card.querySelector(':scope > .bsu-card-header');
+            if (!tableArea || !header || header.querySelector('.js-table-collapse')) return;
+
+            const tableFooter = tableArea.nextElementSibling?.querySelector?.('.js-table-summary')
+                ? tableArea.nextElementSibling
+                : null;
+            const button = document.createElement('button');
+            const tableId = `central-table-${index}`;
+            tableArea.id = tableId;
+            button.type = 'button';
+            button.className = 'btn btn-sm btn-outline-secondary js-table-collapse ms-auto';
+            button.setAttribute('aria-controls', tableId);
+            button.setAttribute('aria-expanded', 'true');
+            button.textContent = 'Collapse table';
+            header.appendChild(button);
+            button.addEventListener('click', () => {
+                const collapsed = tableArea.classList.toggle('d-none');
+                tableFooter?.classList.toggle('d-none', collapsed);
+                button.setAttribute('aria-expanded', String(!collapsed));
+                button.textContent = collapsed ? 'Expand table' : 'Collapse table';
+            });
+        });
+
         const dashboardTable = document.getElementById('applicationsTable')?.closest('section');
         if (dashboardTable && !dashboardTable.classList.contains('js-data-table')) {
             dashboardTable.classList.add('js-data-table');
@@ -2395,4 +2743,5 @@
         }
     </script>
 </body>
+
 </html>

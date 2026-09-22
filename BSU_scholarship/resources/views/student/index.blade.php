@@ -213,7 +213,12 @@
 
         <!-- Grades Gathering Tab -->
         <div x-show="tab === 'upload_grades'" x-transition>
-            @include('student.forms.upload-grades')
+            @include('student.forms.upload-grades', [
+                'submittedGrades' => collect(),
+                'latestSubmission' => null,
+                'isReadOnly' => false,
+                'isEditMode' => false,
+            ])
         </div>
 
         <div x-show="tab === 'grade_history'" x-transition>

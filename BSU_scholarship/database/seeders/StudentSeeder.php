@@ -154,7 +154,7 @@ class StudentSeeder extends Seeder
                         'form_status' => 'submitted',
                         'semester' => '1st Sem',
                         'academic_year' => '2025-2026',
-                        'previous_gwa' => 1.75,
+                        'previous_gwa' => 1.50,
                         'scholarship_applied' => 'Need-based student assistance',
                         'date_signed' => $createdAt->toDateString(),
                         'created_at' => $createdAt,

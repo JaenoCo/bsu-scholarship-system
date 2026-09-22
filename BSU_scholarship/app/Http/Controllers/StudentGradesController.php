@@ -8,6 +8,7 @@ use App\Models\SubmissionSubject;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class StudentGradesController extends Controller
@@ -111,7 +112,8 @@ class StudentGradesController extends Controller
             'grades' => [
                 'required',
                 'array',
-                'min:1'
+                'min:1',
+                'max:9'
             ],
 
             'grades.*.subject_code' => [
@@ -147,6 +149,7 @@ class StudentGradesController extends Controller
             ],
         ]);
         $this->ensureUniqueSubjectCodes($validated['grades']);
+        $calculatedGwa = $this->calculateGwa($validated['grades']);
 
         /*
         |--------------------------------------------------------------------------
@@ -163,13 +166,14 @@ class StudentGradesController extends Controller
             'public'
         );
 
-        $submission = DB::transaction(function () use ($user, $validated, $documentPath) {
+        $submission = DB::transaction(function () use ($user, $validated, $documentPath, $calculatedGwa) {
             $submission = GradeSubmission::create([
                 'user_id' => $user->id,
                 'school_year' => $validated['school_year'],
                 'semester' => $validated['semester'],
                 'file_path' => $documentPath,
                 'status' => 'pending',
+            'verified_gwa' => $calculatedGwa,
             ]);
 
             foreach ($validated['grades'] as $gradeData) {
@@ -270,6 +274,161 @@ class StudentGradesController extends Controller
         ]);
     }
 
+    /**
+     * Fetch a student's grade submission as JSON for the inline dashboard modal.
+     */
+    public function fetchForEdit(GradeSubmission $submission)
+    {
+        $this->authorizeStudentSubmission($submission);
+
+        if ($submission->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only pending submissions can be edited.',
+            ], 403);
+        }
+
+        $subjects = $submission->subjects()->orderBy('created_at')->get();
+
+        if ($subjects->isEmpty()) {
+            $subjects = StudentGrade::where('user_id', $submission->user_id)
+                ->where('school_year', $submission->school_year)
+                ->where('semester', $submission->semester)
+                ->orderBy('created_at')
+                ->get();
+        }
+
+        return response()->json([
+            'id' => $submission->id,
+            'school_year' => $submission->school_year,
+            'semester' => $submission->semester,
+            'status' => $submission->status,
+            'file_url' => $submission->file_path
+                ? asset('storage/' . ltrim($submission->file_path, '/'))
+                : null,
+            'has_file' => ! empty($submission->file_path),
+            'uploaded_at' => $submission->created_at?->toISOString(),
+            'subjects' => $subjects->map(function ($subject) {
+                return [
+                    'id' => $subject->id ?? null,
+                    'subject_code' => $subject->subject_code,
+                    'subject_name' => $subject->subject_name,
+                    'units' => (string) ($subject->units ?? 0),
+                    'grade' => (string) ($subject->grade ?? 0),
+                ];
+            })->values()->all(),
+        ]);
+    }
+
+    /**
+     * Update a stored submission via JSON from the dashboard modal.
+     */
+    public function updateJson(Request $request, GradeSubmission $submission)
+    {
+        $this->authorizeStudentSubmission($submission);
+
+        if ($submission->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only pending submissions can be edited.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'school_year' => ['required', 'string', 'max:20'],
+            'semester' => ['required', 'in:1st Semester,2nd Semester,Summer'],
+            'subjects' => ['required', 'array', 'min:1', 'max:9'],
+            'subjects.*.subject_code' => ['required', 'string', 'max:50'],
+            'subjects.*.subject_name' => ['required', 'string', 'max:255'],
+            'subjects.*.units' => ['nullable', 'numeric', 'min:0', 'max:99.99'],
+            'subjects.*.grade' => ['required', 'numeric', 'in:1.00,1.25,1.50,1.75,2.00,2.25,2.50,2.75,3.00,5.00'],
+            'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ]);
+
+        $this->ensureUniqueSubjectCodes($validated['subjects']);
+
+        $user = User::findOrFail(session('user_id'));
+        $oldSchoolYear = $submission->school_year;
+        $oldSemester = $submission->semester;
+        $existingFilePath = $submission->file_path;
+        $newFilePath = $existingFilePath;
+
+        if ($request->hasFile('document')) {
+            $documentFile = $request->file('document');
+            $newFilePath = $documentFile->storeAs(
+                'student_grades/' . $user->id,
+                'grades_' . time() . '.' . $documentFile->getClientOriginalExtension(),
+                'public'
+            );
+
+            if ($existingFilePath && $existingFilePath !== $newFilePath) {
+                Storage::disk('public')->delete($existingFilePath);
+            }
+        }
+
+        $calculatedGwa = $this->calculateGwa($validated['subjects']);
+
+        DB::transaction(function () use ($submission, $user, $validated, $newFilePath, $oldSchoolYear, $oldSemester, $calculatedGwa) {
+            $submission->fill([
+                'school_year' => $validated['school_year'],
+                'semester' => $validated['semester'],
+                'file_path' => $newFilePath,
+                'status' => 'pending',
+                'verified_gwa' => $calculatedGwa,
+                'gwa_verified_by' => null,
+                'gwa_verified_at' => null,
+            ]);
+            $submission->save();
+
+            $submission->subjects()->delete();
+
+            StudentGrade::where('user_id', $user->id)
+                ->where('school_year', $oldSchoolYear)
+                ->where('semester', $oldSemester)
+                ->delete();
+
+            foreach ($validated['subjects'] as $subjectData) {
+                $subject = $submission->subjects()->create([
+                    'subject_code' => trim($subjectData['subject_code']),
+                    'subject_name' => trim($subjectData['subject_name']),
+                    'units' => (float) ($subjectData['units'] ?? 0),
+                    'grade' => (float) $subjectData['grade'],
+                ]);
+
+                StudentGrade::create([
+                    'user_id' => $user->id,
+                    'school_year' => $validated['school_year'],
+                    'semester' => $validated['semester'],
+                    'subject_code' => $subject->subject_code,
+                    'subject_name' => $subject->subject_name,
+                    'grade' => $subject->grade,
+                    'document_path' => $newFilePath,
+                    'status' => 'pending',
+                ]);
+            }
+        });
+
+        $submission->refresh()->load('subjects');
+
+        return response()->json([
+            'message' => 'Grade submission updated successfully.',
+            'submission' => [
+                'id' => $submission->id,
+                'school_year' => $submission->school_year,
+                'semester' => $submission->semester,
+                'file_url' => $submission->file_path
+                    ? asset('storage/' . ltrim($submission->file_path, '/'))
+                    : null,
+                'has_file' => ! empty($submission->file_path),
+                'verified_gwa' => $submission->verified_gwa,
+                'subjects' => $submission->subjects->map(fn (SubmissionSubject $subject) => [
+                    'subject_code' => $subject->subject_code,
+                    'subject_name' => $subject->subject_name,
+                    'units' => (string) $subject->units,
+                    'grade' => (string) $subject->grade,
+                ])->values(),
+            ],
+        ]);
+    }
+
     public function destroy(GradeSubmission $submission)
     {
         $this->authorizeStudentSubmission($submission);
@@ -347,7 +506,8 @@ class StudentGradesController extends Controller
             'grades' => [
                 'required',
                 'array',
-                'min:1'
+                'min:1',
+                'max:9'
             ],
 
             'grades.*.subject_code' => [
@@ -391,6 +551,7 @@ class StudentGradesController extends Controller
             ],
         ]);
         $this->ensureUniqueSubjectCodes($validated['grades']);
+        $calculatedGwa = $this->calculateGwa($validated['grades']);
 
         /*
         |--------------------------------------------------------------------------
@@ -428,7 +589,7 @@ class StudentGradesController extends Controller
             );
         }
 
-        DB::transaction(function () use ($user, $validated, $documentPath, $submission) {
+        DB::transaction(function () use ($user, $validated, $documentPath, $submission, $calculatedGwa) {
             if (! $submission) {
                 $submission = new GradeSubmission(['user_id' => $user->id]);
             }
@@ -438,9 +599,17 @@ class StudentGradesController extends Controller
                 'semester' => $validated['semester'],
                 'file_path' => $documentPath,
                 'status' => 'pending',
+                'verified_gwa' => $calculatedGwa,
+                'gwa_verified_by' => null,
+                'gwa_verified_at' => null,
             ])->save();
+
             $submission->subjects()->delete();
-            StudentGrade::where('user_id', $user->id)->delete();
+
+            StudentGrade::where('user_id', $user->id)
+                ->where('school_year', $submission->school_year)
+                ->where('semester', $submission->semester)
+                ->delete();
 
             foreach ($validated['grades'] as $gradeData) {
                 $subject = $submission->subjects()->create([
@@ -463,17 +632,12 @@ class StudentGradesController extends Controller
             }
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | IMPORTANT:
-        | Return to the SAME Upload Grades route.
-        |
-        | No separate edit page.
-        |--------------------------------------------------------------------------
-        */
+        $redirectRoute = $submission
+            ? route('student.grades.submissions.edit', $submission)
+            : route('student.grades.upload');
 
         return redirect()
-            ->route('student.grades.upload')
+            ->to($redirectRoute)
             ->with(
                 'success',
                 'Your submitted grades were updated successfully.'
@@ -530,6 +694,21 @@ class StudentGradesController extends Controller
                 'grades' => 'Each subject code may only appear once in a submission.',
             ]);
         }
+    }
+
+    private function calculateGwa(array $grades): float
+    {
+        $totalUnits = collect($grades)->sum(fn ($grade) => (float) ($grade['units'] ?? 0));
+
+        if ($totalUnits > 0) {
+            $weightedTotal = collect($grades)->sum(fn ($grade) =>
+                (float) $grade['grade'] * (float) ($grade['units'] ?? 0)
+            );
+
+            return round($weightedTotal / $totalUnits, 2);
+        }
+
+        return round(collect($grades)->avg(fn ($grade) => (float) $grade['grade']), 2);
     }
 
     private function authorizeStudentSubmission(GradeSubmission $submission): void

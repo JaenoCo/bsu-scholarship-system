@@ -601,6 +601,7 @@ class UserController extends Controller
         }
 
         $userId = session('user_id');
+        $user = User::findOrFail($userId);
         
     // Get Program Tracks for dropdown (Legacy support - can be removed if view is fully updated)
     // $programTracks = ... 
@@ -611,6 +612,16 @@ class UserController extends Controller
     $existingApplication = Form::where('user_id', $userId)
         ->latest('updated_at')
         ->first();
+
+    // Profile data is the source of truth for academic selections. Fall back to
+    // legacy form fields so applications saved before those fields moved to
+    // users still reopen with their original selections.
+    $academicSelections = [
+        'campus_id' => old('campus_id', $user->campus_id ?? ''),
+        'college' => old('college', $user->college ?: ($existingApplication?->getRawOriginal('college_department') ?? '')),
+        'program' => old('program', $user->program ?: ($existingApplication?->getRawOriginal('program') ?? '')),
+        'track' => old('track', $user->track ?? ''),
+    ];
     
     $campuses = Campus::all();
 
@@ -627,10 +638,10 @@ class UserController extends Controller
             $existingApplication->scholarship_applied = $scholarship->scholarship_name;
         }
         
-        return view('student.forms.sfao-application-form', compact('existingApplication', 'scholarship', 'campuses', 'campusData'));
+        return view('student.forms.sfao-application-form', compact('existingApplication', 'scholarship', 'campuses', 'campusData', 'academicSelections'));
     }
     
-    return view('student.forms.sfao-application-form', compact('existingApplication', 'campuses', 'campusData'));
+    return view('student.forms.sfao-application-form', compact('existingApplication', 'campuses', 'campusData', 'academicSelections'));
     }
 
     private function getAcademicHierarchy()

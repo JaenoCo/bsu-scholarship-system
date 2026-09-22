@@ -16,9 +16,10 @@ class ScholarAcademicRiskService
             ->values();
 
         $latest = $history->last();
-        $previous = $history->count() > 1 ? $history->get($history->count() - 2) : null;
         $latestGwa = $latest ? (float) data_get($latest, 'verified_gwa') : null;
-        $previousGwa = $previous ? (float) data_get($previous, 'verified_gwa') : null;
+        $previousGwa = $history->count() > 1
+            ? (float) data_get($history->get($history->count() - 2), 'verified_gwa')
+            : $latestGwa;
         $delta = $latestGwa !== null && $previousGwa !== null ? round($latestGwa - $previousGwa, 2) : null;
 
         $retention = $this->retentionRisk($latestGwa, $delta, $scholarship?->getGwaRequirement());

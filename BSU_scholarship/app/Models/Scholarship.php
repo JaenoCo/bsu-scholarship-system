@@ -44,6 +44,16 @@ class Scholarship extends Model
         return $this->hasMany(Application::class);
     }
 
+    /**
+     * Primary campus that owns the scholarship record.
+     * A scholarship can additionally be published to other campuses through
+     * the campus_scholarship pivot relation below.
+     */
+    public function campus()
+    {
+        return $this->belongsTo(Campus::class);
+    }
+
     // Get users who applied for this scholarship
     public function users()
     {

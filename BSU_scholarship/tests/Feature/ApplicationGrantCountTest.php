@@ -14,6 +14,66 @@ class ApplicationGrantCountTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_sfao_mark_claimed_route_returns_json_for_ajax_requests(): void
+    {
+        $campus = Campus::create([
+            'name' => 'Test Campus',
+            'type' => 'constituent',
+        ]);
+
+        $sfaoUser = User::factory()->create([
+            'role' => 'sfao',
+            'campus_id' => $campus->id,
+            'first_name' => 'SFAO',
+            'last_name' => 'User',
+        ]);
+
+        $studentUser = User::factory()->create([
+            'role' => 'student',
+            'campus_id' => $campus->id,
+            'first_name' => 'Student',
+            'last_name' => 'User',
+        ]);
+
+        $scholarship = Scholarship::create([
+            'scholarship_name' => 'Test Scholarship',
+            'description' => 'Test scholarship',
+            'submission_deadline' => now()->addMonth(),
+            'application_start_date' => now(),
+            'created_by' => $sfaoUser->id,
+            'grant_amount' => 5000,
+            'grant_type' => 'recurring',
+        ]);
+
+        $application = Application::create([
+            'user_id' => $studentUser->id,
+            'scholarship_id' => $scholarship->id,
+            'status' => 'approved',
+            'grant_count' => 1,
+        ]);
+
+        $scholar = Scholar::create([
+            'user_id' => $studentUser->id,
+            'scholarship_id' => $scholarship->id,
+            'application_id' => $application->id,
+            'campus_id' => $campus->id,
+            'status' => 'active',
+            'type' => 'new',
+            'grant_count' => 1,
+            'total_grant_received' => 5000,
+        ]);
+
+        session(['user_id' => $sfaoUser->id, 'role' => 'sfao']);
+
+        $response = $this->postJson(route('sfao.scholars.mark-claimed', $scholar->id));
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', fn ($message) => str_contains($message, 'Grant marked as claimed'));
+
+        $this->assertSame(2, $scholar->fresh()->grant_count);
+    }
+
     public function test_next_grant_count_uses_the_highest_existing_grant_count(): void
     {
         $campus = Campus::create([

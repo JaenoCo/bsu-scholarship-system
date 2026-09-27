@@ -361,6 +361,11 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
     // Profile Update
     Route::put('/profile/update', [UserController::class, 'updateProfile'])->name('profile.update');
+
+    // System Backup & Restore
+    Route::get('/backup/download', [App\Http\Controllers\SystemBackupController::class, 'download'])->name('backup.download');
+    Route::get('/backup/export', [App\Http\Controllers\SystemBackupController::class, 'export'])->name('backup.export');
+    Route::post('/backup/restore', [App\Http\Controllers\SystemBackupController::class, 'restore'])->name('backup.restore');
 });
 
 // --------------------------------------------------
@@ -405,6 +410,11 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
         Route::post('/update-name', [UserController::class, 'updateName'])->name('update-name');
         Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
 
+        // System Backup & Restore
+        Route::get('/backup/download', [App\Http\Controllers\SystemBackupController::class, 'download'])->name('backup.download');
+        Route::get('/backup/export', [App\Http\Controllers\SystemBackupController::class, 'export'])->name('backup.export');
+        Route::post('/backup/restore', [App\Http\Controllers\SystemBackupController::class, 'restore'])->name('backup.restore');
+
         // Reports Management
         Route::get('/reports/overall', [ReportController::class, 'centralOverallReport'])->name('reports.overall');
         Route::get('/reports/{id}', [ReportController::class, 'centralShowReport'])->name('reports.show');
@@ -446,6 +456,7 @@ Route::post('/sfao/password-setup', [UserController::class, 'setupSFAOPassword']
 // =====================================================
 
 Route::middleware(['web'])->group(function () {
+    Route::get('/notifications/{id}/open', [App\Http\Controllers\NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifications/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
     Route::post('/notifications/{id}/mark-unread', [App\Http\Controllers\NotificationController::class, 'markAsUnread'])->name('notifications.mark-unread');
     Route::post('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');

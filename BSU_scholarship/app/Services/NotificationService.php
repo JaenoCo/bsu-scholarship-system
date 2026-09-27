@@ -141,7 +141,8 @@ class NotificationService
             'rejected' => 'Your application has been reviewed and unfortunately not approved.',
             'pending' => 'Your application is being reviewed.',
             'in_progress' => 'Your application is now in progress after SFAO evaluation.',
-            'under_review' => 'Your application is currently under review.'
+            'under_review' => 'Your application is currently under review.',
+            'claimed' => 'Your grant has been released and marked as claimed.'
         ];
 
         $defaultMessage = $statusMessages[$status] ?? 'Your application status has been updated.';

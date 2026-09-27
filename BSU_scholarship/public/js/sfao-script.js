@@ -4557,7 +4557,7 @@ window.sfaoScholarsFilter = function (config) {
                     action === "claimed"
                         ? config.routeUrl.replace(
                               "/sfao",
-                              `/ sfao / scholars / ${this.selectedScholarId}/mark-claimed`,
+                              `/sfao/scholars/${this.selectedScholarId}/mark-claimed`,
                           )
                         : config.routeUrl.replace(
                               "/sfao",

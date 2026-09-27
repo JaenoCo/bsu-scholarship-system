@@ -519,10 +519,12 @@ class ScholarshipController extends Controller
     /**
      * Mark scholar's grant as claimed (SFAO)
      */
-    public function markScholarAsClaimed($id)
+    public function markScholarAsClaimed(Request $request, $id)
     {
         if (!session()->has('user_id') || session('role') !== 'sfao') {
-            return redirect('/login')->with('session_expired', true);
+            return $request->expectsJson() || $request->ajax()
+                ? response()->json(['success' => false, 'message' => 'Unauthorized'], 401)
+                : redirect('/login')->with('session_expired', true);
         }
 
         $scholar = Scholar::with(['user', 'scholarship', 'application'])->findOrFail($id);
@@ -533,77 +535,99 @@ class ScholarshipController extends Controller
         $campusIds = $sfaoCampus->getAllCampusesUnder()->pluck('id');
 
         if (!$campusIds->contains($scholar->user->campus_id)) {
-            return back()->with('error', 'You do not have permission to manage this scholar.');
+            $message = 'You do not have permission to manage this scholar.';
+            return $request->expectsJson() || $request->ajax()
+                ? response()->json(['success' => false, 'message' => $message], 403)
+                : back()->with('error', $message);
         }
 
         // Check for one-time grant restriction
         if ($scholar->scholarship->grant_type === 'one_time' && $scholar->grant_count > 0) {
-            return back()->with('error', 'This is a one-time grant scholarship and has already been claimed.');
+            $message = 'This is a one-time grant scholarship and has already been claimed.';
+            return $request->expectsJson() || $request->ajax()
+                ? response()->json(['success' => false, 'message' => $message], 422)
+                : back()->with('error', $message);
         }
 
         // Find the application to mark as claimed
-        // We look for 'approved' application associated with this scholar
-        // If the scholar was created from an application, we use that.
-        // Or we check if there's a more recent approved application (for renewals)
-        
         $query = Application::where('user_id', $scholar->user_id)
             ->where('scholarship_id', $scholar->scholarship_id)
             ->latest();
 
-        // If it's a recurring scholarship, we can reuse 'claimed' applications for subsequent grants
-        // If it's a one-time scholarship, we strictly need an 'approved' application (not yet claimed)
         if ($scholar->scholarship->grant_type === 'recurring') {
             $query->whereIn('status', ['approved', 'claimed']);
         } else {
             $query->where('status', 'approved');
         }
-            
+
         $application = $query->first();
 
         if (!$application) {
-            return back()->with('error', 'No valid application found to claim for this scholar.');
+            $message = 'No valid application found to claim for this scholar.';
+            return $request->expectsJson() || $request->ajax()
+                ? response()->json(['success' => false, 'message' => $message], 422)
+                : back()->with('error', $message);
         }
 
         try {
             DB::beginTransaction();
 
-            // Calculate new values
             $grantAmount = (float) ($scholar->scholarship->grant_amount ?? 0);
             $newGrantCount = $scholar->grant_count + 1;
             $newTotalReceived = ((float) $scholar->total_grant_received) + $grantAmount;
-            
+
             Log::info('Marking grant as claimed (SFAO):', [
                 'scholar_id' => $scholar->id,
                 'old_count' => $scholar->grant_count,
                 'new_count' => $newGrantCount,
                 'grant_amount' => $grantAmount,
-                'new_total' => $newTotalReceived
+                'new_total' => $newTotalReceived,
             ]);
 
-            // Update Application
             $application->status = 'claimed';
             $application->grant_count = $newGrantCount;
             $application->save();
 
-            // Update Scholar using DB Query Builder to bypass potential model issues
             $affected = DB::table('scholars')->where('id', $scholar->id)->update([
                 'grant_count' => $newGrantCount,
                 'total_grant_received' => $newTotalReceived,
-                // 'grant_history' => removed as per user request
                 'type' => ($scholar->type === 'new' && $newGrantCount >= 1) ? 'old' : $scholar->type,
                 'updated_at' => now(),
             ]);
-            
+
             Log::info('Grant release update result:', ['affected_rows' => $affected]);
 
             DB::commit();
 
-            return back()->with('success', "Grant marked as claimed. New Count: {$newGrantCount}, New Total: ₱" . number_format($newTotalReceived, 2));
+            NotificationService::notifyApplicationStatusChange(
+                $application,
+                'claimed',
+                'Your grant for ' . ($scholar->scholarship->scholarship_name ?? 'this scholarship') . ' has been released and marked as claimed.'
+            );
+
+            $successMessage = "Grant marked as claimed. New Count: {$newGrantCount}, New Total: ₱" . number_format($newTotalReceived, 2);
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'grant_count' => $newGrantCount,
+                    'total_grant_received' => $newTotalReceived,
+                ]);
+            }
+
+            return back()->with('success', $successMessage);
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to mark grant claimed: ' . $e->getMessage());
-            return back()->with('error', 'Failed to mark grant as claimed: ' . $e->getMessage());
+            $message = 'Failed to mark grant as claimed: ' . $e->getMessage();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 500);
+            }
+
+            return back()->with('error', $message);
         }
     }
 
@@ -690,6 +714,13 @@ class ScholarshipController extends Controller
                 ]);
 
                 DB::commit();
+
+                NotificationService::notifyApplicationStatusChange(
+                    $application,
+                    'claimed',
+                    'Your grant for ' . ($scholar->scholarship->scholarship_name ?? 'this scholarship') . ' has been released and marked as claimed.'
+                );
+
                 $successCount++;
 
             } catch (\Exception $e) {

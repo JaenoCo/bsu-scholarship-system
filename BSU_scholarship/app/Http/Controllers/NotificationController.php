@@ -30,6 +30,50 @@ class NotificationController extends Controller
     }
 
     /**
+     * Open a notification's intended destination and mark it read in the same
+     * request. The notification is always scoped to the signed-in user.
+     */
+    public function open($id)
+    {
+        if (! session()->has('user_id')) {
+            return redirect()->route('login');
+        }
+
+        $notification = Notification::where('id', $id)
+            ->where('user_id', session('user_id'))
+            ->firstOrFail();
+
+        if (! $notification->is_read) {
+            $notification->markAsRead();
+        }
+
+        return redirect()->to($this->destinationFor($notification));
+    }
+
+    protected function destinationFor(Notification $notification): string
+    {
+        $data = $notification->data ?: [];
+        $requestedUrl = $data['redirect_url'] ?? $data['url'] ?? null;
+
+        // Notifications can point to a specific in-app path, but never to an
+        // external site or protocol-relative URL.
+        if (is_string($requestedUrl) && str_starts_with($requestedUrl, '/') && ! str_starts_with($requestedUrl, '//')) {
+            return $requestedUrl;
+        }
+
+        return match (session('role')) {
+            'student' => match ($notification->type) {
+                'scholarship_created' => route('student.dashboard', ['tab' => 'all_scholarships']),
+                'application_status', 'sfao_comment' => route('student.dashboard', ['tab' => 'application_tracking']),
+                default => route('student.dashboard', ['tab' => 'all_notifications']),
+            },
+            'sfao' => route('sfao.dashboard', ['tabs' => 'applicants']),
+            'central' => route('central.dashboard', ['tabs' => 'dashboard']),
+            default => route('login'),
+        };
+    }
+
+    /**
      * Mark a notification as unread.
      */
     public function markAsUnread($id)

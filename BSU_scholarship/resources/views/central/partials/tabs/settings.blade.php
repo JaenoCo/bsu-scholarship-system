@@ -123,6 +123,68 @@
             </div>
         </div>
 
+        <!-- Backup & Restore -->
+        <div class="space-y-6">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2 px-1">
+                <span class="p-1 rounded-lg bg-red-100 dark:bg-red-900/30 text-bsu-red">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 7l2 13h12l2-13M9 11v5m6-5v5M9 7l1-3h4l1 3" />
+                    </svg>
+                </span>
+                Backup &amp; Restore
+            </h3>
+
+            @if(session('success'))
+                <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if($errors->has('backup_file'))
+                <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                    {{ $errors->first('backup_file') }}
+                </div>
+            @endif
+
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg border border-gray-100 dark:border-gray-700">
+                    <h4 class="text-lg font-bold text-gray-900 dark:text-white">Full System Restoration Backup</h4>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Download all scholarship-system records and their uploaded documents in one verified ZIP file.</p>
+                    <a href="{{ route('central.backup.download') }}" class="mt-5 inline-flex items-center rounded-xl bg-bsu-red px-5 py-3 font-bold text-white shadow-lg transition hover:bg-red-700">
+                        Download Restoration Backup (.zip)
+                    </a>
+
+                    <form action="{{ route('central.backup.export') }}" method="GET" class="mt-8 border-t border-gray-100 pt-6 dark:border-gray-700">
+                        <label for="central_dashboard_backup_category" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Export a data report</label>
+                        <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+                            <select id="central_dashboard_backup_category" name="category" class="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
+                                <option value="sfao_users">SFAO Users</option>
+                                <option value="campus">Campuses</option>
+                                <option value="campus_scholarships">Campus Scholarships</option>
+                            </select>
+                            <select name="format" class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
+                                <option value="xlsx">Excel</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                            <button type="submit" class="rounded-xl bg-gray-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-black dark:bg-gray-700">Export</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg border border-gray-100 dark:border-gray-700">
+                    <h4 class="text-lg font-bold text-gray-900 dark:text-white">Restore Full System Backup</h4>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Only Central ZIP backups are accepted. Restoring replaces current scholarship-system data and uploads.</p>
+                    <form action="{{ route('central.backup.restore') }}" method="POST" enctype="multipart/form-data" class="mt-6 space-y-4" onsubmit="return confirm('Restore this Central backup? Current scholarship-system records will be replaced.');">
+                        @csrf
+                        <input type="file" name="backup_file" accept=".zip,application/zip" required class="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-bsu-red file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-red-700" />
+                        <button type="submit" class="rounded-xl border border-gray-300 px-5 py-3 text-sm font-bold text-gray-800 transition hover:bg-gray-100 dark:border-gray-600 dark:text-white dark:hover:bg-gray-700">
+                            Restore Backup
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
 
 
         <!-- Security (Clean Form) -->

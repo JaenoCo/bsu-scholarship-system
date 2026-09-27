@@ -44,13 +44,7 @@
         });
     },
     openNotification(notification) {
-        this.selectedNotification = notification;
-        this.isModalOpen = true;
-        
-        if (!notification.is_read) {
-            this.markAsRead(notification.id, notification.type);
-            notification.is_read = true; // Update local object
-        }
+        window.location.assign('{{ route('notifications.open', ':id') }}'.replace(':id', notification.id));
     },
     toggleUnreadInModal() {
         if (this.selectedNotification) {

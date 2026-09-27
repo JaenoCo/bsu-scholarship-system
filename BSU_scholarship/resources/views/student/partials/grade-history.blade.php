@@ -1,8 +1,8 @@
 <div class="max-w-6xl mx-auto px-4 py-8" x-data="{ selectedSubmissionId: null }">
-    <div class="flex flex-col gap-2 mb-6">
+    <header class="student-tab-header rounded-xl p-6 shadow-sm flex flex-col gap-2 mb-6">
         <h1 class="text-2xl font-bold text-gray-900">Submitted Grades</h1>
         <p class="text-sm text-gray-500">Review your previous grade submissions and their review status.</p>
-    </div>
+    </header>
 
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         @if(($gradeSubmissions ?? collect())->isEmpty())

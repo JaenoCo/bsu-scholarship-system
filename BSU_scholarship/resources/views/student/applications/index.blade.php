@@ -1,11 +1,13 @@
-    <div class="mb-8">
-        <div x-show="subTab === 'tracking'" style="display: none;">
-            @include('student.partials.page-header', [
-              'title' => 'Application Tracking',
-              'subtitle' => 'Track the status and progress of your applications'
-            ])
-        </div>
-    </div>
+    <header class="student-tab-header rounded-xl p-6 shadow-sm mb-8">
+        <h1 class="text-2xl font-bold md:text-3xl">
+            <span x-show="subTab !== 'tracking'">My Applications</span>
+            <span x-show="subTab === 'tracking'">Application Tracking</span>
+        </h1>
+        <p class="mt-2 text-sm leading-6">
+            <span x-show="subTab !== 'tracking'">Review your submitted scholarship applications.</span>
+            <span x-show="subTab === 'tracking'">Track the status and progress of your applications.</span>
+        </p>
+    </header>
 
     <!-- Statistics Cards (Only visible in Tracking tab) -->
     <div x-show="subTab === 'tracking'" x-transition> 

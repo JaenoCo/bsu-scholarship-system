@@ -57,6 +57,27 @@
   width: 100%;
 }
 
+.sidebar-section-toggle {
+  gap: 0.5rem;
+  overflow: visible;
+}
+
+.sidebar-section-title,
+.sidebar-label {
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.sidebar-section-title {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sidebar-label {
+  flex-shrink: 0;
+}
+
 .sidebar-section-toggle:hover,
 .sidebar-section-toggle:focus-visible {
   color: #fff;
@@ -76,9 +97,11 @@
   display: flex;
   gap: 0.75rem;
   min-height: 2.75rem;
+  overflow: visible;
   padding: 0.65rem 0.75rem;
   text-align: left;
   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  white-space: nowrap;
   width: 100%;
 }
 
@@ -113,6 +136,70 @@
 .overview-hero { background: linear-gradient(105deg, #fff1f2, #ffffff); border: 1px solid #fecdd3; }
 .overview-eyebrow { color: #be123c; font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .overview-title { color: #1f2937; }
+
+/* Consistent page title treatment for every workspace tab. */
+.sfao-tab-header,
+.student-tab-header {
+  background: linear-gradient(105deg, #fff1f2, #ffffff);
+  border: 1px solid #fecdd3;
+}
+
+.sfao-tab-header h2,
+.sfao-tab-header h1,
+.student-tab-header h1,
+.student-tab-header h2 {
+  color: #1f2937;
+}
+
+.sfao-tab-header p,
+.student-tab-header p {
+  color: #475569;
+}
+
+.dark .sfao-tab-header,
+.dark .student-tab-header {
+  background: linear-gradient(105deg, #2b1520, #172033);
+  border-color: #6b3142;
+}
+
+.dark .sfao-tab-header h2,
+.dark .sfao-tab-header h1,
+.dark .student-tab-header h1,
+.dark .student-tab-header h2 {
+  color: #f8fafc;
+}
+
+.dark .sfao-tab-header p,
+.dark .student-tab-header p {
+  color: #cbd5e1;
+}
+
+/* Keep the five student section labels readable in the fixed sidebar. */
+.student-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.student-sidebar-nav .student-nav-scholarships { order: 1; }
+.student-sidebar-nav .student-nav-applications { order: 2; }
+.student-sidebar-nav .student-nav-grades { order: 3; }
+.student-sidebar-nav .student-nav-application-forms { order: 4; }
+.student-sidebar-nav .student-nav-notifications { order: 5; }
+
+.student-sidebar-nav > div > button {
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: .8rem;
+}
+
+.student-sidebar-nav > div > button > div {
+  min-width: 0;
+}
+
+.student-sidebar-nav > div > button > div > span {
+  overflow: visible;
+  text-overflow: clip;
+}
 .overview-description, .overview-panel-description, .overview-action-description { color: #4b5563; }
 .overview-kpi { background: #fff; border: 1px solid #e5e7eb; border-top: 4px solid #94a3b8; }
 .overview-kpi-label { color: #475569; font-size: .75rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
@@ -219,6 +306,20 @@ html:not(.dark) .sfao-gwa-analytics td { color: #4b5563; }
 
 .sfao-sidebar-collapsed .sidebar-submenu {
   display: flex !important;
+}
+
+.overflow-x-auto > table,
+.overflow-x-auto table {
+  table-layout: auto !important;
+  width: 100% !important;
+  min-width: 720px !important;
+}
+
+.overflow-x-auto th,
+.overflow-x-auto td {
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .hover\:border-bsu-redDark:hover {

@@ -12,7 +12,7 @@
 </div>
 
 <!-- Navigation - Scrollable -->
-<nav class="mt-6 px-4 pb-4 overflow-y-auto flex-1 space-y-4 custom-scrollbar" x-data="{
+<nav class="student-sidebar-nav mt-6 px-4 pb-4 overflow-y-auto flex flex-col flex-1 space-y-4 custom-scrollbar" x-data="{
     unreadCount: {{ $unreadCount ?? 0 }},
     unreadCountScholarships: {{ $unreadCountScholarships ?? 0 }},
     unreadCountStatus: {{ $unreadCountStatus ?? 0 }},
@@ -42,9 +42,9 @@
     sectionForTab(tab) {
         const normalized = this.normalizeTab(tab);
         if (['all_scholarships', 'private_scholarships', 'government_scholarships', 'my_scholarships'].includes(normalized)) return 'scholarships';
-        if (['sfao_form', 'all-app-forms'].includes(normalized)) return 'application_forms';
-        if (['upload_grades'].includes(normalized)) return 'grades_gathering';
         if (['applied_scholarships', 'application_tracking'].includes(normalized)) return 'applications';
+        if (['upload_grades', 'grade_history'].includes(normalized)) return 'grades_gathering';
+        if (['sfao_form', 'all-app-forms'].includes(normalized)) return 'application_forms';
         if (['all_notifications', 'announcements'].includes(normalized)) return 'notifications';
         return null;
     },
@@ -104,8 +104,8 @@
     unreadCountComments = 0;
 ">
 
-  <!-- Scholarships Dropdown -->
-  <div class="space-y-1">
+  <!-- Scholarship Programs Dropdown -->
+  <div class="space-y-1 student-nav-scholarships order-1">
     <button @click="toggleMenu('scholarships')"
       class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
@@ -117,7 +117,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
         </svg>
-        <span class="whitespace-nowrap truncate">Scholarships</span>
+        <span class="whitespace-nowrap">Scholarship Programs</span>
       </div>
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0"
         :class="openMenu === 'scholarships' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
@@ -159,8 +159,9 @@
     </div>
   </div>
 
+
   <!-- Application Forms Dropdown -->
-  <div class="space-y-1">
+  <div class="space-y-1 student-nav-application-forms order-4">
     <button @click="toggleMenu('application_forms')"
       class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
@@ -169,7 +170,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <span class="whitespace-nowrap truncate">App Forms</span>
+        <span class="whitespace-nowrap">Application Forms</span>
       </div>
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0"
         :class="openMenu === 'application_forms' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
@@ -201,8 +202,9 @@
     </div>
   </div>
 
-  <!-- grafdes -->
-  <div class="space-y-1">
+
+  <!-- My Grades -->
+  <div class="space-y-1 student-nav-grades order-3">
     <button @click="toggleMenu('grades_gathering')"
       class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
@@ -211,7 +213,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <span class="whitespace-nowrap truncate">Grades Gathering</span>
+        <span class="whitespace-nowrap">My Grades</span>
       </div>
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0"
         :class="openMenu === 'grades_gathering' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
@@ -247,8 +249,10 @@
 
 
 
-  <!-- Applications Dropdown -->
-  <div class="space-y-1">
+
+
+  <!-- My Applications Dropdown -->
+  <div class="space-y-1 student-nav-applications order-2">
     <button @click="toggleMenu('applications')"
       class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
@@ -260,7 +264,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
         </svg>
-        <span class="whitespace-nowrap truncate">Applications</span>
+        <span class="whitespace-nowrap">My Applications</span>
       </div>
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0"
         :class="openMenu === 'applications' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
@@ -297,7 +301,7 @@
   </div>
 
   <!-- Notifications Dropdown -->
-  <div class="space-y-1">
+  <div class="space-y-1 student-nav-notifications order-5">
     <button @click="toggleMenu('notifications')"
       class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
@@ -306,7 +310,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-        <span class="whitespace-nowrap truncate">Notifications</span>
+        <span class="whitespace-nowrap">Notifications</span>
         <span x-show="unreadCount > 0" x-text="unreadCount"
           class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-2 flex-shrink-0">
         </span>

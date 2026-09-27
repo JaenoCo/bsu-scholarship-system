@@ -8,7 +8,7 @@
      x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value))">
      
   <!-- Header -->
-  <div class="mb-6">
+  <div class="sfao-tab-header rounded-xl p-6 mb-6 shadow-sm">
     <div class="flex items-center justify-between">
       <div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">

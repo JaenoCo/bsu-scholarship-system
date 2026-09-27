@@ -15,12 +15,12 @@
 
   @if ($hasApplication)
     <!-- Header with Type Filter -->
-    <div class="bg-bsu-red dark:bg-red-900 rounded-xl shadow-lg p-6 mb-6 relative overflow-hidden">
+    <div class="student-tab-header rounded-xl shadow-lg p-6 mb-6 relative overflow-hidden">
 
         
         <div class="relative z-10 flex items-center justify-between">
             <div>
-                <h2 class="text-2xl font-bold text-white">
+                <h2 class="text-2xl font-bold">
                     <span x-show="subTab === 'all'" class="flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -48,7 +48,7 @@
                         My Scholarships
                     </span>
                 </h2>
-                <p class="text-red-100 mt-1 font-medium">
+                <p class="mt-1 font-medium">
                     <span x-show="subTab === 'all'">All available scholarship programs</span>
                     <span x-show="subTab === 'private'">Private scholarship programs</span>
                     <span x-show="subTab === 'government'">Government scholarship programs</span>

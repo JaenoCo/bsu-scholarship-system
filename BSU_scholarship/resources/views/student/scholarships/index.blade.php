@@ -1,4 +1,8 @@
 <div class="space-y-6" x-data="studentScholarshipsFilter()">
+    <header class="student-tab-header rounded-xl p-6 shadow-sm">
+        <h1 class="text-2xl font-bold md:text-3xl">Scholarship Programs</h1>
+        <p class="mt-2 text-sm leading-6">Browse scholarship opportunities available to you and review their requirements.</p>
+    </header>
     
     <!-- Sorting and Filtering Controls -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">

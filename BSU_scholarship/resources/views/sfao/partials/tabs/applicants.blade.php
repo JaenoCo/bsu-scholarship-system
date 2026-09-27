@@ -25,7 +25,7 @@
         extensionCampuses: @json($sfaoCampus->extensionCampuses->pluck('name'))
      })'
      x-init="handleTabChange(tab); $watch('tab', value => handleTabChange(value));">
-    <div class="mb-6">
+    <div class="sfao-tab-header rounded-xl p-6 mb-6 shadow-sm">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             <span x-text="getHeaderTitle()" class="flex items-center gap-2"></span>
         </h2>

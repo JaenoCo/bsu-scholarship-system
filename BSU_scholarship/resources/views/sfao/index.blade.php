@@ -65,7 +65,8 @@
 @section('navbar')
   <!-- Global Navbar -->
   <x-layout.navbar 
-      title="SFAO Dashboard" 
+      title="Batangas State University"
+      subtitle="The National Engineering University"
       :user="$user" 
       :settings="false" 
       :logout="true" 

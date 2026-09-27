@@ -12,18 +12,31 @@
         </button>
     </div>
 @else
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-visible">
         <div class="overflow-x-auto custom-scrollbar">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            {{-- FIX: table-fixed + colgroup gives every column a locked share of the
+                 table width instead of growing to fit its content. Percentages sum to 100%. --}}
+            <table class="min-w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+                <colgroup>
+                    <col style="width: 4%">   {{-- # --}}
+                    <col style="width: 24%">  {{-- Student --}}
+                    <col style="width: 18%">  {{-- Scholarship --}}
+                    <col style="width: 13%">  {{-- Application Status --}}
+                    <col style="width: 15%">  {{-- Documents --}}
+                    <col style="width: 12%">  {{-- Grant Count --}}
+                    <col style="width: 14%">  {{-- Actions --}}
+                </colgroup>
                 <thead class="bg-bsu-red text-white">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">#</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Student</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Scholarship</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Application Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Documents</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Grant Count</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
+                        {{-- FIX: px-6 -> px-3, py-3 -> py-2, added truncate wrapper where needed
+                             to reclaim horizontal space across every header/cell. --}}
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">#</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Student</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Scholarship</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Documents</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Grants</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -33,24 +46,27 @@
                             @foreach($student->applications as $application)
                                 @php $rowIndex++; @endphp
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ $rowIndex }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <div class="flex-shrink-0 h-10 w-10">
-                                                <div class="h-10 w-10 rounded-full bg-bsu-red flex items-center justify-center">
-                                                    <span class="text-sm font-medium text-white">{{ strtoupper(substr($student->name, 0, 2)) }}</span>
+                                    <td class="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ $rowIndex }}</td>
+                                    <td class="px-3 py-3">
+                                        {{-- FIX: min-w-0 on the flex row lets the text column actually
+                                             shrink; truncate + title attr keeps long names/emails on one line
+                                             with an ellipsis instead of forcing the row wider. --}}
+                                        <div class="flex items-center min-w-0">
+                                            <div class="flex-shrink-0 h-9 w-9">
+                                                <div class="h-9 w-9 rounded-full bg-bsu-red flex items-center justify-center">
+                                                    <span class="text-xs font-medium text-white">{{ strtoupper(substr($student->name, 0, 2)) }}</span>
                                                 </div>
                                             </div>
-                                            <div class="ml-4">
-                                                <div class="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 hover:underline" @click="$dispatch('open-applicant-modal', {{ json_encode($student) }})">{{ $student->name }}</div>
-                                                <div class="text-sm text-gray-500 dark:text-gray-400">{{ $student->email }}</div>
+                                            <div class="ml-3 min-w-0">
+                                                <div class="text-sm font-medium text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 hover:underline" title="{{ $student->name }}" @click="$dispatch('open-applicant-modal', {{ json_encode($student) }})">{{ $student->name }}</div>
+                                                <div class="text-xs text-gray-500 dark:text-gray-400 truncate" title="{{ $student->email }}">{{ $student->email }}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $application->scholarship?->scholarship_name ?? 'Unknown Scholarship' }}</div>
+                                    <td class="px-3 py-3">
+                                        <div class="text-sm font-medium text-gray-900 dark:text-white truncate" title="{{ $application->scholarship?->scholarship_name ?? 'Unknown Scholarship' }}">{{ $application->scholarship?->scholarship_name ?? 'Unknown Scholarship' }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-3 py-3">
                                         @php
                                             $status = $application->status ?? 'not_applied';
                                             $statusLabel = match ($status) {
@@ -68,48 +84,56 @@
                                                 default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
                                             };
                                         @endphp
-                                        <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full {{ $statusClasses }}">{{ $statusLabel }}</span>
+                                        {{-- FIX: whitespace-nowrap removed from the wrapping <td> (table-fixed
+                                             cells wrap by default), badge itself stays nowrap so it never splits. --}}
+                                        <span class="inline-flex whitespace-nowrap px-2 py-1 text-xs font-semibold rounded-full {{ $statusClasses }}">{{ $statusLabel }}</span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-3 py-3">
                                         @if($application->documents_count > 0)
                                             <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <svg class="w-4 h-4 flex-shrink-0 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                                 </svg>
-                                                <span class="text-sm text-green-600 dark:text-green-400 font-medium">{{ $application->documents_count }} uploaded</span>
+                                                <span class="text-xs text-green-600 dark:text-green-400 font-medium truncate">{{ $application->documents_count }} uploaded</span>
                                             </div>
                                             @if($application->last_uploaded)
                                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ \Carbon\Carbon::parse($application->last_uploaded)?->format('M d, Y') }}</div>
                                             @endif
                                         @else
                                             <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <svg class="w-4 h-4 flex-shrink-0 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
                                                 </svg>
-                                                <span class="text-sm text-red-600 dark:text-red-400 font-medium">No documents</span>
+                                                <span class="text-xs text-red-600 dark:text-red-400 font-medium">No documents</span>
                                             </div>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-4">
+                                    <td class="px-3 py-3">
                                         @php
                                             $grantCount = method_exists($application, 'getGrantCountDisplay') ? $application->getGrantCountDisplay() : $application->grant_count;
                                             $grantBadge = method_exists($application, 'getGrantCountBadgeColor') ? $application->getGrantCountBadgeColor() : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
                                         @endphp
-                                        <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {{ $grantBadge }}">{{ $grantCount ?? 'None' }}</span>
+                                        {{-- FIX: added whitespace-nowrap + max-w-full truncate so a long
+                                             grant label ("No grants received") shrinks to the badge's own
+                                             column instead of stretching the row. --}}
+                                        <span class="inline-block max-w-full truncate align-middle px-2 py-1 text-xs font-medium rounded-full {{ $grantBadge }}" title="{{ $grantCount ?? 'None' }}">{{ $grantCount ?? 'None' }}</span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div class="flex flex-wrap gap-2">
+                                    <td class="px-3 py-3 text-sm font-medium">
+                                        {{-- FIX: buttons stack vertically and go full-width-of-column instead
+                                             of side-by-side, so the Actions column stays narrow and never
+                                             forces horizontal scroll to see the Reject button. --}}
+                                        <div class="flex flex-col gap-1.5">
                                             @if($status === 'pending')
                                                 @php $evalUserId = $student->student_id ?? $student->id ?? $student->user_id ?? null; @endphp
                                                 @if($evalUserId)
-                                                    <a href="{{ route('sfao.evaluation.sfao-documents', ['user_id' => $evalUserId, 'scholarship_id' => $application->scholarship_id]) }}" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold">Evaluate</a>
+                                                    <a href="{{ route('sfao.evaluation.sfao-documents', ['user_id' => $evalUserId, 'scholarship_id' => $application->scholarship_id]) }}" class="w-full text-center px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs font-semibold">Evaluate</a>
                                                 @else
-                                                    <span class="px-3 py-1.5 bg-blue-600 text-white rounded-lg opacity-60 cursor-not-allowed text-sm font-semibold">Evaluate</span>
+                                                    <span class="w-full text-center px-2 py-1 bg-blue-600 text-white rounded-lg opacity-60 cursor-not-allowed text-xs font-semibold">Evaluate</span>
                                                 @endif
 
                                                 <form method="POST" action="{{ url('/applications/' . $application->id . '/reject') }}" onsubmit="return confirm('Reject this application?');">
                                                     @csrf
-                                                    <button type="submit" class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-semibold">Reject</button>
+                                                    <button type="submit" class="w-full px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs font-semibold">Reject</button>
                                                 </form>
                                             @endif
                                         </div>
@@ -119,44 +143,44 @@
                         @else
                             @php $rowIndex++; @endphp
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ $rowIndex }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-10 w-10">
-                                            <div class="h-10 w-10 rounded-full bg-bsu-red flex items-center justify-center">
-                                                <span class="text-sm font-medium text-white">{{ strtoupper(substr($student->name, 0, 2)) }}</span>
+                                <td class="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ $rowIndex }}</td>
+                                <td class="px-3 py-3">
+                                    <div class="flex items-center min-w-0">
+                                        <div class="flex-shrink-0 h-9 w-9">
+                                            <div class="h-9 w-9 rounded-full bg-bsu-red flex items-center justify-center">
+                                                <span class="text-xs font-medium text-white">{{ strtoupper(substr($student->name, 0, 2)) }}</span>
                                             </div>
                                         </div>
-                                        <div class="ml-4">
-                                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $student->name }}</div>
-                                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ $student->email }}</div>
+                                        <div class="ml-3 min-w-0">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white truncate" title="{{ $student->name }}">{{ $student->name }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 truncate" title="{{ $student->email }}">{{ $student->email }}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">No applications</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">Not Applied</span>
+                                <td class="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">No applications</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex whitespace-nowrap px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">Not Applied</span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 py-3">
                                     @if($student->has_documents)
                                         <div class="flex items-center">
-                                            <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <svg class="w-4 h-4 flex-shrink-0 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                             </svg>
-                                            <span class="text-sm text-green-600 dark:text-green-400 font-medium">{{ $student->documents_count }} uploaded</span>
+                                            <span class="text-xs text-green-600 dark:text-green-400 font-medium truncate">{{ $student->documents_count }} uploaded</span>
                                         </div>
                                         @if($student->last_uploaded)
                                             <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ \Carbon\Carbon::parse($student->last_uploaded)?->format('M d, Y') }}</div>
                                         @endif
                                     @else
-                                        <span class="text-sm text-gray-500 dark:text-gray-400">No documents</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">No documents</span>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4">
-                                    <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">None</span>
+                                <td class="px-3 py-3">
+                                    <span class="inline-block px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">None</span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">No action</span>
+                                <td class="px-3 py-3 text-sm font-medium">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">No action</span>
                                 </td>
                             </tr>
                         @endif

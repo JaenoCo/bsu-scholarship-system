@@ -1,5 +1,10 @@
 <div class="max-w-4xl mx-auto space-y-6">
 
+    <header class="student-tab-header rounded-xl p-6 shadow-sm">
+        <h1 class="text-2xl font-bold md:text-3xl">Account Settings</h1>
+        <p class="mt-2 text-sm leading-6">Manage your student profile and account information.</p>
+    </header>
+
     <!-- Profile Overview Card -->
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">

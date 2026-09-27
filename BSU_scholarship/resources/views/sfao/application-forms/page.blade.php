@@ -2,7 +2,8 @@
 
 @section('navbar')
     <x-layout.navbar
-        title="Application Forms"
+        title="Batangas State University"
+        subtitle="The National Engineering University"
         :user="$user"
         :settings="false"
         :logout="true"

@@ -2,9 +2,9 @@
 
 <!-- Main Header -->
 <header class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-8 bg-[#2f2f2f] dark:bg-gray-800 shadow-sm sticky top-0 z-30 border-b border-gray-700 transition-all duration-300 print:hidden"
-        :class="{ 'md:ml-64': sidebarOpen }">
+        :class="{ 'md:ml-64': sidebarOpen && isDesktop }">
   <!-- Branding -->
-  <div class="flex items-center space-x-2 md:space-x-3">
+  <div class="flex min-w-0 items-center space-x-2 md:space-x-3">
       
       <!-- Back Button Mode -->
       @if($backUrl)
@@ -30,9 +30,9 @@
       @endif
 
       <img src="{{ asset('images/lugo.png') }}" alt="Logo" class="h-10 md:h-12 w-auto">
-      <div class="text-white">
+      <div class="min-w-0 text-white">
           <div class="text-sm md:text-base font-bold leading-tight">Batangas State University</div>
-          <div class="text-xs font-light hidden md:block">{{ $title ?? 'The National Engineering University' }}</div>
+          <div class="text-xs font-light hidden md:block">{{ $subtitle ?? $title ?? 'The National Engineering University' }}</div>
       </div>
   </div>
 

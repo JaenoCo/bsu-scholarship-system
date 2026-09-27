@@ -7,8 +7,11 @@
      x-data='sfaoScholarshipsFilter({ routeUrl: @json(route("sfao.dashboard")) })'
      x-init="$watch('tab', value => handleTabChange(value))">
      
-  <!-- Header -->
-  <!-- Header Removed -->
+  <header class="sfao-tab-header rounded-xl p-6 mb-6 shadow-sm">
+      <p class="overview-eyebrow">SFAO workspace</p>
+      <h1 class="overview-title mt-2 text-2xl font-bold tracking-tight md:text-3xl" x-text="getHeaderTitle()">Scholarship Programs</h1>
+      <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300" x-text="getHeaderDescription()">Manage scholarship programs and eligibility settings.</p>
+  </header>
 
   <!-- Campus Information -->
   <!-- Campus Information Removed -->

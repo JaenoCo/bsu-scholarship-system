@@ -7,7 +7,7 @@
      x-data="sfaoScholarsFilter()"
      x-init="$watch('tab', value => handleTabChange(value))">
     
-    <div class="mb-6">
+    <div class="sfao-tab-header rounded-xl p-6 mb-6 shadow-sm">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             <span class="flex items-center">
                 <span x-show="filters.type === 'all'" class="h-3 w-3 rounded-full bg-blue-500 mr-2"></span>

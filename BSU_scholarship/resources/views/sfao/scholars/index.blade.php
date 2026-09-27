@@ -23,7 +23,11 @@
      })'
      x-init="$watch('tab', value => handleTabChange(value))">
     
-    <!-- Header Removed -->
+    <header class="sfao-tab-header rounded-xl p-6 mb-6 shadow-sm">
+        <p class="overview-eyebrow">SFAO workspace</p>
+        <h1 class="overview-title mt-2 text-2xl font-bold tracking-tight md:text-3xl" x-text="getHeaderTitle()">Scholar Management</h1>
+        <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300" x-text="getHeaderDescription()">Manage active, new, and continuing scholars.</p>
+    </header>
 
     <!-- Sorting and Filtering Controls -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">

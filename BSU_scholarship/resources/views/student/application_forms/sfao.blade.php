@@ -1,9 +1,9 @@
 
     <!-- Unified Header -->
-    <div class="bg-bsu-red dark:bg-red-900 rounded-xl shadow-lg p-6 mb-6 relative overflow-hidden">
+    <div class="student-tab-header rounded-xl shadow-lg p-6 mb-6 relative overflow-hidden">
 
         
-        <div class="relative z-10 text-white">
+        <div class="relative z-10">
             <h1 class="text-2xl font-bold flex items-center gap-2">
                 <span x-show="subTab === 'form'" class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -18,7 +18,7 @@
                     TDP Application Form
                 </span>
             </h1>
-            <p class="text-red-100 mt-1 font-medium">Please complete all required information below</p>
+            <p class="mt-1 font-medium">Please complete all required information below</p>
         </div>
     </div>
 

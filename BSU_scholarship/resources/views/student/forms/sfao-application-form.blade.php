@@ -43,7 +43,8 @@ if (!$user) {
     <!-- Custom Navbar -->
     <x-layout.navbar 
         :user="$user" 
-        title="Scholarship Application Form"
+        title="Batangas State University"
+        subtitle="The National Engineering University"
         :sidebar="false"
         :logout="true"
         :profile="false"

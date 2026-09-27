@@ -19,8 +19,23 @@
         <!-- Application List (Unified Layout) -->
         <div class="grid grid-cols-1 gap-6">
             @foreach($applicationTracking as $application)
-                @php($sfaoCompleted = in_array($application->status, ['in_progress', 'approved', 'claimed'], true))
-                @php($reviewCompleted = in_array($application->status, ['approved', 'claimed'], true))
+                @php
+                    $sfaoCompleted = in_array($application->status, ['in_progress', 'approved', 'claimed'], true);
+                    $reviewCompleted = in_array($application->status, ['approved', 'claimed'], true);
+                    $displayStatus = $application->status;
+
+                    if ($application->scholar_status === 'selected') {
+                        $displayStatus = 'selected';
+                    } elseif ($application->status === 'claimed') {
+                        $displayStatus = 'claimed';
+                    } elseif ($application->status === 'approved') {
+                        $displayStatus = 'approved';
+                    } elseif ($application->status === 'rejected') {
+                        $displayStatus = 'rejected';
+                    } elseif ($application->status === 'in_progress') {
+                        $displayStatus = 'in_progress';
+                    }
+                @endphp
                 <div x-data="{ showModal: false }" class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
                     
                     <!-- Card Header / Main Content -->
@@ -34,13 +49,13 @@
                                     </h3>
                                     <!-- Status Badge -->
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
-                                        @if($application->status === 'approved') bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200
-                                        @elseif($application->status === 'rejected') bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200
-                                        @elseif($application->status === 'pending') bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200
-                                        @elseif($application->status === 'claimed') bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200
+                                        @if(in_array($displayStatus, ['selected', 'approved', 'claimed'], true)) bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200
+                                        @elseif($displayStatus === 'rejected') bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200
+                                        @elseif($displayStatus === 'pending') bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200
+                                        @elseif($displayStatus === 'in_progress') bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200
                                         @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300
                                         @endif">
-                                        {{ ucfirst($application->status) }}
+                                        {{ ucfirst(str_replace('_', ' ', $displayStatus)) }}
                                     </span>
                                 </div>
                                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -256,9 +271,9 @@
                                                 </div>
                                                 <div class="mt-2 text-center">
                                                     <p class="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wide">Decision</p>
-                                                    @if($application->scholar_status === 'selected')
+                                                    @if($displayStatus === 'selected' || $displayStatus === 'approved' || $displayStatus === 'claimed')
                                                         <p class="text-xs text-green-600 dark:text-green-400">Selected</p>
-                                                    @elseif($application->status === 'rejected')
+                                                    @elseif($displayStatus === 'rejected')
                                                         <p class="text-xs text-red-600 dark:text-red-400">Not Selected</p>
                                                     @else
                                                         <p class="text-xs text-gray-500 dark:text-gray-400">Pending</p>

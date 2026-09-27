@@ -446,7 +446,7 @@
 <body>
 
 <div class="upload-wrapper">
-    <div class="page-header">
+    <div class="page-header student-tab-header">
         <h1 class="page-title">Upload Grades</h1>
         <p class="page-description">Submit your academic grades and the corresponding supporting document.</p>
     </div>

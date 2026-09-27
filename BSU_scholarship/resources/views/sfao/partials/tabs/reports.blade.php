@@ -5,7 +5,7 @@
      x-cloak>
   <div class="space-y-6">
     <!-- Header Section -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div class="sfao-tab-header rounded-xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white" x-text="
             tab === 'reports-student_summary' ? 'Student Summary Report' :

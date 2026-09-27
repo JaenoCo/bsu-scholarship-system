@@ -1,8 +1,8 @@
 <div class="container mx-auto px-4 py-8">
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">BatStateU ISO Form</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Download the BatStateU ISO application form for your campus.</p>
-    </div>
+    <header class="student-tab-header rounded-xl p-6 shadow-sm mb-6">
+        <h1 class="text-2xl font-bold md:text-3xl">Application Forms</h1>
+        <p class="mt-2 text-sm leading-6">Download the BatStateU ISO application forms available for your campus.</p>
+    </header>
 
     @if($forms->isEmpty())
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">

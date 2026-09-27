@@ -68,15 +68,15 @@
 }">
     <!-- Header Section -->
     <!-- Header Section -->
-    <div class="bg-bsu-red dark:bg-red-900 rounded-xl shadow-lg p-6 flex flex-col sm:flex-row justify-between items-center gap-6 relative overflow-hidden group">
+    <div class="student-tab-header rounded-xl shadow-lg p-6 flex flex-col sm:flex-row justify-between items-center gap-6 relative overflow-hidden group">
         <!-- Background Pattern -->
         <div class="absolute top-0 right-0 w-32 h-full bg-white/10 skew-x-12 transform translate-x-16"></div>
 
-        <div class="relative z-10 text-white">
+        <div class="relative z-10">
             <h2 class="text-3xl font-extrabold tracking-tight font-sans">
                 Notifications
             </h2>
-            <p class="text-base text-red-100 mt-1 font-medium">
+            <p class="text-base mt-1 font-medium">
                 Manage your alerts and updates
             </p>
         </div>

@@ -75,11 +75,8 @@
                  x-cloak
                  class="col-span-1">
                 @php
-                    // Use the controller-passed variable for pending application check
-                    // Logic: User has active application if controller says so, AND they are not applying to THIS scholarship (which would be 'applied' state)
-                    $hasActiveApplication = ($hasPendingApplication ?? false) && 
-                                            !($scholarship->is_scholar ?? false) && 
-                                            !($scholarship->applied ?? false);
+                    // Students may apply to every scholarship for which they qualify.
+                    $hasActiveApplication = false;
                                             
                      // Calculate fill percentage if not passed
                      $applicationsCount = $scholarship->applications_count ?? 0;

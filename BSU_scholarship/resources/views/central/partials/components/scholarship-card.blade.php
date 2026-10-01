@@ -10,10 +10,14 @@
     $isStudent = ($role === 'student');
     $isScholar = $isStudent && ($scholarship->is_scholar ?? false);
     $isApplied = $isStudent && $scholarship->applied && !$isScholar;
+    $isGovernmentLocked = $isStudent && ($scholarship->government_claim_locked ?? false);
 
     $cardBaseClass = 'rounded-xl shadow-lg border-2 p-6 hover:shadow-xl transition-all duration-300 group relative overflow-hidden mb-8 cursor-pointer';
     
-    if ($isScholar) {
+    if ($isGovernmentLocked) {
+        $cardClass = $cardBaseClass . ' bg-gray-100 dark:bg-gray-800/70 border-gray-300 dark:border-gray-600 opacity-65 grayscale cursor-not-allowed';
+        $gradientColors = 'rgba(243, 244, 246, 0.92), rgba(243, 244, 246, 0.92)';
+    } elseif ($isScholar) {
         $cardClass = $cardBaseClass . ' bg-green-50 dark:bg-green-900/20 border-green-500 hover:border-green-600 hover:shadow-green-500/20';
         $gradientColors = 'rgba(240, 253, 244, 0.95), rgba(240, 253, 244, 0.95)'; // Green tint
     } elseif ($isApplied) {
@@ -25,14 +29,19 @@
     }
 @endphp
 
-<div x-data="{ open: false, showReleaseModal: false, disableModal: @json($disableModal) }" 
+<div x-data="{ open: false, showReleaseModal: false, disableModal: @json($disableModal || $isGovernmentLocked) }"
      class="{{ $cardClass }}"
      @click="if(!disableModal) open = true"
      @if($scholarship->background_image)
      style="background-image: linear-gradient({{ $gradientColors }}), url('{{ $scholarship->getBackgroundImageUrl() }}'); background-size: cover; background-position: center;"
      @endif>
 
-    @if($isScholar)
+    @if($isGovernmentLocked)
+        <div class="absolute inset-0 bg-gray-500/15 pointer-events-none z-0"></div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-6 text-center">
+            <span class="text-xl font-extrabold text-gray-600/60 dark:text-gray-200/60 uppercase tracking-wider transform -rotate-6 border-2 border-gray-500/40 px-5 py-3 rounded-xl">Available Next Semester</span>
+        </div>
+    @elseif($isScholar)
         <!-- Green Overlay -->
         <div class="absolute inset-0 bg-green-500/10 pointer-events-none z-0"></div>
         <!-- Scholar Text -->
@@ -64,6 +73,9 @@
                         {{ ucfirst($scholarship->scholarship_type) }}
                         </span>
                     </div>
+                    @if($isGovernmentLocked)
+                        <p class="mt-3 text-sm font-medium text-gray-600 dark:text-gray-300">{{ $scholarship->government_claim_lock_message }}</p>
+                    @endif
                 </div>
                 
                 <!-- Description Preview -->
@@ -390,7 +402,11 @@
                                 Close
                             </button>
 
-                            @if($scholarship->is_scholar ?? false)
+                            @if($isGovernmentLocked)
+                                <span class="inline-flex items-center px-5 py-2.5 text-sm font-semibold rounded-lg bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-300 cursor-not-allowed">
+                                    Available Next Semester
+                                </span>
+                            @elseif($scholarship->is_scholar ?? false)
                                 <!-- Scholar badge removed from here as per overlay design -->
                             @elseif($scholarship->applied)
                                 <div class="flex gap-2 relative z-20">
@@ -406,9 +422,8 @@
 
                                 </div>
                             @else
-                                @if($hasActiveApplication && !$scholarship->allow_existing_scholarship)
-                                    <button type="button"
-                                            @click="$dispatch('show-warning')"
+                                <form method="GET" action="{{ route('student.apply', ['scholarship_id' => $scholarship->id]) }}">
+                                    <button type="submit"
                                             class="px-6 py-2.5 bg-bsu-red hover:bg-bsu-redDark text-white text-sm font-semibold rounded-lg shadow-lg shadow-bsu-red/30 hover:shadow-bsu-red/50 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -416,18 +431,7 @@
                                         </svg>
                                         Apply Now
                                     </button>
-                                @else
-                                    <form method="GET" action="{{ route('student.apply', ['scholarship_id' => $scholarship->id]) }}">
-                                        <button type="submit" 
-                                                class="px-6 py-2.5 bg-bsu-red hover:bg-bsu-redDark text-white text-sm font-semibold rounded-lg shadow-lg shadow-bsu-red/30 hover:shadow-bsu-red/50 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-                                            </svg>
-                                            Apply Now
-                                        </button>
-                                    </form>
-                                @endif
+                                </form>
                             @endif
                         </div>
 

@@ -270,11 +270,9 @@
        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
        @click.self="openWarning = false">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md space-y-4 text-center">
-      <h2 class="text-lg font-bold text-bsu-red dark:text-white">Application Limit Reached</h2>
+      <h2 class="text-lg font-bold text-bsu-red dark:text-white">Scholarship Benefit Policy</h2>
       <p class="text-gray-700 dark:text-gray-300">
-        You are currently applying for 
-        <strong x-text="appliedScholarship?.scholarship_name"></strong>.
-        You can only apply for one scholarship at a time. Please wait for your current application to be validated before applying to another.
+        You may apply for every scholarship you qualify for. A claimed government grant makes other government benefits unavailable until the next semestral application period, and students may receive up to three private scholarships simultaneously.
       </p>
       <button @click="openWarning = false"
               class="mt-4 px-4 py-2 bg-bsu-red hover:bg-bsu-redDark text-white font-semibold rounded-lg shadow">

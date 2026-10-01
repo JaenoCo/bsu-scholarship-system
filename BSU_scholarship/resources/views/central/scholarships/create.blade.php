@@ -519,8 +519,8 @@
                                    {{ old('allow_existing_scholarship', $scholarship->allow_existing_scholarship ?? false) ? 'checked' : '' }}
                                    class="focus:ring-bsu-red dark:focus:ring-red-500 h-5 w-5 text-bsu-red dark:text-red-500 border-gray-300 dark:border-gray-600 rounded cursor-pointer flex-shrink-0">
                             <div>
-                                <label for="allow_existing_scholarship" class="font-bold text-gray-900 dark:text-gray-100 cursor-pointer">Stackable Scholarship</label>
-                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Allow students with existing scholarships to apply for this scheme.</p>
+                                <label for="allow_existing_scholarship" class="font-bold text-gray-900 dark:text-gray-100 cursor-pointer">Legacy stackable setting</label>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Students can apply for every scholarship they qualify for. Claim eligibility follows the government and private-benefit limits.</p>
                             </div>
                         </div>
                         </div>

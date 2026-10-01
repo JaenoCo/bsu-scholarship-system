@@ -257,10 +257,9 @@
                             </path>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Application Limit Reached</h3>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Scholarship Benefit Policy</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                        You already have an active application. This scholarship does not allow multiple simultaneous
-                        applications. Please wait for your current application to be processed.
+                        You may apply for every scholarship you qualify for. Government benefits are limited to one claimed grant per semester, while up to three private scholarships may be received simultaneously.
                     </p>
                 </div>
 

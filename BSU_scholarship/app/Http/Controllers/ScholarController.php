@@ -7,6 +7,8 @@ use App\Models\Scholar;
 use App\Models\Application;
 use App\Models\Scholarship;
 use App\Models\User;
+use App\Services\NotificationService;
+use App\Services\ScholarshipBenefitPolicyService;
 
 class ScholarController extends Controller
 {
@@ -123,7 +125,38 @@ class ScholarController extends Controller
             'description' => 'nullable|string|max:500',
         ]);
 
+        $application = $scholar->application
+            ?? Application::where('user_id', $scholar->user_id)
+                ->where('scholarship_id', $scholar->scholarship_id)
+                ->latest()
+                ->first();
+
+        $scholar->loadMissing('scholarship');
+        $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
+        if ($reason = $benefitPolicy->claimBlockReasonForScholarship($scholar->user_id, $scholar->scholarship)) {
+            return back()->with('error', $reason);
+        }
+
+        if ($application) {
+            $application->loadMissing('scholarship');
+        }
+
         $scholar->addGrant($request->amount, $request->description);
+
+        // Keep manual grant releases subject to the same policy, audit fields,
+        // email, and in-app notification as the normal claim workflow.
+        if ($application) {
+            $application->status = 'claimed';
+            $application->grant_count = $scholar->grant_count;
+            $benefitPolicy->recordClaim($application);
+            $application->save();
+
+            NotificationService::notifyApplicationStatusChange(
+                $application,
+                'claimed',
+                $benefitPolicy->claimedNotificationMessage($application)
+            );
+        }
 
         return back()->with('success', 'Grant added successfully.');
     }

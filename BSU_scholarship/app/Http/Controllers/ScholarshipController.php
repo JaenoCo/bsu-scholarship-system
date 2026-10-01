@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\ScholarshipRequiredCondition;
 use App\Models\ScholarshipRequiredDocument;
 use App\Services\NotificationService;
+use App\Services\ScholarshipBenefitPolicyService;
 use App\Models\Scholar;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
@@ -569,6 +570,13 @@ class ScholarshipController extends Controller
                 : back()->with('error', $message);
         }
 
+        $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
+        if ($reason = $benefitPolicy->claimBlockReason($application)) {
+            return $request->expectsJson() || $request->ajax()
+                ? response()->json(['success' => false, 'message' => $reason], 422)
+                : back()->with('error', $reason);
+        }
+
         try {
             DB::beginTransaction();
 
@@ -586,6 +594,7 @@ class ScholarshipController extends Controller
 
             $application->status = 'claimed';
             $application->grant_count = $newGrantCount;
+            $benefitPolicy->recordClaim($application);
             $application->save();
 
             $affected = DB::table('scholars')->where('id', $scholar->id)->update([
@@ -602,7 +611,7 @@ class ScholarshipController extends Controller
             NotificationService::notifyApplicationStatusChange(
                 $application,
                 'claimed',
-                'Your grant for ' . ($scholar->scholarship->scholarship_name ?? 'this scholarship') . ' has been released and marked as claimed.'
+                $benefitPolicy->claimedNotificationMessage($application)
             );
 
             $successMessage = "Grant marked as claimed. New Count: {$newGrantCount}, New Total: ₱" . number_format($newTotalReceived, 2);
@@ -693,6 +702,13 @@ class ScholarshipController extends Controller
                     continue;
                 }
 
+                $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
+                if ($reason = $benefitPolicy->claimBlockReason($application)) {
+                    $skippedCount++;
+                    $errors[] = "Scholar ID {$scholarId}: {$reason}";
+                    continue;
+                }
+
                 DB::beginTransaction();
 
                 // Calculate new values
@@ -703,6 +719,7 @@ class ScholarshipController extends Controller
                 // Update Application
                 $application->status = 'claimed';
                 $application->grant_count = $newGrantCount;
+                $benefitPolicy->recordClaim($application);
                 $application->save();
 
                 // Update Scholar
@@ -718,7 +735,7 @@ class ScholarshipController extends Controller
                 NotificationService::notifyApplicationStatusChange(
                     $application,
                     'claimed',
-                    'Your grant for ' . ($scholar->scholarship->scholarship_name ?? 'this scholarship') . ' has been released and marked as claimed.'
+                    $benefitPolicy->claimedNotificationMessage($application)
                 );
 
                 $successCount++;

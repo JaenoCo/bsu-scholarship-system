@@ -21,6 +21,7 @@ use App\Models\StudentSubmittedDocument;
 use App\Models\ScholarshipRequiredDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpWord\TemplateProcessor;
+use App\Services\ScholarshipBenefitPolicyService;
 
 /**
  * =====================================================
@@ -275,10 +276,13 @@ class UserController extends Controller
                 ->pluck('scholarship_id')
                 ->toArray();
 
+            $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
             foreach ($scholarships as $scholarship) {
                 $scholarship->applied = in_array($scholarship->id, $appliedIds);
                 $scholarship->status = $appliedStatuses[$scholarship->id] ?? null;
                 $scholarship->is_scholar = in_array($scholarship->id, $scholarIds);
+                $scholarship->government_claim_locked = $benefitPolicy->isGovernmentScholarshipLocked($user, $scholarship);
+                $scholarship->government_claim_lock_message = 'Government scholarship benefits are unavailable until the next semestral application period because you have already claimed a government grant this semester.';
             }
         }
 
@@ -449,10 +453,13 @@ class UserController extends Controller
                 ->pluck('scholarship_id')
                 ->toArray();
 
+            $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
             foreach ($scholarships as $scholarship) {
                 $scholarship->applied = in_array($scholarship->id, $appliedIds);
                 $scholarship->status = $appliedStatuses[$scholarship->id] ?? null;
                 $scholarship->is_scholar = in_array($scholarship->id, $scholarIds);
+                $scholarship->government_claim_locked = $benefitPolicy->isGovernmentScholarshipLocked($user, $scholarship);
+                $scholarship->government_claim_lock_message = 'Government scholarship benefits are unavailable until the next semestral application period because you have already claimed a government grant this semester.';
             }
         }
 
@@ -1057,6 +1064,10 @@ class UserController extends Controller
 
         $scholarship = Scholarship::with(['requiredDocuments'])->findOrFail($scholarship_id);
         $userId = session('user_id');
+        if (app(ScholarshipBenefitPolicyService::class)->isGovernmentScholarshipLocked($userId, $scholarship)) {
+            return redirect()->route('student.dashboard', ['tab' => 'government_scholarships'])
+                ->with('error', 'This government scholarship is unavailable until the next semestral application period because you have already claimed a government grant this semester.');
+        }
         $studentForm = Form::where('user_id', $userId)->first();
 
         if (!$studentForm || !$studentForm->isComplete()) {
@@ -1447,8 +1458,11 @@ class UserController extends Controller
                 ->with('error', 'You cannot apply to this scholarship as your previous application was rejected by Central Administration.');
         }
 
-        // Create or update application
-        $hasClaimedGrant = Application::hasClaimedGrant($userId, $scholarship_id);
+        // Applications are unrestricted; benefit-stacking is checked at claim time.
+        if (app(ScholarshipBenefitPolicyService::class)->isGovernmentScholarshipLocked($userId, $scholarship)) {
+            return redirect()->route('student.dashboard', ['tab' => 'government_scholarships'])
+                ->with('error', 'This government scholarship is unavailable until the next semestral application period because you have already claimed a government grant this semester.');
+        }
         Application::updateOrCreate(
             [
                 'user_id' => $userId,

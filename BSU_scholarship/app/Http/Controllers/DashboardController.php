@@ -13,6 +13,7 @@ use App\Models\Scholar;
 use App\Models\GradeSubmission;
 use App\Services\ScholarAcademicRiskService;
 use App\Services\ScholarshipInsightsService;
+use App\Services\ScholarshipBenefitPolicyService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -2497,6 +2498,7 @@ class DashboardController extends Controller
         }
 
         $scholarships = $scholarshipsQuery->paginate(12)->withQueryString();
+        $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
             
         // Append user-specific status to scholarships
         foreach ($scholarships as $scholarship) {
@@ -2506,6 +2508,8 @@ class DashboardController extends Controller
              
              $scholarship->applied = $application ? true : false;
              $scholarship->application_status = $application ? $application->status : null;
+             $scholarship->government_claim_locked = $benefitPolicy->isGovernmentScholarshipLocked($user, $scholarship);
+             $scholarship->government_claim_lock_message = 'Government scholarship benefits are unavailable until the next semestral application period because you have already claimed a government grant this semester.';
              
              $scholar = \App\Models\Scholar::where('user_id', $user->id)
                   ->where('scholarship_id', $scholarship->id)

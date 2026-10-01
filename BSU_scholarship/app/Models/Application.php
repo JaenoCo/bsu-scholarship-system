@@ -27,6 +27,8 @@ class Application extends Model
         'user_id',
         'scholarship_id',
         'grant_count',
+        'claimed_at',
+        'claim_term',
         'status',
         'remarks',
     ];
@@ -45,6 +47,7 @@ class Application extends Model
     protected $casts = [
         'user_id' => 'integer',
         'scholarship_id' => 'integer',
+        'claimed_at' => 'datetime',
     ];
 
     /**

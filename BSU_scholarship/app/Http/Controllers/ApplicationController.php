@@ -15,6 +15,7 @@ use App\Models\RejectedApplicant;
 use App\Models\Scholar;
 use App\Models\Form;
 use App\Services\NotificationService;
+use App\Services\ScholarshipBenefitPolicyService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -155,6 +156,9 @@ class ApplicationController extends Controller
 
         $scholarship = Scholarship::with(['campuses', 'targetColleges', 'targetPrograms', 'targetTracks'])
             ->findOrFail($request->scholarship_id);
+        if (app(ScholarshipBenefitPolicyService::class)->isGovernmentScholarshipLocked($user, $scholarship)) {
+            return back()->with('error', 'Other government scholarship applications are unavailable until the next semestral application period because you have already claimed a government grant this semester.');
+        }
         if ($scholarship->campuses->isNotEmpty() && !$scholarship->campuses->pluck('id')->contains((int) $user->campus_id)) {
             return back()->with('error', 'This scholarship is not available at your campus.');
         }
@@ -1505,10 +1509,16 @@ class ApplicationController extends Controller
         }
 
         $application = Application::findOrFail($id);
+        $application->load('scholarship');
 
         // Only allow claiming if application is approved
         if ($application->status !== 'approved') {
             return back()->with('error', 'Only approved applications can be marked as claimed.');
+        }
+
+        $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
+        if ($reason = $benefitPolicy->claimBlockReason($application)) {
+            return back()->with('error', $reason);
         }
 
         // Calculate the grant count for this specific scholarship
@@ -1516,7 +1526,14 @@ class ApplicationController extends Controller
 
         $application->status = 'claimed';
         $application->grant_count = $grantCount;
+        $benefitPolicy->recordClaim($application);
         $application->save();
+
+        NotificationService::notifyApplicationStatusChange(
+            $application,
+            'claimed',
+            $benefitPolicy->claimedNotificationMessage($application)
+        );
 
         return back()->with('success', "Grant has been marked as claimed ({$grantCount}th grant). Student is now eligible for renewals.");
     }
@@ -1554,10 +1571,16 @@ class ApplicationController extends Controller
         }
 
         $application = Application::findOrFail($id);
+        $application->load('scholarship');
 
         // Only allow claiming if application is approved
         if ($application->status !== 'approved') {
             return back()->with('error', 'Only approved applications can be marked as claimed.');
+        }
+
+        $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
+        if ($reason = $benefitPolicy->claimBlockReason($application)) {
+            return back()->with('error', $reason);
         }
 
         // Calculate the grant count for this specific scholarship
@@ -1565,7 +1588,14 @@ class ApplicationController extends Controller
 
         $application->status = 'claimed';
         $application->grant_count = $grantCount;
+        $benefitPolicy->recordClaim($application);
         $application->save();
+
+        NotificationService::notifyApplicationStatusChange(
+            $application,
+            'claimed',
+            $benefitPolicy->claimedNotificationMessage($application)
+        );
 
         return back()->with('success', "Grant has been marked as claimed ({$grantCount}th grant). Student is now eligible for renewals.");
     }

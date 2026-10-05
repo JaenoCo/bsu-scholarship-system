@@ -24,9 +24,16 @@ class NotificationController extends Controller
             return response()->json(['error' => 'Notification not found'], 404);
         }
 
-        $notification->markAsRead();
+        $changed = Notification::whereKey($notification->id)
+            ->where('user_id', session('user_id'))
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'changed' => $changed > 0]);
     }
 
     /**
@@ -65,6 +72,7 @@ class NotificationController extends Controller
             'student' => match ($notification->type) {
                 'scholarship_created' => route('student.dashboard', ['tab' => 'all_scholarships']),
                 'application_status', 'sfao_comment' => route('student.dashboard', ['tab' => 'application_tracking']),
+                'grant_released' => route('student.dashboard', ['tab' => 'my_scholarships']),
                 default => route('student.dashboard', ['tab' => 'all_notifications']),
             },
             'sfao' => route('sfao.dashboard', ['tabs' => 'applicants']),
@@ -90,12 +98,16 @@ class NotificationController extends Controller
             return response()->json(['error' => 'Notification not found'], 404);
         }
 
-        $notification->update([
-            'is_read' => false,
-            'read_at' => null
-        ]);
+        $changed = Notification::whereKey($notification->id)
+            ->where('user_id', session('user_id'))
+            ->where('is_read', true)
+            ->update([
+                'is_read' => false,
+                'read_at' => null,
+                'updated_at' => now(),
+            ]);
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'changed' => $changed > 0]);
     }
 
     /**

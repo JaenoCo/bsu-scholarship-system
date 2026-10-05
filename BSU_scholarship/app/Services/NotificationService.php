@@ -205,10 +205,11 @@ class NotificationService
     /**
      * Get unread count for user
      */
-    public static function getUnreadCount($userId)
+    public static function getUnreadCount($userId, ?string $type = null)
     {
         return Notification::where('user_id', $userId)
             ->where('is_read', false)
+            ->when($type, fn ($query) => $query->where('type', $type))
             ->count();
     }
 }

@@ -72,6 +72,11 @@ class Application extends Model
         return $this->hasOne(Scholar::class);
     }
 
+    public function grantReleases()
+    {
+        return $this->hasMany(GrantRelease::class);
+    }
+
 
     /**
      * Check if the student has previously claimed a grant for this scholarship.

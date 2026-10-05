@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Scholarship;
+use App\Models\GrantRelease;
+use App\Models\Notification;
 use App\Models\Application;
 use App\Models\User;
 use App\Models\ScholarshipRequiredCondition;
@@ -439,82 +441,227 @@ class ScholarshipController extends Controller
             return redirect('/login')->with('session_expired', true);
         }
 
-        // Direct Release - No input form
-        // $request->validate([
-        //     'release_date' => 'required|date',
-        //     'location' => 'required|string',
-        //     'instructions' => 'required|string',
-        // ]);
-
-        $scholarship = Scholarship::findOrFail($id);
-        
-        // Set defaults for PDF generation
-        $details = [
-            'release_date' => now()->toDateString(),
-            'location' => 'SFAO Office / Check Portal',
-            'instructions' => 'Please present this slip or your ID to the scholarship office.'
-        ];
-        
-        $user = User::with('campus')->find(session('user_id'));
-        $sfaoCampus = $user->campus;
-        $campusIds = $sfaoCampus->getAllCampusesUnder()->pluck('id');
-        
-        Log::info("SFAO Grant Release Debug", [
-            'sfao_user_id' => $user->id,
-            'sfao_campus' => $sfaoCampus->name ?? 'None',
-            'managed_campus_ids' => $campusIds->toArray(),
-            'target_scholarship_id' => $id
-        ]);
-
-        // Debug: Count ALL scholars for this scholarship
-        $totalScholars = \App\Models\Scholar::where('scholarship_id', $id)->count();
-        $activeScholars = \App\Models\Scholar::where('scholarship_id', $id)->where('status', 'active')->count();
-
-        Log::info("Scholar Counts", [
-            'total_in_scholarship' => $totalScholars,
-            'active_in_scholarship' => $activeScholars
-        ]);
-
-        // Get active scholars under this scholarship belonging to SFAO's campuses
-        $scholars = \App\Models\Scholar::where('scholarship_id', $id)
-            ->where('status', 'active')
-            ->whereHas('user', function($q) use ($campusIds) {
-                $q->whereIn('campus_id', $campusIds);
-            })
-            ->with('user')
-            ->get();
-
-        Log::info("Scholars targeted (after campus filter)", ['count' => $scholars->count()]);
-            
-        if ($scholars->isEmpty()) {
-            return back()->with('error', "No active scholars found in your campus. Total in Scholarship: $totalScholars (Active: $activeScholars). Check Logs.");
+        $sfao = User::with('campus')->find(session('user_id'));
+        if (! $sfao || ! $sfao->campus) {
+            return back()->with('error', 'Your SFAO account is not linked to a campus.');
         }
 
-        $count = 0;
-        foreach ($scholars as $scholar) {
-            try {
-                // Skip PDF generation (causes "Cannot resolve public path" error on some servers)
-                // Send email without PDF attachment
-                $pdf = null; // Placeholder for compatibility
-                
-                // Send Email
-                if ($scholar->user && $scholar->user->email) {
-                    Mail::to($scholar->user->email)->send(new \App\Mail\GrantSlipMail($scholar, $scholarship, $pdf, $details));
-                    Log::info("Grant Slip Email sent to: " . $scholar->user->email . " [Scholar ID: " . $scholar->id . "]");
-                    $count++;
-                } else {
-                    Log::warning("Skipping scholar {$scholar->id}: User or Email missing.", [
-                       'user_id' => $scholar->user_id,
-                       'has_user' => (bool)$scholar->user,
-                       'email' => $scholar->user->email ?? 'N/A'
-                   ]);
+        $campusIds = $sfao->campus->getAllCampusesUnder()->pluck('id');
+        $scholarship = Scholarship::findOrFail($id);
+
+        if ($scholarship->grant_type === 'discontinued' || (float) $scholarship->grant_amount <= 0) {
+            return back()->with('error', 'This scholarship does not have a releasable grant amount.');
+        }
+
+        try {
+            $result = DB::transaction(function () use ($id, $sfao, $campusIds) {
+                $scholarship = Scholarship::whereKey($id)->lockForUpdate()->firstOrFail();
+                if ($scholarship->grant_type === 'discontinued' || (float) $scholarship->grant_amount <= 0) {
+                    return [
+                        'error' => 'This scholarship does not have a releasable grant amount.',
+                        'releases' => [],
+                        'existing_count' => 0,
+                    ];
                 }
-            } catch (\Exception $e) {
-                Log::error('Failed to release grant for scholar ' . $scholar->id . ': ' . $e->getMessage());
+
+                $approvedApplication = function ($query) use ($scholarship) {
+                    $query->where('scholarship_id', $scholarship->id)
+                        ->whereIn('status', ['approved', 'claimed']);
+                };
+
+                $scholars = Scholar::query()
+                    ->where('scholarship_id', $scholarship->id)
+                    ->where('status', 'active')
+                    ->whereHas('user', function ($query) use ($campusIds) {
+                        $query->where('role', 'student')->whereIn('campus_id', $campusIds);
+                    })
+                    ->where(function ($query) use ($approvedApplication) {
+                        $query->whereHas('application', $approvedApplication)
+                            ->orWhere(function ($legacyQuery) use ($approvedApplication) {
+                                $legacyQuery->whereNull('application_id')
+                                    ->whereHas('user', function ($userQuery) use ($approvedApplication) {
+                                        $userQuery->whereHas('applications', $approvedApplication);
+                                    });
+                            });
+                    })
+                    ->with(['user', 'application'])
+                    ->lockForUpdate()
+                    ->get();
+
+                $createdReleases = [];
+                $existingReleases = 0;
+                $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
+
+                foreach ($scholars as $scholar) {
+                    $application = $scholar->application ?? Application::query()
+                        ->where('user_id', $scholar->user_id)
+                        ->where($approvedApplication)
+                        ->latest()
+                        ->first();
+                    if (! $application
+                        || (int) $application->user_id !== (int) $scholar->user_id
+                        || (int) $application->scholarship_id !== (int) $scholarship->id
+                        || $benefitPolicy->claimBlockReason($application)) {
+                        continue;
+                    }
+
+                    $grantNumber = max((int) $application->grant_count, (int) $scholar->grant_count) + 1;
+                    if ($scholarship->grant_type === 'one_time'
+                        && ($application->status === 'claimed' || $grantNumber > 1)) {
+                        continue;
+                    }
+
+                    $existing = GrantRelease::where('application_id', $application->id)
+                        ->where('grant_number', $grantNumber)
+                        ->exists();
+                    if ($existing) {
+                        $existingReleases++;
+                        continue;
+                    }
+
+                    $release = GrantRelease::create([
+                        'application_id' => $application->id,
+                        'scholar_id' => $scholar->id,
+                        'user_id' => $scholar->user_id,
+                        'scholarship_id' => $scholarship->id,
+                        'released_by' => $sfao->id,
+                        'grant_number' => $grantNumber,
+                        'amount' => $scholarship->grant_amount,
+                        'status' => 'released',
+                        'released_at' => now(),
+                    ]);
+
+                    $release->tracking_number = sprintf(
+                        'GRANT-%s-%06d',
+                        $release->released_at->format('Y'),
+                        $release->id
+                    );
+                    $release->qr_code = app(\App\Services\GrantQrCodeService::class)->generate(
+                        route('sfao.grant-releases.verify', ['trackingNumber' => $release->tracking_number])
+                    );
+                    $release->save();
+
+                    $notification = Notification::create([
+                        'user_id' => $scholar->user_id,
+                        'type' => 'grant_released',
+                        'title' => 'Scholarship Grant Released',
+                        'message' => sprintf(
+                            'Your scholarship "%s" has released its grant of ₱%s. Please visit the SFAO office and present your QR code for verification. Tracking Number: %s',
+                            $scholarship->scholarship_name,
+                            number_format((float) $release->amount, 2),
+                            $release->tracking_number
+                        ),
+                        'data' => [
+                            'grant_release_id' => $release->id,
+                            'tracking_number' => $release->tracking_number,
+                            'scholarship_id' => $scholarship->id,
+                            'scholarship_name' => $scholarship->scholarship_name,
+                            'amount' => $release->amount,
+                            'redirect_url' => route('student.dashboard', ['tab' => 'my_scholarships'], false),
+                        ],
+                    ]);
+
+                    $release->notification_id = $notification->id;
+                    $release->save();
+                    $createdReleases[] = $release->load(['scholar', 'scholarship', 'student']);
+                }
+
+                return [
+                    'releases' => $createdReleases,
+                    'existing_count' => $existingReleases,
+                ];
+            });
+        } catch (\Throwable $e) {
+            Log::error('Grant release transaction failed.', [
+                'scholarship_id' => $id,
+                'sfao_user_id' => $sfao->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'The grant could not be released. No release or notification records were committed.');
+        }
+
+        if (! empty($result['error'])) {
+            return back()->with('error', $result['error']);
+        }
+
+        if (empty($result['releases'])) {
+            $message = $result['existing_count'] > 0
+                ? 'This grant installment has already been released. No duplicate email or notification was sent.'
+                : 'No eligible approved beneficiaries were found in the campuses you manage.';
+
+            return back()->with('error', $message);
+        }
+
+        $emailSent = 0;
+        $emailFailures = [];
+        foreach ($result['releases'] as $release) {
+            $email = $release->student->email;
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $reason = 'No valid registered email address.';
+                $release->update(['email_error' => $reason]);
+                Log::warning('Grant release email was not sent.', [
+                    'grant_release_id' => $release->id,
+                    'user_id' => $release->user_id,
+                    'reason' => $reason,
+                ]);
+                $emailFailures[] = $release->student->name . ': ' . $reason;
+                continue;
+            }
+
+            try {
+                Mail::to($email)->send(new GrantSlipMail(
+                    $release->scholar,
+                    $release->scholarship,
+                    $release
+                ));
+                $release->update(['email_sent_at' => now(), 'email_error' => null]);
+                $emailSent++;
+            } catch (\Throwable $e) {
+                $release->update(['email_error' => $e->getMessage()]);
+                Log::error('Failed to send grant release email.', [
+                    'grant_release_id' => $release->id,
+                    'user_id' => $release->user_id,
+                    'email' => $email,
+                    'error' => $e->getMessage(),
+                ]);
+                $emailFailures[] = $release->student->name . ': email delivery failed.';
             }
         }
-        
-        return back()->with('success', "Grant released successfully. Sent notifications to {$count} scholars.");
+
+        $message = sprintf(
+            'Grant released for %d eligible beneficiary(ies). %d email(s) sent.',
+            count($result['releases']),
+            $emailSent
+        );
+        $response = back()->with('success', $message);
+
+        return $emailFailures
+            ? $response->with('email_warnings', $emailFailures)
+            : $response;
+    }
+
+    /**
+     * Verify a grant release from the tracking link encoded in its QR code.
+     */
+    public function verifyGrantRelease(string $trackingNumber)
+    {
+        if (! session()->has('user_id') || session('role') !== 'sfao') {
+            return redirect('/login')->with('session_expired', true);
+        }
+
+        $release = GrantRelease::with(['student', 'scholarship', 'application'])
+            ->where('tracking_number', $trackingNumber)
+            ->firstOrFail();
+        $sfao = User::with('campus')->find(session('user_id'));
+
+        abort_unless(
+            $sfao && $sfao->campus
+                && $sfao->campus->getAllCampusesUnder()->contains('id', $release->student->campus_id),
+            403
+        );
+
+        return view('sfao.grant-release-verify', compact('release'));
     }
 
     /**

@@ -37,10 +37,29 @@
      @endif>
 
     @if($isGovernmentLocked)
-        <div class="absolute inset-0 bg-gray-500/15 pointer-events-none z-0"></div>
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-6 text-center">
-            <span class="text-xl font-extrabold text-gray-600/60 dark:text-gray-200/60 uppercase tracking-wider transform -rotate-6 border-2 border-gray-500/40 px-5 py-3 rounded-xl">Available Next Semester</span>
+    <div class="absolute inset-0 z-10 flex items-center justify-center p-4
+                bg-white/40 dark:bg-gray-900/50 backdrop-blur-[2px]"
+         role="status">
+        <div class="w-full max-w-sm text-center rounded-2xl px-6 py-5
+                    bg-white/95 dark:bg-gray-900/90
+                    border border-amber-300/70 dark:border-amber-500/40
+                    shadow-xl ring-1 ring-black/5">
+            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full
+                        bg-amber-100 dark:bg-amber-500/20">
+                <svg class="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+            </div>
+            <span class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Locked</span>
+            <h4 class="mt-1 text-lg font-extrabold text-gray-900 dark:text-white">Available Next Semester</h4>
+            @if($scholarship->government_claim_lock_message)
+                <p class="mt-2 text-sm leading-snug text-gray-600 dark:text-gray-300">
+                    {{ $scholarship->government_claim_lock_message }}
+                </p>
+            @endif
         </div>
+    </div>
     @elseif($isScholar)
         <!-- Green Overlay -->
         <div class="absolute inset-0 bg-green-500/10 pointer-events-none z-0"></div>
@@ -479,7 +498,7 @@
                                         </div>
                                         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Confirm Release Grants</h3>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                                            Are you sure you want to release grants? This will generate grant slips and send emails to all active scholars under this scholarship.
+                                            This releases the grant for eligible, approved beneficiaries at your campus, creates a unique tracking QR code, sends email, and adds an in-system notification.
                                         </p>
                                     </div>
 

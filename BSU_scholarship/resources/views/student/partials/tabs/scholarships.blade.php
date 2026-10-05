@@ -1,5 +1,4 @@
 <div x-data="{
-       openWarning: false,
        appliedScholarship: @js($scholarships->firstWhere('applied', true)),
        selected: null,
        hasActiveApplication: false,
@@ -8,10 +7,7 @@
                                      this.appliedScholarship.status !== 'approved' && 
                                      this.appliedScholarship.status !== 'rejected';
        }
-     }"
-     @show-warning.window="
-        openWarning = true;
-     ">
+     }">
 
   @if ($hasApplication)
     <!-- Header with Type Filter -->
@@ -228,56 +224,4 @@
     </div>
   @endif
 
-  <!-- Withdraw Modal -->
-  <div id="withdrawModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white rounded-lg shadow-lg p-6 w-96">
-          <h2 class="text-lg font-semibold mb-4 text-gray-800">Confirm Withdraw</h2>
-          <p class="mb-6 text-gray-600">Are you sure you want to withdraw from this scholarship?</p>
-
-          <form method="POST" action="{{ route('student.withdraw') }}">
-              @csrf
-              <input type="hidden" name="scholarship_id" id="withdrawScholarshipId">
-              
-              <div class="flex justify-end gap-3">
-                  <button type="button" 
-                          onclick="closeWithdrawModal()" 
-                          class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg">
-                      Cancel
-                  </button>
-                  <button type="submit" 
-                          class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
-                      Yes, Withdraw
-                  </button>
-              </div>
-          </form>
-      </div>
-  </div>
-
-  <!-- JS for Modal -->
-  <script>
-      function openWithdrawModal(scholarshipId) {
-          document.getElementById('withdrawScholarshipId').value = scholarshipId;
-          document.getElementById('withdrawModal').classList.remove('hidden');
-      }
-
-      function closeWithdrawModal() {
-          document.getElementById('withdrawModal').classList.add('hidden');
-      }
-  </script>
-
-  <!-- Warning Modal -->
-  <div x-show="openWarning" x-cloak
-       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-       @click.self="openWarning = false">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md space-y-4 text-center">
-      <h2 class="text-lg font-bold text-bsu-red dark:text-white">Scholarship Benefit Policy</h2>
-      <p class="text-gray-700 dark:text-gray-300">
-        You may apply for every scholarship you qualify for. A claimed government grant makes other government benefits unavailable until the next semestral application period, and students may receive up to three private scholarships simultaneously.
-      </p>
-      <button @click="openWarning = false"
-              class="mt-4 px-4 py-2 bg-bsu-red hover:bg-bsu-redDark text-white font-semibold rounded-lg shadow">
-        OK
-      </button>
-    </div>
-  </div>
 </div>

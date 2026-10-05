@@ -33,6 +33,7 @@
         unreadCountScholarships: {{ $unreadCountScholarships ?? 0 }},
         unreadCountStatus: {{ $unreadCountStatus ?? 0 }},
         unreadCountComments: {{ $unreadCountComments ?? 0 }},
+        unreadCountGrants: {{ $unreadCountGrants ?? 0 }},
 
         tabMapping: {
             'all_scholarships': { tab: 'scholarships', subTab: 'all' },
@@ -48,6 +49,7 @@
             'scholarship_notifications': { tab: 'notifications', subTab: 'scholarship_created' },
             'status_updates': { tab: 'notifications', subTab: 'application_status' },
             'comments': { tab: 'notifications', subTab: 'sfao_comment' },
+            'grant_notifications': { tab: 'notifications', subTab: 'grant_released' },
             'all-app-forms': { tab: 'all-app-forms', subTab: 'all' },
             'upload_grades': { tab: 'upload_grades', subTab: 'all'},
             'grade_history': { tab: 'grade_history', subTab: 'all'},
@@ -141,10 +143,18 @@
         const type = $event.detail.type;
         if (status === 'read') {
             if (unreadCount > 0) unreadCount--;
+            if (type === 'scholarship_created' && unreadCountScholarships > 0) unreadCountScholarships--;
+            if (type === 'application_status' && unreadCountStatus > 0) unreadCountStatus--;
+            if (type === 'sfao_comment' && unreadCountComments > 0) unreadCountComments--;
+            if (type === 'grant_released' && unreadCountGrants > 0) unreadCountGrants--;
         } else if (status === 'unread') {
             unreadCount++;
+            if (type === 'scholarship_created') unreadCountScholarships++;
+            if (type === 'application_status') unreadCountStatus++;
+            if (type === 'sfao_comment') unreadCountComments++;
+            if (type === 'grant_released') unreadCountGrants++;
         }
-      " @notifications-read-all.window="unreadCount = 0;" x-on:switch-tab.window="
+      " @notifications-read-all.window="unreadCount = 0; unreadCountScholarships = 0; unreadCountStatus = 0; unreadCountComments = 0; unreadCountGrants = 0;" x-on:switch-tab.window="
           const key = normalizeTabKey($event.detail);
           if (shouldReloadScholarshipTab(key)) {
               window.location.href = scholarshipTabUrl(key).toString();

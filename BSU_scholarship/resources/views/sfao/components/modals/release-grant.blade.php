@@ -27,33 +27,21 @@
                 <div class="text-sm text-gray-600 dark:text-gray-400 mb-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
                     <p class="flex gap-2">
                         <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <span>This will email the grant slip to all active scholars of <strong>{{ $scholarship->scholarship_name }}</strong> in your campus.</span>
+                        <span>This will release grants for eligible, approved beneficiaries of <strong>{{ $scholarship->scholarship_name }}</strong> in your campus, create tracking QR codes, email each student, and create in-system notifications.</span>
                     </p>
                 </div>
 
-                <!-- Date -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Grant Release Date <span class="text-red-500">*</span></label>
-                    <input type="date" name="release_date" required class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:ring-bsu-red focus:border-bsu-red shadow-sm" value="{{ date('Y-m-d') }}" min="{{ date('Y-m-d') }}">
-                </div>
-
-                <!-- Location -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location <span class="text-red-500">*</span></label>
-                    <input type="text" name="location" placeholder="e.g., SFAO Office Main Campus" required class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:ring-bsu-red focus:border-bsu-red shadow-sm">
-                </div>
-
-                <!-- Instructions -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instructions <span class="text-red-500">*</span></label>
-                    <textarea name="instructions" rows="4" placeholder="e.g., Please bring your school ID and a copy of your grades..." required class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:ring-bsu-red focus:border-bsu-red shadow-sm"></textarea>
+                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Grant amount: ₱{{ number_format((float) $scholarship->grant_amount, 2) }}
+                    </p>
                 </div>
 
                 <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-6">
                     <button type="button" @click="showReleaseGrant_{{ $scholarship->id }} = false" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 transition">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-bsu-red text-white rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-500/30 flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 7v10 M9 7h3.5a2.5 2.5 0 010 5H9 M6 9.5h9 M6 12h9"></path></svg>
-                        Send Email Notifications
+                        Release Grant
                     </button>
                 </div>
             </form>

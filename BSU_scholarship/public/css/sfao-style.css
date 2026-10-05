@@ -322,6 +322,30 @@ html:not(.dark) .sfao-gwa-analytics td { color: #4b5563; }
   overflow-wrap: anywhere;
 }
 
+.sfao-scholar-management-scroll {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+}
+
+.overflow-x-auto table.sfao-scholar-management-table {
+  width: 100% !important;
+  min-width: 1000px !important;
+  table-layout: fixed !important;
+}
+
+.overflow-x-auto table.sfao-scholar-management-table th,
+.overflow-x-auto table.sfao-scholar-management-table td {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+.sfao-scholar-management-table td a {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .hover\:border-bsu-redDark:hover {
   border-color: #991b1b;
 }

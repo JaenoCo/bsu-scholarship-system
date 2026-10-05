@@ -16,34 +16,24 @@
 @else
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-visible">
         <div class="overflow-x-auto custom-scrollbar">
-            {{-- FIX: table-fixed + colgroup locks each of the 9 columns to a fixed
-                 share of the table width (sums to 100%) instead of letting content
-                 (long names/emails/campus strings) push the table wider than its
-                 container, which is what was clipping the Actions column off-screen. --}}
-            <table class="min-w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
-                <colgroup>
-                    <col style="width: 3%">   {{-- # --}}
-                    <col style="width: 20%">  {{-- Scholar --}}
-                    <col style="width: 11%">  {{-- Campus --}}
-                    <col style="width: 16%">  {{-- Scholarship --}}
-                    <col style="width: 8%">   {{-- Type --}}
-                    <col style="width: 9%">   {{-- Status --}}
-                    <col style="width: 7%">   {{-- Grants --}}
-                    <col style="width: 13%">  {{-- Total Received --}}
-                    <col style="width: 13%">  {{-- Actions --}}
-                </colgroup>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-bsu-red text-white">
-                    {{-- FIX: px-6 -> px-3, py-3 -> py-2 to claw back horizontal room across the header row. --}}
                     <tr>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">#</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Scholar</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Campus</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Scholarship</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Type</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Status</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Grants</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Received</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
+                        <th class="px-4 py-3 text-left">
+                            <input type="checkbox" 
+                                   x-model="selectAll" 
+                                   @change="toggleSelectAll()"
+                                   class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2 cursor-pointer">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Scholar</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Campus</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Scholarship</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Grants</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Total Received</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Grant Tracking Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -93,6 +83,17 @@
                                 {{-- FIX: whitespace-nowrap on the amount so "₱X,XXX" never wraps mid-number. --}}
                                 <span class="whitespace-nowrap">{{ $scholar->total_grant_received ? '₱' . number_format((float)$scholar->total_grant_received, 0) : '₱0' }}</span>
                                 <div class="text-xs text-gray-400 mt-1">{{ $scholar->updated_at->diffForHumans() }}</div>
+                            </td>
+                            <td class="px-3 py-3 text-xs text-gray-700 dark:text-gray-300 break-all">
+                                @forelse($scholar->grantReleases as $grantRelease)
+                                    <a href="{{ route('sfao.grant-releases.verify', ['trackingNumber' => $grantRelease->tracking_number]) }}"
+                                       class="block text-blue-700 hover:underline dark:text-blue-300"
+                                       title="Verify tracking number in the system">
+                                        {{ $grantRelease->tracking_number }}
+                                    </a>
+                                @empty
+                                    <span class="text-gray-400">Not released</span>
+                                @endforelse
                             </td>
                             <td class="px-3 py-3 text-sm font-medium">
                                 @if($scholar->scholarship->grant_type === 'one_time' && $scholar->grant_count > 0)

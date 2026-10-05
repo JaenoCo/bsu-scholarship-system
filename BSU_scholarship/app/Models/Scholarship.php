@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Scholarship extends Model
 {
@@ -114,6 +115,10 @@ class Scholarship extends Model
         return $this->hasMany(Scholar::class);
     }
 
+    public function grantReleases(): HasMany
+    {
+        return $this->hasMany(GrantRelease::class);
+    }
 
     // Get GWA requirement from conditions
     public function getGwaRequirement()
@@ -430,9 +435,9 @@ class Scholarship extends Model
     public function getScholarshipTypeBadgeColor()
     {
         return match($this->scholarship_type) {
-            'private' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-            'government' => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-            default => 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+            'private' => 'bg-green-100 text-green-900 dark:bg-green-900/80 dark:text-green-100',
+            'government' => 'bg-orange-100 text-orange-900 dark:bg-orange-900/80 dark:text-orange-100',
+            default => 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
         };
     }
 
@@ -440,18 +445,18 @@ class Scholarship extends Model
     public function getStatusBadge()
     {
         if (!$this->is_active) {
-            return ['text' => 'Inactive', 'color' => 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'];
+            return ['text' => 'Inactive', 'color' => 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'];
         }
         
         if (!$this->isAcceptingApplications()) {
-            return ['text' => 'Closed', 'color' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'];
+            return ['text' => 'Closed', 'color' => 'bg-red-100 text-red-900 dark:bg-red-900/80 dark:text-red-100'];
         }
         
         if ($this->isFull()) {
-            return ['text' => 'Full', 'color' => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'];
+            return ['text' => 'Full', 'color' => 'bg-orange-100 text-orange-900 dark:bg-orange-900/80 dark:text-orange-100'];
         }
         
-        return ['text' => 'Open', 'color' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'];
+        return ['text' => 'Open', 'color' => 'bg-green-100 text-green-900 dark:bg-green-900/80 dark:text-green-100'];
     }
 
     // Scope for active scholarships
@@ -520,10 +525,10 @@ class Scholarship extends Model
     public function getGrantTypeBadgeColor()
     {
         return match($this->grant_type) {
-            'one_time' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-            'recurring' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-            'discontinued' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-            default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+            'one_time' => 'bg-red-100 text-red-900 dark:bg-red-900/80 dark:text-red-100',
+            'recurring' => 'bg-green-100 text-green-900 dark:bg-green-900/80 dark:text-green-100',
+            'discontinued' => 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
+            default => 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
         };
     }
 

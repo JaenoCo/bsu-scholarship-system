@@ -32,6 +32,7 @@
     unreadCountScholarships: {{ $unreadCountScholarships ?? 0 }},
     unreadCountStatus: {{ $unreadCountStatus ?? 0 }},
     unreadCountComments: {{ $unreadCountComments ?? 0 }},
+    unreadCountGrants: {{ $unreadCountGrants ?? 0 }},
     
     tabMapping: {
         'all_scholarships': { tab: 'scholarships', subTab: 'all' },
@@ -46,6 +47,7 @@
         'scholarship_notifications': { tab: 'notifications', subTab: 'scholarship_created' },
         'status_updates': { tab: 'notifications', subTab: 'application_status' },
         'comments': { tab: 'notifications', subTab: 'sfao_comment' },
+        'grant_notifications': { tab: 'notifications', subTab: 'grant_released' },
         'account_settings': { tab: 'account', subTab: 'all' }
     },
 
@@ -118,7 +120,8 @@
           'all': 'All Notifications',
           'scholarship_created': 'Scholarship Notifications',
           'application_status': 'Status Updates',
-          'sfao_comment': 'Comments'
+          'sfao_comment': 'Comments',
+          'grant_released': 'Grant Releases'
         },
         'account': {
           'all': 'Account Settings'
@@ -141,11 +144,13 @@
         if (type === 'scholarship_created' && unreadCountScholarships > 0) unreadCountScholarships--;
         if (type === 'application_status' && unreadCountStatus > 0) unreadCountStatus--;
         if (type === 'sfao_comment' && unreadCountComments > 0) unreadCountComments--;
+        if (type === 'grant_released' && unreadCountGrants > 0) unreadCountGrants--;
     } else if (status === 'unread') {
         unreadCount++;
         if (type === 'scholarship_created') unreadCountScholarships++;
         if (type === 'application_status') unreadCountStatus++;
         if (type === 'sfao_comment') unreadCountComments++;
+        if (type === 'grant_released') unreadCountGrants++;
     }
     console.log('Notification changed:', { status, type, unreadCount, unreadCountScholarships, unreadCountStatus, unreadCountComments });
   "
@@ -154,6 +159,7 @@
     unreadCountScholarships = 0;
     unreadCountStatus = 0;
     unreadCountComments = 0;
+    unreadCountGrants = 0;
   "
   x-on:switch-tab.window="
     tab = $event.detail;

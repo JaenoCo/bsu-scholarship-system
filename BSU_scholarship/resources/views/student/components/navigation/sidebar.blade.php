@@ -157,6 +157,13 @@
                 class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-auto">
           </span>
         </button>
+        <button type="button" @click="tab = 'notifications'; subTab = 'grant_released'; sidebarOpen = false"
+                class="w-full text-left px-4 py-3 rounded hover:bg-bsu-redDark dark:hover:bg-gray-700 transition text-sm md:text-base flex items-center gap-2 active:bg-bsu-redDark"
+                :class="(tab === 'notifications' && subTab === 'grant_released') ? 'sidebar-tab-active' : 'text-white dark:text-white'">
+          Grant Releases
+          <span x-show="unreadCountGrants > 0" x-text="unreadCountGrants"
+                class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-auto"></span>
+        </button>
       </div>
     </nav>
 

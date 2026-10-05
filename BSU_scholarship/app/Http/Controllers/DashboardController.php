@@ -14,6 +14,7 @@ use App\Models\GradeSubmission;
 use App\Services\ScholarAcademicRiskService;
 use App\Services\ScholarshipInsightsService;
 use App\Services\ScholarshipBenefitPolicyService;
+use App\Services\NotificationService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -834,7 +835,12 @@ class DashboardController extends Controller
             return is_array($filters) ? ($filters[$key] ?? $default) : $default;
         };
 
-        $query = Application::with(['user.campus', 'scholarship', 'scholar'])
+        $query = Application::with([
+            'user.campus',
+            'scholarship',
+            'scholar',
+            'grantReleases' => fn ($releaseQuery) => $releaseQuery->orderByDesc('released_at')->orderByDesc('id'),
+        ])
             ->where('status', 'approved')
             ->whereHas('user', function ($q) use ($campusIds, $value) {
                 $q->where('role', 'student')
@@ -894,6 +900,7 @@ class DashboardController extends Controller
             $row->status = $scholar->status ?? 'active';
             $row->grant_count = $scholar->grant_count ?? $application->grant_count ?? 0;
             $row->total_grant_received = $scholar->total_grant_received ?? 0;
+            $row->grant_releases = $application->grantReleases;
             $row->updated_at = $application->updated_at;
 
             return $row;
@@ -1524,7 +1531,12 @@ class DashboardController extends Controller
         ];
 
         // Scholars Query - Base
-        $scholarsQuery = Scholar::with(['user', 'scholarship', 'user.campus']);
+        $scholarsQuery = Scholar::with([
+            'user',
+            'scholarship',
+            'user.campus',
+            'grantReleases' => fn ($releaseQuery) => $releaseQuery->orderByDesc('released_at')->orderByDesc('id'),
+        ]);
 
         // Apply campus filter for scholars
         if ($campusFilter !== 'all') {
@@ -2523,10 +2535,11 @@ class DashboardController extends Controller
             ->exists();
 
         // 4. Notification Counts
-        $unreadCount = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->count();
-        $unreadCountScholarships = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'scholarship_created')->count();
-        $unreadCountStatus = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'application_status')->count();
-        $unreadCountComments = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'sfao_comment')->count();
+        $unreadCount = NotificationService::getUnreadCount($user->id);
+        $unreadCountScholarships = NotificationService::getUnreadCount($user->id, 'scholarship_created');
+        $unreadCountStatus = NotificationService::getUnreadCount($user->id, 'application_status');
+        $unreadCountComments = NotificationService::getUnreadCount($user->id, 'sfao_comment');
+        $unreadCountGrants = NotificationService::getUnreadCount($user->id, 'grant_released');
 
         // 5. User's Filled Application Form (for SFAO/TDP tabs)
         $form = \App\Models\Form::where('user_id', $user->id)->first();
@@ -2591,6 +2604,7 @@ class DashboardController extends Controller
             'unreadCountScholarships', 
             'unreadCountStatus', 
             'unreadCountComments',
+            'unreadCountGrants',
             'privateScholarshipsCount',
             'governmentScholarshipsCount',
             'allScholarshipsCount',

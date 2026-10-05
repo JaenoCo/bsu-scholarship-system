@@ -131,6 +131,55 @@
                 </div>
             </div>
 
+            <!-- Grant Tracking Validation -->
+            <div class="mt-10">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Grant Tracking Validation</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beneficiary</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scholarship</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grant Tracking Number</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Released Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @forelse($grantDetails as $application)
+                                @forelse($application->grantReleases as $grantRelease)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $application->user->name ?? 'Unknown student' }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">{{ $application->scholarship->scholarship_name ?? 'Unknown scholarship' }}</td>
+                                        <td class="px-4 py-3 text-sm capitalize text-gray-700">{{ str_replace('_', ' ', $application->status) }}</td>
+                                        <td class="px-4 py-3 text-sm font-mono">
+                                            <a href="{{ route('sfao.grant-releases.verify', ['trackingNumber' => $grantRelease->tracking_number]) }}"
+                                               class="text-blue-700 hover:underline"
+                                               title="Verify this tracking number in the system">
+                                                {{ $grantRelease->tracking_number }}
+                                            </a>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-700">₱{{ number_format((float) $grantRelease->amount, 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $application->user->name ?? 'Unknown student' }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">{{ $application->scholarship->scholarship_name ?? 'Unknown scholarship' }}</td>
+                                        <td class="px-4 py-3 text-sm capitalize text-gray-700">{{ str_replace('_', ' ', $application->status) }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-400">No released grant tracking number</td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-400">—</td>
+                                    </tr>
+                                @endforelse
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No approved or claimed applications found for this campus selection.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Submit Report Form -->
             <div class="mt-12 bg-gray-50 border border-gray-200 rounded-lg p-6 w-full no-print text-left">
                 <h4 class="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2 mb-4">Submit Report to Central Office</h4>

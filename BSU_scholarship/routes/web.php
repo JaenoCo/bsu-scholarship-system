@@ -318,6 +318,9 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::post('/scholarships/{id}/update', [ScholarshipController::class, 'update'])->name('scholarships.update');
 
     Route::post('/scholarships/{id}/release-grant', [ScholarshipController::class, 'releaseGrant'])->name('scholarships.release-grant');
+    Route::get('/grant-releases/{trackingNumber}', [ScholarshipController::class, 'verifyGrantRelease'])
+        ->where('trackingNumber', 'GRANT-[0-9]{4}-[0-9]+')
+        ->name('grant-releases.verify');
     Route::get('/scholarships', [ScholarshipController::class, 'sfaoIndex'])->name('scholarships.index');
     Route::get('/scholarships/{id}', [ScholarshipController::class, 'show'])->name('scholarships.show');
     Route::post('/scholars/bulk-mark-claimed', [ScholarshipController::class, 'bulkMarkScholarAsClaimed'])->name('scholars.bulk-mark-claimed');

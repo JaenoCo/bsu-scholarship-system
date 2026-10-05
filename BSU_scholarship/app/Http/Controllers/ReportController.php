@@ -675,7 +675,26 @@ class ReportController extends Controller
             ->pluck('total', 'scholarship_type')
             ->toArray();
 
-        return view('sfao.reports.grant-summary', compact('user', 'monitoredCampuses', 'totalGrants', 'statusStats', 'typeStats', 'selectedCampusId'));
+        $grantDetails = (clone $query)
+            ->with([
+                'user',
+                'scholarship',
+                'grantReleases' => fn ($releaseQuery) => $releaseQuery
+                    ->orderBy('grant_number')
+                    ->orderBy('id'),
+            ])
+            ->orderBy('applications.id')
+            ->get();
+
+        return view('sfao.reports.grant-summary', compact(
+            'user',
+            'monitoredCampuses',
+            'totalGrants',
+            'statusStats',
+            'typeStats',
+            'selectedCampusId',
+            'grantDetails'
+        ));
     }
 
     // =====================================================
@@ -1134,11 +1153,36 @@ class ReportController extends Controller
             ->pluck('total', 'scholarship_type')
             ->toArray();
 
+        $grantDetails = (clone $query)
+            ->with([
+                'user',
+                'scholarship',
+                'grantReleases' => fn ($releaseQuery) => $releaseQuery
+                    ->orderBy('grant_number')
+                    ->orderBy('id'),
+            ])
+            ->orderBy('applications.id')
+            ->get()
+            ->map(fn (Application $application) => [
+                'student_name' => $application->user->name ?? 'Unknown student',
+                'scholarship_name' => $application->scholarship->scholarship_name ?? 'Unknown scholarship',
+                'application_status' => $application->status,
+                'releases' => $application->grantReleases->map(fn ($release) => [
+                    'tracking_number' => $release->tracking_number,
+                    'grant_number' => $release->grant_number,
+                    'amount' => $release->amount,
+                    'status' => $release->status,
+                    'released_at' => $release->released_at?->toDateTimeString(),
+                ])->all(),
+            ])
+            ->all();
+
         return [
             'type' => 'grant_summary',
             'total_grants' => $totalGrants,
             'status_stats' => $statusStats,
             'type_stats' => $typeStats,
+            'grant_details' => $grantDetails,
             'summary' => $this->buildSnapshotSummary([
                 'type' => 'grant_summary',
                 'total_grants' => $totalGrants,

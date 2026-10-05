@@ -68,6 +68,7 @@ class Notification extends Model
             'scholarship_created' => '🎓',
             'sfao_comment' => '💬',
             'application_status' => '📋',
+            'grant_released' => '💸',
             default => '🔔'
         };
     }
@@ -78,6 +79,7 @@ class Notification extends Model
             'scholarship_created' => 'text-green-600',
             'sfao_comment' => 'text-blue-600',
             'application_status' => 'text-purple-600',
+            'grant_released' => 'text-emerald-600',
             default => 'text-gray-600'
         };
     }

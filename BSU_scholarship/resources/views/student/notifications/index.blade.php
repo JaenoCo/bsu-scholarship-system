@@ -5,6 +5,7 @@
         'scholarship_created' => $notifications->where('type', 'scholarship_created')->count(),
         'application_status' => $notifications->where('type', 'application_status')->count(),
         'sfao_comment' => $notifications->where('type', 'sfao_comment')->count(),
+        'grant_released' => $notifications->where('type', 'grant_released')->count(),
     ];
 @endphp
 
@@ -24,11 +25,11 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json'
             }
-        }).then(response => {
-            if (response.ok) {
+        }).then(response => response.json().then(result => {
+            if (response.ok && result.changed) {
                 $dispatch('notification-changed', { id: id, type: type, status: 'read' });
             }
-        });
+        }));
     },
     markAsUnread(id, type) {
         fetch('{{ route('notifications.mark-unread', ':id') }}'.replace(':id', id), {
@@ -37,14 +38,20 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json'
             }
-        }).then(response => {
-            if (response.ok) {
+        }).then(response => response.json().then(result => {
+            if (response.ok && result.changed) {
                 $dispatch('notification-changed', { id: id, type: type, status: 'unread' });
             }
-        });
+        }));
     },
     openNotification(notification) {
-        window.location.assign('{{ route('notifications.open', ':id') }}'.replace(':id', notification.id));
+        this.selectedNotification = notification;
+        this.isModalOpen = true;
+
+        if (!notification.is_read) {
+            this.markAsRead(notification.id, notification.type);
+            notification.is_read = true;
+        }
     },
     toggleUnreadInModal() {
         if (this.selectedNotification) {
@@ -113,6 +120,7 @@
                             'scholarship_created' => 'bg-green-100 text-green-600',
                             'application_status' => 'bg-blue-100 text-blue-600', 
                             'sfao_comment' => 'bg-yellow-100 text-yellow-600',
+                            'grant_released' => 'bg-emerald-100 text-emerald-600',
                             default => 'bg-gray-100 text-gray-600'
                         };
                         

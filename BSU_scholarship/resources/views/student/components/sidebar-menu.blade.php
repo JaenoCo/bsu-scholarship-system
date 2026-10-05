@@ -17,6 +17,7 @@
     unreadCountScholarships: {{ $unreadCountScholarships ?? 0 }},
     unreadCountStatus: {{ $unreadCountStatus ?? 0 }},
     unreadCountComments: {{ $unreadCountComments ?? 0 }},
+    unreadCountGrants: {{ $unreadCountGrants ?? 0 }},
     activeTab: 'announcements',
     openMenu: null,
 
@@ -45,7 +46,14 @@
         if (['applied_scholarships', 'application_tracking'].includes(normalized)) return 'applications';
         if (['upload_grades', 'grade_history'].includes(normalized)) return 'grades_gathering';
         if (['sfao_form', 'all-app-forms'].includes(normalized)) return 'application_forms';
-        if (['all_notifications', 'announcements'].includes(normalized)) return 'notifications';
+        if ([
+            'all_notifications',
+            'scholarship_notifications',
+            'status_updates',
+            'comments',
+            'grant_notifications',
+            'announcements'
+        ].includes(normalized)) return 'notifications';
         return null;
     },
 
@@ -91,17 +99,20 @@
         if (type === 'scholarship_created' && unreadCountScholarships > 0) unreadCountScholarships--;
         if (type === 'application_status' && unreadCountStatus > 0) unreadCountStatus--;
         if (type === 'sfao_comment' && unreadCountComments > 0) unreadCountComments--;
+        if (type === 'grant_released' && unreadCountGrants > 0) unreadCountGrants--;
     } else if (status === 'unread') {
         unreadCount++;
         if (type === 'scholarship_created') unreadCountScholarships++;
         if (type === 'application_status') unreadCountStatus++;
         if (type === 'sfao_comment') unreadCountComments++;
+        if (type === 'grant_released') unreadCountGrants++;
     }
 " @notifications-read-all.window="
     unreadCount = 0;
     unreadCountScholarships = 0;
     unreadCountStatus = 0;
     unreadCountComments = 0;
+    unreadCountGrants = 0;
 ">
 
   <!-- Scholarship Programs Dropdown -->
@@ -303,6 +314,8 @@
   <!-- Notifications Dropdown -->
   <div class="space-y-1 student-nav-notifications order-5">
     <button @click="toggleMenu('notifications')"
+      :aria-expanded="openMenu === 'notifications'"
+      aria-controls="student-notification-filters"
       class="w-full flex items-center justify-between px-4 py-2 text-sm font-semibold text-white uppercase tracking-wider focus:outline-none bg-transparent border-2 border-transparent rounded-lg transition-colors">
       <div class="flex items-center gap-2 overflow-hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
@@ -311,9 +324,6 @@
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         <span class="whitespace-nowrap">Notifications</span>
-        <span x-show="unreadCount > 0" x-text="unreadCount"
-          class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-2 flex-shrink-0">
-        </span>
       </div>
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 flex-shrink-0"
         :class="openMenu === 'notifications' ? 'transform rotate-180' : ''" fill="none" viewBox="0 0 24 24"
@@ -323,24 +333,66 @@
     </button>
     <div x-show="openMenu === 'notifications'" x-cloak x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
-      class="space-y-1">
+      class="ml-4 space-y-1 border-l border-white/20 pl-2"
+      id="student-notification-filters" role="group" aria-label="Notification filters">
       <button @click="$dispatch('switch-tab', 'all_notifications')"
-        class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white"
-        style="padding-left: 2.5rem">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        class="w-full text-left px-3 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent rounded-r-lg text-gray-300 hover:text-white hover:bg-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-        All Notifications
+        <span class="flex-1">All notifications</span>
+        <span x-show="unreadCount > 0" x-text="unreadCount"
+          class="bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] text-center px-1.5 py-0.5 flex-shrink-0">
+        </span>
+      </button>
+      <button @click="$dispatch('switch-tab', 'scholarship_notifications')"
+        class="w-full text-left px-3 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent rounded-r-lg text-gray-300 hover:text-white hover:bg-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0121 16.5M6.16 10.578A12.083 12.083 0 003 16.5m0 0a3 3 0 106 0m-6 0a3 3 0 016 0m12-4.922V16.5m0 0a3 3 0 106 0m-6 0a3 3 0 016 0" />
+        </svg>
+        <span class="flex-1">Scholarships</span>
+        <span x-show="unreadCountScholarships > 0" x-text="unreadCountScholarships"
+          class="bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] text-center px-1.5 py-0.5 flex-shrink-0"></span>
+      </button>
+      <button @click="$dispatch('switch-tab', 'status_updates')"
+        class="w-full text-left px-3 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent rounded-r-lg text-gray-300 hover:text-white hover:bg-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 3a11.955 11.955 0 01-8.618 2.984A12.003 12.003 0 003 9c0 5.591 3.824 10.29 9 11.622C17.176 19.29 21 14.591 21 9c0-1.042-.133-2.053-.382-3.016z" />
+        </svg>
+        <span class="flex-1">Status updates</span>
+        <span x-show="unreadCountStatus > 0" x-text="unreadCountStatus"
+          class="bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] text-center px-1.5 py-0.5 flex-shrink-0"></span>
+      </button>
+      <button @click="$dispatch('switch-tab', 'comments')"
+        class="w-full text-left px-3 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent rounded-r-lg text-gray-300 hover:text-white hover:bg-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4v-4z" />
+        </svg>
+        <span class="flex-1">Comments</span>
+        <span x-show="unreadCountComments > 0" x-text="unreadCountComments"
+          class="bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] text-center px-1.5 py-0.5 flex-shrink-0"></span>
+      </button>
+      <button @click="$dispatch('switch-tab', 'grant_notifications')"
+        class="w-full text-left px-3 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent rounded-r-lg text-gray-300 hover:text-white hover:bg-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span class="flex-1">Grant releases</span>
+        <span x-show="unreadCountGrants > 0" x-text="unreadCountGrants"
+          class="bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] text-center px-1.5 py-0.5 flex-shrink-0"></span>
       </button>
       <button @click="$dispatch('switch-tab', 'announcements')"
-        class="w-full text-left pr-4 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent text-gray-300 hover:text-white"
-        style="padding-left: 2.5rem">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        class="w-full text-left px-3 py-2 transition text-sm flex items-center gap-2 border-l-4 border-transparent rounded-r-lg text-gray-300 hover:text-white hover:bg-white/10">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M3 11l18-5v12L3 13v-2z M7 14v5h4l-2-5 M21 9v6" />
         </svg>
-        Announcements
+        <span class="flex-1">Announcements</span>
       </button>
       
     </div>

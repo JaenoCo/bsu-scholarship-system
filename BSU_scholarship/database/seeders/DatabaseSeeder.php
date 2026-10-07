@@ -20,7 +20,6 @@ class DatabaseSeeder extends Seeder
 
             // 2. Seed core records without applications or scholars
             AdminSeeder::class,
-            ScholarshipsTableSeeder::class,
             CampusSeeder::class,
 
         //     // 3. Seed students and applications
@@ -30,3 +29,4 @@ class DatabaseSeeder extends Seeder
         ]);
     }
 }
+// ScholarshipsTableSeeder::class,

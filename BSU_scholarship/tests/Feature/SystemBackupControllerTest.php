@@ -7,6 +7,16 @@ use Tests\TestCase;
 
 class SystemBackupControllerTest extends TestCase
 {
+    public function test_backup_routes_are_registered_for_sfao_and_central_settings(): void
+    {
+        $this->assertSame('/sfao/backup/download', route('sfao.backup.download', [], false));
+        $this->assertSame('/sfao/backup/export', route('sfao.backup.export', [], false));
+        $this->assertSame('/sfao/backup/restore', route('sfao.backup.restore', [], false));
+        $this->assertSame('/central/backup/download', route('central.backup.download', [], false));
+        $this->assertSame('/central/backup/export', route('central.backup.export', [], false));
+        $this->assertSame('/central/backup/restore', route('central.backup.restore', [], false));
+    }
+
     public function test_sfao_export_filenames_follow_category_and_year_pattern(): void
     {
         $this->assertSame(

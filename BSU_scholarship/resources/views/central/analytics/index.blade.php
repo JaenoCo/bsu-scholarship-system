@@ -14,6 +14,11 @@
         Redirect::to('login')->send();
     }
 
+    $campusFilter = $campusFilter ?? 'all';
+    $selectedConstituent = $selectedConstituent ?? null;
+    $extensionOptions = collect($extensionOptions ?? []);
+    $extensionCampusFilter = $extensionCampusFilter ?? 'all';
+
     $applicationStats = $analytics['applications'] ?? [];
     $userStats = $analytics['users'] ?? [];
     $scholarshipStats = $analytics['scholarships'] ?? [];
@@ -26,7 +31,37 @@
     $inProgressApplications = (int) ($applicationStats['in_progress'] ?? $applicationsCollection->where('status', 'in_progress')->count());
     $rejectedApplications = (int) ($applicationStats['rejected'] ?? $applicationsCollection->where('status', 'rejected')->count());
     $claimedApplications = (int) ($applicationStats['claimed'] ?? $applicationsCollection->where('status', 'claimed')->count());
-    $totalApplications = max(1, (int) ($applicationStats['total'] ?? $applicationsCollection->count()));
+    $totalApplications = (int) ($applicationStats['total'] ?? $applicationsCollection->count());
+    $kpiTrendPeriod = $applicationStats['kpi_trends']['period'] ?? null;
+    $formatKpiTrend = function ($trend, $hasData = null) {
+        $current = (float) ($trend['current'] ?? 0);
+        $previous = (float) ($trend['previous'] ?? 0);
+        $hasData = $hasData ?? ($current > 0 || $previous > 0);
+
+        if (!$hasData) {
+            return ['show' => false, 'value' => '', 'label' => null, 'direction' => 'neutral'];
+        }
+
+        if ($previous === 0.0) {
+            return ['show' => true, 'value' => '', 'label' => 'New', 'direction' => 'up'];
+        }
+
+        $change = round((($current - $previous) / $previous) * 100, 1);
+        $direction = $change > 0 ? 'up' : ($change < 0 ? 'down' : 'neutral');
+        $label = $direction === 'neutral'
+            ? 'No change'
+            : ucfirst($direction) . ' ' . number_format(abs($change), 1) . '%';
+
+        return ['show' => true, 'value' => number_format(abs($change), 1) . '%', 'label' => $label, 'direction' => $direction];
+    };
+    $totalApplicantsTrend = $formatKpiTrend($applicationStats['kpi_trends']['total_applicants'] ?? []);
+    $approvedApplicationsTrend = $formatKpiTrend($applicationStats['kpi_trends']['approved_applications'] ?? []);
+    $pendingApplicationsTrend = $formatKpiTrend($applicationStats['kpi_trends']['pending_applications'] ?? []);
+    $rejectedApplicationsTrend = $formatKpiTrend($applicationStats['kpi_trends']['rejected_applications'] ?? []);
+    $approvalRateTrend = $formatKpiTrend(
+        $applicationStats['kpi_trends']['approval_rate'] ?? [],
+        $applicationStats['kpi_trends']['approval_rate']['has_data'] ?? null
+    );
     $decidedApplications = $approvedApplications + $rejectedApplications;
     $approvalRate = $decidedApplications > 0
         ? round(($approvedApplications / $decidedApplications) * 100, 1)
@@ -495,6 +530,11 @@
             color: #b91c1c;
         }
 
+        .bsu-trend-neutral {
+            background: rgba(148, 163, 184, .12);
+            color: #64748b;
+        }
+
         .bsu-card-header {
             display: flex;
             align-items: center;
@@ -881,9 +921,12 @@
                         @include('central.components.bootstrap-kpi-card', [
                             'title' => 'Total Applicants',
                             'value' => number_format($totalApplicants),
-                            'trend' => '12.4%',
-                            'trendDirection' => 'up',
+                            'trend' => $totalApplicantsTrend['value'],
+                            'trendLabel' => $totalApplicantsTrend['label'],
+                            'trendDirection' => $totalApplicantsTrend['direction'],
                             'variant' => 'primary',
+                            'showTrend' => $totalApplicantsTrend['show'],
+                            'trendPeriod' => $kpiTrendPeriod,
                             'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>',
                         ])
                     </div>
@@ -891,9 +934,12 @@
                         @include('central.components.bootstrap-kpi-card', [
                             'title' => 'Approved Applications',
                             'value' => number_format($approvedApplications),
-                            'trend' => '8.1%',
-                            'trendDirection' => 'up',
+                            'trend' => $approvedApplicationsTrend['value'],
+                            'trendLabel' => $approvedApplicationsTrend['label'],
+                            'trendDirection' => $approvedApplicationsTrend['direction'],
                             'variant' => 'success',
+                            'showTrend' => $approvedApplicationsTrend['show'],
+                            'trendPeriod' => $kpiTrendPeriod,
                             'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
                         ])
                     </div>
@@ -901,9 +947,12 @@
                         @include('central.components.bootstrap-kpi-card', [
                             'title' => 'Pending Applications',
                             'value' => number_format($pendingApplications),
-                            'trend' => '3.7%',
-                            'trendDirection' => 'up',
+                            'trend' => $pendingApplicationsTrend['value'],
+                            'trendLabel' => $pendingApplicationsTrend['label'],
+                            'trendDirection' => $pendingApplicationsTrend['direction'],
                             'variant' => 'warning',
+                            'showTrend' => $pendingApplicationsTrend['show'],
+                            'trendPeriod' => $kpiTrendPeriod,
                             'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
                         ])
                     </div>
@@ -911,9 +960,12 @@
                         @include('central.components.bootstrap-kpi-card', [
                             'title' => 'Rejected Applications',
                             'value' => number_format($rejectedApplications),
-                            'trend' => '2.2%',
-                            'trendDirection' => 'down',
+                            'trend' => $rejectedApplicationsTrend['value'],
+                            'trendLabel' => $rejectedApplicationsTrend['label'],
+                            'trendDirection' => $rejectedApplicationsTrend['direction'],
                             'variant' => 'danger',
+                            'showTrend' => $rejectedApplicationsTrend['show'],
+                            'trendPeriod' => $kpiTrendPeriod,
                             'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>',
                         ])
                     </div>
@@ -921,9 +973,12 @@
                         @include('central.components.bootstrap-kpi-card', [
                             'title' => 'Approval Rate',
                             'value' => $approvalRate . '%',
-                            'trend' => '5.6%',
-                            'trendDirection' => 'up',
+                            'trend' => $approvalRateTrend['value'],
+                            'trendLabel' => $approvalRateTrend['label'],
+                            'trendDirection' => $approvalRateTrend['direction'],
                             'variant' => 'info',
+                            'showTrend' => $approvalRateTrend['show'],
+                            'trendPeriod' => $kpiTrendPeriod,
                             'icon' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',
                         ])
                     </div>
@@ -2367,26 +2422,36 @@
 
         const distributionChart = document.getElementById('scholarshipDistributionChart');
         if (distributionChart) {
-            new Chart(distributionChart, {
-                type: 'doughnut',
-                data: {
-                    labels: dashboardData.distributionLabels.length ? dashboardData.distributionLabels : ['No Data'],
-                    datasets: [{
-                        data: dashboardData.distributionValues.length ? dashboardData.distributionValues : [1],
-                        backgroundColor: [palette.primary, palette.info, palette.success, palette.warning, palette.danger],
-                        borderColor: '#fff',
-                        borderWidth: 3,
-                        hoverOffset: 5
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    layout: { padding: 8 },
-                    plugins: chartDefaults.plugins
+            const distributionHasData = Array.isArray(dashboardData.distributionValues)
+                && dashboardData.distributionValues.some((value) => Number(value) > 0);
+
+            if (!distributionHasData) {
+                const chartBox = distributionChart.closest('.bsu-chart-box');
+                if (chartBox) {
+                    chartBox.innerHTML = '<div class="d-flex align-items-center justify-content-center h-100 text-secondary fw-semibold">No data</div>';
                 }
-            });
+            } else {
+                new Chart(distributionChart, {
+                    type: 'doughnut',
+                    data: {
+                        labels: dashboardData.distributionLabels,
+                        datasets: [{
+                            data: dashboardData.distributionValues,
+                            backgroundColor: [palette.primary, palette.info, palette.success, palette.warning, palette.danger],
+                            borderColor: '#fff',
+                            borderWidth: 3,
+                            hoverOffset: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        layout: { padding: 8 },
+                        plugins: chartDefaults.plugins
+                    }
+                });
+            }
         }
 
         const trendsChart = document.getElementById('monthlyTrendsChart');

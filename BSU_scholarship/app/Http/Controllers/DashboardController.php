@@ -13,8 +13,6 @@ use App\Models\Scholar;
 use App\Models\GradeSubmission;
 use App\Services\ScholarAcademicRiskService;
 use App\Services\ScholarshipInsightsService;
-use App\Services\ScholarshipBenefitPolicyService;
-use App\Services\NotificationService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -305,14 +303,12 @@ class DashboardController extends Controller
             })
             ->selectRaw($datePartsSelect)
             ->get()
+            ->toBase()
             ->map(function($app) {
                 // Assumption: AY starts in August (Month 8)
                 $startYear = $app->month >= 8 ? (int)$app->year : (int)$app->year - 1;
                 return $startYear . '-' . ($startYear + 1);
             })
-            // map() retains EloquentCollection. Its unique() expects models,
-            // while this list now contains academic-year strings.
-            ->toBase()
             ->unique();
 
         // Ensure current and previous AY options are always available
@@ -835,12 +831,7 @@ class DashboardController extends Controller
             return is_array($filters) ? ($filters[$key] ?? $default) : $default;
         };
 
-        $query = Application::with([
-            'user.campus',
-            'scholarship',
-            'scholar',
-            'grantReleases' => fn ($releaseQuery) => $releaseQuery->orderByDesc('released_at')->orderByDesc('id'),
-        ])
+        $query = Application::with(['user.campus', 'scholarship', 'scholar'])
             ->where('status', 'approved')
             ->whereHas('user', function ($q) use ($campusIds, $value) {
                 $q->where('role', 'student')
@@ -900,7 +891,6 @@ class DashboardController extends Controller
             $row->status = $scholar->status ?? 'active';
             $row->grant_count = $scholar->grant_count ?? $application->grant_count ?? 0;
             $row->total_grant_received = $scholar->total_grant_received ?? 0;
-            $row->grant_releases = $application->grantReleases;
             $row->updated_at = $application->updated_at;
 
             return $row;
@@ -1048,14 +1038,8 @@ class DashboardController extends Controller
         // Create user object
         $user = User::find(session('user_id'));
 
-        // Central analytics is organised by constituent campus. Extensions are
-        // deliberately not standalone choices: choosing a constituent includes
-        // that constituent and every one of its extension campuses.
-        $campuses = \App\Models\Campus::constituent()
-            ->with(['extensionCampuses', 'colleges'])
-            ->orderBy('name')
-            ->get();
-        $constituentCampusIds = $campuses->pluck('id');
+        // Get all campuses for filter and resolving tab
+        $campuses = \App\Models\Campus::all();
 
         // Get hierarchical data for cascading filters
         $campusColleges = \App\Models\CampusCollege::with(['college', 'programs.tracks'])->get()->values();
@@ -1069,35 +1053,6 @@ class DashboardController extends Controller
         // Resolve campus filter
         // Check both 'campus_filter' (Applications/Scholars) and 'campus' (Statistics)
         $campusFilter = $request->get('campus_filter', $request->get('campus', 'all'));
-
-        // Ignore extension IDs (and unrelated IDs) in a Central filter. This
-        // keeps the dashboard's drilldown at the constituent level.
-        if ($campusFilter !== 'all' && !$constituentCampusIds->contains((int) $campusFilter)) {
-            $campusFilter = 'all';
-        }
-        $extensionCampusFilter = $request->get('extension_campus', 'all');
-        $selectedConstituent = $campusFilter === 'all' ? null : $campuses->firstWhere('id', (int) $campusFilter);
-        $extensionOptions = $selectedConstituent ? $selectedConstituent->extensionCampuses : collect();
-        if ($extensionCampusFilter !== 'all' && !$extensionOptions->pluck('id')->contains((int) $extensionCampusFilter)) {
-            $extensionCampusFilter = 'all';
-        }
-        $scopedCampusIds = $campusFilter === 'all'
-            ? $constituentCampusIds
-            // A constituent drilldown starts with all of its extensions.
-            // Constituents without extensions continue to show their own data.
-            : ($extensionOptions->isNotEmpty() ? $extensionOptions->pluck('id') : collect([$selectedConstituent->id]));
-        if ($extensionCampusFilter !== 'all') {
-            $scopedCampusIds = collect([(int) $extensionCampusFilter]);
-        }
-        $academicYearFilter = $request->get('academic_year', 'all');
-        // Always initialise this because the application data callback below
-        // captures it even when no academic-year filter is active.
-        $years = [];
-        $applyAcademicYear = function ($query, string $column = 'created_at') use ($academicYearFilter) {
-            if ($academicYearFilter !== 'all' && preg_match('/^(\\d{4})-(\\d{4})$/', $academicYearFilter, $years)) {
-                $query->whereBetween($column, [$years[1] . '-08-01', $years[2] . '-07-31 23:59:59']);
-            }
-        };
         
         // Override campus filter if tab implies a specific campus statistics page
         if (str_ends_with($tab, '_statistics') && $tab !== 'all_statistics') {
@@ -1112,12 +1067,6 @@ class DashboardController extends Controller
 
         $scholarshipFilter = $request->get('scholarship_filter', 'all');
         $scholarshipCampusFilter = $request->get('scholarship_campus_filter', 'all');
-        if ($scholarshipCampusFilter !== 'all' && !$constituentCampusIds->contains((int) $scholarshipCampusFilter)) {
-            $scholarshipCampusFilter = 'all';
-        }
-        $scholarshipCampusIds = $scholarshipCampusFilter === 'all'
-            ? $constituentCampusIds
-            : $campuses->firstWhere('id', (int) $scholarshipCampusFilter)->getAllCampusesUnder()->pluck('id');
 
         // Build applications query with filtering
         $applicationsQuery = Application::with(['user', 'scholarship', 'user.campus'])
@@ -1131,8 +1080,11 @@ class DashboardController extends Controller
         }
 
         // Apply campus filter
-        $applicationsQuery->whereHas('user', fn ($query) => $query->whereIn('campus_id', $scopedCampusIds));
-        $applyAcademicYear($applicationsQuery, 'applications.created_at');
+        if ($campusFilter !== 'all') {
+            $applicationsQuery->whereHas('user', function($query) use ($campusFilter) {
+                $query->where('campus_id', $campusFilter);
+            });
+        }
 
         // Apply scholarship filter
         if ($scholarshipFilter !== 'all') {
@@ -1241,6 +1193,7 @@ class DashboardController extends Controller
         }
 
         // Apply Academic Year Filter
+        $academicYearFilter = $request->get('academic_year', 'all');
         if ($academicYearFilter !== 'all') {
             $years = explode('-', $academicYearFilter);
             if (count($years) === 2) {
@@ -1310,12 +1263,10 @@ class DashboardController extends Controller
         ];
 
         // Generate comprehensive analytics data
-        $analytics = $this->generateAnalyticsData([
-            'campus' => $campusFilter,
-            'campusIds' => $scopedCampusIds->all(),
-            'academicYear' => $academicYearFilter,
-        ]);
-        $predictionCampusIds = $scopedCampusIds;
+        $analytics = $this->generateAnalyticsData(['campus' => $campusFilter]);
+        $predictionCampusIds = $campusFilter !== 'all'
+            ? collect([(int) $campusFilter])
+            : $campuses->pluck('id');
         $analytics['gwa_prediction'] = $this->buildGwaQualificationPrediction($predictionCampusIds);
 
         // START: Enrich Analytics for SFAO-style Charts
@@ -1402,9 +1353,8 @@ class DashboardController extends Controller
                      ->on('scholarships.id', '=', 'scholars.scholarship_id');
             })
             ->where('users.role', 'student')
-            ->whereIn('users.campus_id', $scopedCampusIds)
-            ->when($academicYearFilter !== 'all' && preg_match('/^(\\d{4})-(\\d{4})$/', $academicYearFilter, $years), function ($query) use ($years) {
-                $query->whereBetween('applications.created_at', [$years[1] . '-08-01', $years[2] . '-07-31 23:59:59']);
+            ->when($campusFilter !== 'all', function ($query) use ($campusFilter) {
+                $query->where('users.campus_id', $campusFilter);
             })
             ->select(
                 'users.id as user_id', 
@@ -1437,14 +1387,14 @@ class DashboardController extends Controller
         $headerNotifications = \App\Models\Notification::where('user_id', $user->id)->latest()->take(5)->get();
         $unreadNotificationCount = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->count();
 
-        $scholarshipRowsQuery = function ($isActive) use ($scholarshipCampusFilter, $scholarshipCampusIds) {
-            return Scholarship::with(['conditions', 'requiredDocuments', 'campuses'])->withCount(['applications', 'scholars'])
+        $scholarshipRowsQuery = function ($isActive) use ($scholarshipCampusFilter) {
+            return Scholarship::withCount(['applications', 'scholars'])
                 ->where('is_active', $isActive)
-            ->when($scholarshipCampusFilter !== 'all', function ($query) use ($scholarshipCampusIds) {
-                    $query->where(function ($visibility) use ($scholarshipCampusIds) {
-                        $visibility->whereIn('campus_id', $scholarshipCampusIds)
-                            ->orWhereHas('campuses', function ($campusQuery) use ($scholarshipCampusIds) {
-                                $campusQuery->whereIn('campus_id', $scholarshipCampusIds);
+                ->when($scholarshipCampusFilter !== 'all', function ($query) use ($scholarshipCampusFilter) {
+                    $query->where(function ($visibility) use ($scholarshipCampusFilter) {
+                        $visibility->where('campus_id', $scholarshipCampusFilter)
+                            ->orWhereHas('campuses', function ($campusQuery) use ($scholarshipCampusFilter) {
+                                $campusQuery->where('campus_id', $scholarshipCampusFilter);
                             })
                             ->orWhere(function ($global) {
                                 $global->whereNull('campus_id')->doesntHave('campuses');
@@ -1459,7 +1409,6 @@ class DashboardController extends Controller
         $centralArchivedScholarshipRows = $scholarshipRowsQuery(false);
 
         $centralScholarRows = Scholar::with(['user.campus', 'scholarship'])
-            ->whereHas('user', fn ($query) => $query->whereIn('campus_id', $scopedCampusIds))
             ->latest()
             ->get();
 
@@ -1467,8 +1416,6 @@ class DashboardController extends Controller
             ->whereHas('user', function($query) {
                 $query->where('role', 'student');
             })
-            ->whereHas('user', fn ($query) => $query->whereIn('campus_id', $scopedCampusIds))
-            ->tap(fn ($query) => $applyAcademicYear($query, 'applications.created_at'))
             ->latest()
             ->get();
 
@@ -1531,12 +1478,7 @@ class DashboardController extends Controller
         ];
 
         // Scholars Query - Base
-        $scholarsQuery = Scholar::with([
-            'user',
-            'scholarship',
-            'user.campus',
-            'grantReleases' => fn ($releaseQuery) => $releaseQuery->orderByDesc('released_at')->orderByDesc('id'),
-        ]);
+        $scholarsQuery = Scholar::with(['user', 'scholarship', 'user.campus']);
 
         // Apply campus filter for scholars
         if ($campusFilter !== 'all') {
@@ -1719,7 +1661,7 @@ class DashboardController extends Controller
             'user', 'applications', 'scholarshipsAll', 'scholarshipsPrivate', 'scholarshipsGov',
             'reportStats', 'analytics', 'reportsSubmitted', 'reportsReviewed', 'reportsApproved',
             'reportsRejected', 'campuses', 'campusOptions', 'scholarshipOptions', 'statusOptions',
-            'sortBy', 'sortOrder', 'statusFilter', 'campusFilter', 'extensionCampusFilter', 'extensionOptions', 'selectedConstituent', 'scholarshipFilter', 'scholarshipCampusFilter', 'scholars',
+            'sortBy', 'sortOrder', 'statusFilter', 'campusFilter', 'scholarshipFilter', 'scholarshipCampusFilter', 'scholars',
             'scholarsAll', 'scholarsNew', 'scholarsOld', 'qualifiedApplicants', 'endorsedApplicants',
             'rejectedApplicants', 'totalReports', 'academicYearOptions', 'academicYearFilter',
             'campusColleges', 'allReportsForReportsTab', 'headerNotifications', 'unreadNotificationCount',
@@ -2161,32 +2103,12 @@ class DashboardController extends Controller
         // Extract filter values
         $timePeriod = $filters['timePeriod'] ?? 'all';
         $campusId = $filters['campus'] ?? 'all';
-        $campusIds = collect($filters['campusIds'] ?? [])->filter()->values();
-        $academicYear = $filters['academicYear'] ?? 'all';
         
         // Build base query conditions
         $applicationQuery = Application::query();
         $userQuery = User::query();
         $reportQuery = Report::query();
         $scholarQuery = Scholar::query();
-
-        // The Central dashboard receives a resolved constituent scope. It is
-        // used for both the all-constituents overview and a constituent's
-        // constituent-plus-extensions drilldown.
-        if ($campusIds->isNotEmpty()) {
-            $applicationQuery->whereHas('user', fn ($query) => $query->whereIn('campus_id', $campusIds));
-            $userQuery->whereIn('campus_id', $campusIds);
-            $reportQuery->whereIn('campus_id', $campusIds);
-            $scholarQuery->whereHas('user', fn ($query) => $query->whereIn('campus_id', $campusIds));
-        }
-
-        if ($academicYear !== 'all' && preg_match('/^(\\d{4})-(\\d{4})$/', $academicYear, $years)) {
-            $range = [$years[1] . '-08-01', $years[2] . '-07-31 23:59:59'];
-            $applicationQuery->whereBetween('created_at', $range);
-            $userQuery->whereBetween('created_at', $range);
-            $reportQuery->whereBetween('created_at', $range);
-            $scholarQuery->whereBetween('created_at', $range);
-        }
         
         // Apply time period filter
         if ($timePeriod !== 'all') {
@@ -2200,7 +2122,7 @@ class DashboardController extends Controller
         }
         
         // Apply campus filter
-        if ($campusId !== 'all' && $campusIds->isEmpty()) {
+        if ($campusId !== 'all') {
             $applicationQuery->whereHas('user', function($query) use ($campusId) {
                 $query->where('campus_id', $campusId);
             });
@@ -2249,7 +2171,7 @@ class DashboardController extends Controller
         $uniqueApplicants = (clone $applicationQuery)->distinct('user_id')->count('user_id');
 
         // Campus Distribution
-        $campusDistribution = \App\Models\Campus::when($campusIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $campusIds))->withCount(['users' => function($query) use ($timePeriod) {
+        $campusDistribution = \App\Models\Campus::withCount(['users' => function($query) use ($timePeriod) {
             $query->where('role', 'student');
             if ($timePeriod !== 'all') {
                 $dateCondition = $this->getDateCondition($timePeriod);
@@ -2267,11 +2189,8 @@ class DashboardController extends Controller
             ? 'EXTRACT(MONTH FROM created_at)::integer'
             : 'MONTH(created_at)';
 
-        $monthlyQuery = (clone $applicationQuery)->selectRaw("{$monthExpression} as month, COUNT(*) as count");
-        if ($academicYear === 'all') {
-            $monthlyQuery->whereYear('created_at', date('Y'));
-        }
-        $monthlyApplications = $monthlyQuery
+        $monthlyApplications = Application::selectRaw("{$monthExpression} as month, COUNT(*) as count")
+            ->whereYear('created_at', date('Y'))
             ->groupByRaw($monthExpression)
             ->orderByRaw($monthExpression)
             ->pluck('count', 'month')
@@ -2279,16 +2198,13 @@ class DashboardController extends Controller
             
         $months = [];
         $applicationTrends = [];
-        $monthOrder = $academicYear !== 'all'
-            ? [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7]
-            : range(1, 12);
-        foreach ($monthOrder as $i) {
+        for ($i = 1; $i <= 12; $i++) {
             $months[] = date('M', mktime(0, 0, 0, $i, 1));
             $applicationTrends[] = $monthlyApplications[$i] ?? 0;
         }
 
         // Calculate Detailed Campus Stats
-        $campusStats = \App\Models\Campus::when($campusIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $campusIds))->get()->map(function($campus) use ($timePeriod) {
+        $campusStats = \App\Models\Campus::all()->map(function($campus) use ($timePeriod) {
             $dateCondition = $timePeriod !== 'all' ? $this->getDateCondition($timePeriod) : null;
             
             $studentQuery = $campus->users()->where('role', 'student');
@@ -2510,7 +2426,6 @@ class DashboardController extends Controller
         }
 
         $scholarships = $scholarshipsQuery->paginate(12)->withQueryString();
-        $benefitPolicy = app(ScholarshipBenefitPolicyService::class);
             
         // Append user-specific status to scholarships
         foreach ($scholarships as $scholarship) {
@@ -2520,8 +2435,6 @@ class DashboardController extends Controller
              
              $scholarship->applied = $application ? true : false;
              $scholarship->application_status = $application ? $application->status : null;
-             $scholarship->government_claim_locked = $benefitPolicy->isGovernmentScholarshipLocked($user, $scholarship);
-             $scholarship->government_claim_lock_message = 'Government scholarship benefits are unavailable until the next semestral application period because you have already claimed a government grant this semester.';
              
              $scholar = \App\Models\Scholar::where('user_id', $user->id)
                   ->where('scholarship_id', $scholarship->id)
@@ -2535,11 +2448,10 @@ class DashboardController extends Controller
             ->exists();
 
         // 4. Notification Counts
-        $unreadCount = NotificationService::getUnreadCount($user->id);
-        $unreadCountScholarships = NotificationService::getUnreadCount($user->id, 'scholarship_created');
-        $unreadCountStatus = NotificationService::getUnreadCount($user->id, 'application_status');
-        $unreadCountComments = NotificationService::getUnreadCount($user->id, 'sfao_comment');
-        $unreadCountGrants = NotificationService::getUnreadCount($user->id, 'grant_released');
+        $unreadCount = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->count();
+        $unreadCountScholarships = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'scholarship_created')->count();
+        $unreadCountStatus = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'application_status')->count();
+        $unreadCountComments = \App\Models\Notification::where('user_id', $user->id)->where('is_read', false)->where('type', 'sfao_comment')->count();
 
         // 5. User's Filled Application Form (for SFAO/TDP tabs)
         $form = \App\Models\Form::where('user_id', $user->id)->first();
@@ -2604,7 +2516,6 @@ class DashboardController extends Controller
             'unreadCountScholarships', 
             'unreadCountStatus', 
             'unreadCountComments',
-            'unreadCountGrants',
             'privateScholarshipsCount',
             'governmentScholarshipsCount',
             'allScholarshipsCount',

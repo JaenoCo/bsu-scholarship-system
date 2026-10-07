@@ -5,6 +5,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\ScholarshipController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\SystemBackupController;
 use App\Http\Controllers\FormController;
 use App\Http\Controllers\FormPrintController;
 use App\Http\Controllers\ReportController;
@@ -220,15 +221,6 @@ Route::middleware(['web', 'checkUserExists', 'role:student'])->prefix('student')
     Route::get('/grades/history', [StudentGradesController::class, 'history'])
         ->name('grades.history');
 
-    Route::get('/grades/{submission}', [StudentGradesController::class, 'fetchForEdit'])
-        ->name('grades.show');
-
-    Route::put('/grades/{submission}', [StudentGradesController::class, 'updateJson'])
-        ->name('grades.update.json');
-
-    Route::post('/grades/{submission}', [StudentGradesController::class, 'updateJson'])
-        ->name('grades.update.json.post');
-
     Route::get('/grades/submissions/{submission}/document', [StudentGradesController::class, 'document'])
         ->name('grades.document');
 
@@ -282,11 +274,14 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/campus-comparison', [DashboardController::class, 'campusComparison'])->name('dashboard.campus-comparison');
-    Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
     Route::get('/analytics/insights', [DashboardController::class, 'sfaoInsights'])->name('analytics.insights');
     Route::get('/analytics/scholarships', [DashboardController::class, 'sfaoScholarshipAnalytics'])->name('analytics.scholarships');
     Route::get('/analytics/applicants', [DashboardController::class, 'sfaoApplicantAnalytics'])->name('analytics.applicants');
     Route::get('/analytics/scholars', [DashboardController::class, 'sfaoScholarAnalytics'])->name('analytics.scholars');
+    Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+    Route::get('/backup/download', [SystemBackupController::class, 'download'])->name('backup.download');
+    Route::get('/backup/export', [SystemBackupController::class, 'export'])->name('backup.export');
+    Route::post('/backup/restore', [SystemBackupController::class, 'restore'])->name('backup.restore');
 
     // Applicants
     Route::get('/applicants/{user_id}/documents', [ApplicationController::class, 'viewDocuments'])->name('viewDocuments');
@@ -318,29 +313,21 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::post('/scholarships/{id}/update', [ScholarshipController::class, 'update'])->name('scholarships.update');
 
     Route::post('/scholarships/{id}/release-grant', [ScholarshipController::class, 'releaseGrant'])->name('scholarships.release-grant');
-    Route::get('/grant-releases/{trackingNumber}', [ScholarshipController::class, 'verifyGrantRelease'])
-        ->where('trackingNumber', 'GRANT-[0-9]{4}-[0-9]+')
-        ->name('grant-releases.verify');
     Route::get('/scholarships', [ScholarshipController::class, 'sfaoIndex'])->name('scholarships.index');
     Route::get('/scholarships/{id}', [ScholarshipController::class, 'show'])->name('scholarships.show');
     Route::post('/scholars/bulk-mark-claimed', [ScholarshipController::class, 'bulkMarkScholarAsClaimed'])->name('scholars.bulk-mark-claimed');
     Route::post('/scholars/{id}/mark-claimed', [ScholarshipController::class, 'markScholarAsClaimed'])->name('scholars.mark-claimed');
 
-    // Reports Management
-    // Keep the report hub addressable so sidebar links and bookmarked URLs do not
-    // depend on the dashboard's client-side tab state.
-    Route::redirect('/reports', '/sfao?tab=reports')->name('reports.index');
+    // Reports Management (Keep original for now as it wasn't split yet)
     Route::get('/reports/create', [ReportController::class, 'createReport'])->name('reports.create');
     Route::post('/reports', [ReportController::class, 'storeReport'])->name('reports.store');
+    Route::get('/reports/{id}', [ReportController::class, 'showReport'])->name('reports.show');
     Route::post('/reports/summary-submit', [ReportController::class, 'submitSummaryReport'])->name('reports.summary-submit');
-    Route::post('/reports/generate-data', [ReportController::class, 'generateReportData'])->name('reports.generate-data');
-    Route::get('/reports/analytics.{format}', [ReportController::class, 'exportAnalytics'])->whereIn('format', ['pdf', 'xlsx'])->name('reports.analytics-export');
-    Route::get('/reports/analytics/print', [ReportController::class, 'printAnalytics'])->name('reports.analytics-print');
     Route::get('/reports/{id}/edit', [ReportController::class, 'editReport'])->name('reports.edit');
     Route::put('/reports/{id}', [ReportController::class, 'updateReport'])->name('reports.update');
     Route::post('/reports/{id}/submit', [ReportController::class, 'submitReport'])->name('reports.submit');
     Route::delete('/reports/{id}', [ReportController::class, 'deleteReport'])->name('reports.delete');
-    Route::get('/reports/{id}', [ReportController::class, 'showReport'])->name('reports.show');
+    Route::post('/reports/generate-data', [ReportController::class, 'generateReportData'])->name('reports.generate-data');
 
     // Specific Report Summaries
     Route::get('/student-summary', [ReportController::class, 'studentSummary'])->name('reports.student-summary');
@@ -364,11 +351,6 @@ Route::middleware(['web', 'checkUserExists:sfao', 'role:sfao'])->prefix('sfao')-
     Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
     // Profile Update
     Route::put('/profile/update', [UserController::class, 'updateProfile'])->name('profile.update');
-
-    // System Backup & Restore
-    Route::get('/backup/download', [App\Http\Controllers\SystemBackupController::class, 'download'])->name('backup.download');
-    Route::get('/backup/export', [App\Http\Controllers\SystemBackupController::class, 'export'])->name('backup.export');
-    Route::post('/backup/restore', [App\Http\Controllers\SystemBackupController::class, 'restore'])->name('backup.restore');
 });
 
 // --------------------------------------------------
@@ -383,6 +365,9 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
         // Dashboard (Unified)
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+        Route::get('/backup/download', [SystemBackupController::class, 'download'])->name('backup.download');
+        Route::get('/backup/export', [SystemBackupController::class, 'export'])->name('backup.export');
+        Route::post('/backup/restore', [SystemBackupController::class, 'restore'])->name('backup.restore');
 
         // Analytics
         Route::post('/analytics/filtered', [ApplicationController::class, 'getFilteredAnalytics'])->name('analytics.filtered');
@@ -412,11 +397,6 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
         // Account Settings
         Route::post('/update-name', [UserController::class, 'updateName'])->name('update-name');
         Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
-
-        // System Backup & Restore
-        Route::get('/backup/download', [App\Http\Controllers\SystemBackupController::class, 'download'])->name('backup.download');
-        Route::get('/backup/export', [App\Http\Controllers\SystemBackupController::class, 'export'])->name('backup.export');
-        Route::post('/backup/restore', [App\Http\Controllers\SystemBackupController::class, 'restore'])->name('backup.restore');
 
         // Reports Management
         Route::get('/reports/overall', [ReportController::class, 'centralOverallReport'])->name('reports.overall');
@@ -459,7 +439,6 @@ Route::post('/sfao/password-setup', [UserController::class, 'setupSFAOPassword']
 // =====================================================
 
 Route::middleware(['web'])->group(function () {
-    Route::get('/notifications/{id}/open', [App\Http\Controllers\NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifications/{id}/mark-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
     Route::post('/notifications/{id}/mark-unread', [App\Http\Controllers\NotificationController::class, 'markAsUnread'])->name('notifications.mark-unread');
     Route::post('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');

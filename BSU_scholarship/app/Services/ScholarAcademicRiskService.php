@@ -22,6 +22,7 @@ class ScholarAcademicRiskService
             : $latestGwa;
         $delta = $latestGwa !== null && $previousGwa !== null ? round($latestGwa - $previousGwa, 2) : null;
 
+        $gwaRisk = $this->gwaRisk($latestGwa);
         $retention = $this->retentionRisk($latestGwa, $delta, $scholarship?->getGwaRequirement());
         $graduation = $this->graduationRisk($student, $history->count());
 
@@ -31,12 +32,42 @@ class ScholarAcademicRiskService
             'previous_gwa' => $previousGwa,
             'gwa_delta' => $delta,
             'trend' => $delta === null ? 'unknown' : ($delta > 0 ? 'declining' : ($delta < 0 ? 'improving' : 'stable')),
+            'gwa_risk' => $gwaRisk,
             'graduation' => $graduation,
             'retention' => $retention,
-            'status' => $this->highestStatus($graduation['status'], $retention['status']),
-            'reasons' => array_values(array_merge($graduation['reasons'], $retention['reasons'])),
+            'status' => $this->highestStatus(
+                $this->highestStatus($graduation['status'], $retention['status']),
+                $gwaRisk['status']
+            ),
+            'reasons' => array_values(array_merge($gwaRisk['reasons'], $graduation['reasons'], $retention['reasons'])),
             'data_status' => $history->isEmpty() ? 'missing' : ($history->count() === 1 ? 'limited' : 'sufficient'),
         ];
+    }
+
+    private function gwaRisk(?float $gwa): array
+    {
+        if ($gwa === null) {
+            return ['status' => 'On Track', 'reasons' => []];
+        }
+
+        $criticalThreshold = (float) config('academic_risk.gwa_critical_threshold');
+        $warningThreshold = (float) config('academic_risk.gwa_warning_threshold');
+
+        if ($gwa <= $criticalThreshold) {
+            return [
+                'status' => 'Critical',
+                'reasons' => [sprintf('Latest GWA of %.2f is at or below the critical threshold of %.2f', $gwa, $criticalThreshold)],
+            ];
+        }
+
+        if ($gwa <= $warningThreshold) {
+            return [
+                'status' => 'At-Risk',
+                'reasons' => [sprintf('Latest GWA of %.2f is above the critical threshold and at or below %.2f', $gwa, $warningThreshold)],
+            ];
+        }
+
+        return ['status' => 'On Track', 'reasons' => []];
     }
 
     private function retentionRisk(?float $gwa, ?float $delta, mixed $requirement): array

@@ -5,7 +5,6 @@
         'scholarship_created' => $notifications->where('type', 'scholarship_created')->count(),
         'application_status' => $notifications->where('type', 'application_status')->count(),
         'sfao_comment' => $notifications->where('type', 'sfao_comment')->count(),
-        'grant_released' => $notifications->where('type', 'grant_released')->count(),
     ];
 @endphp
 
@@ -25,11 +24,11 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json'
             }
-        }).then(response => response.json().then(result => {
-            if (response.ok && result.changed) {
+        }).then(response => {
+            if (response.ok) {
                 $dispatch('notification-changed', { id: id, type: type, status: 'read' });
             }
-        }));
+        });
     },
     markAsUnread(id, type) {
         fetch('{{ route('notifications.mark-unread', ':id') }}'.replace(':id', id), {
@@ -38,19 +37,19 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json'
             }
-        }).then(response => response.json().then(result => {
-            if (response.ok && result.changed) {
+        }).then(response => {
+            if (response.ok) {
                 $dispatch('notification-changed', { id: id, type: type, status: 'unread' });
             }
-        }));
+        });
     },
     openNotification(notification) {
         this.selectedNotification = notification;
         this.isModalOpen = true;
-
+        
         if (!notification.is_read) {
             this.markAsRead(notification.id, notification.type);
-            notification.is_read = true;
+            notification.is_read = true; // Update local object
         }
     },
     toggleUnreadInModal() {
@@ -69,15 +68,15 @@
 }">
     <!-- Header Section -->
     <!-- Header Section -->
-    <div class="student-tab-header rounded-xl shadow-lg p-6 flex flex-col sm:flex-row justify-between items-center gap-6 relative overflow-hidden group">
+    <div class="bg-bsu-red dark:bg-red-900 rounded-xl shadow-lg p-6 flex flex-col sm:flex-row justify-between items-center gap-6 relative overflow-hidden group">
         <!-- Background Pattern -->
         <div class="absolute top-0 right-0 w-32 h-full bg-white/10 skew-x-12 transform translate-x-16"></div>
 
-        <div class="relative z-10">
+        <div class="relative z-10 text-white">
             <h2 class="text-3xl font-extrabold tracking-tight font-sans">
                 Notifications
             </h2>
-            <p class="text-base mt-1 font-medium">
+            <p class="text-base text-red-100 mt-1 font-medium">
                 Manage your alerts and updates
             </p>
         </div>
@@ -120,7 +119,6 @@
                             'scholarship_created' => 'bg-green-100 text-green-600',
                             'application_status' => 'bg-blue-100 text-blue-600', 
                             'sfao_comment' => 'bg-yellow-100 text-yellow-600',
-                            'grant_released' => 'bg-emerald-100 text-emerald-600',
                             default => 'bg-gray-100 text-gray-600'
                         };
                         

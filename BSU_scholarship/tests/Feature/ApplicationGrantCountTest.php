@@ -265,6 +265,63 @@ class ApplicationGrantCountTest extends TestCase
         });
     }
 
+    public function test_central_dashboard_kpi_trends_compare_recent_application_data(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 7)->setTime(12, 0));
+
+        $campus = Campus::create([
+            'name' => 'Test Campus',
+            'type' => 'constituent',
+        ]);
+        $centralUser = User::factory()->create([
+            'role' => 'central',
+            'campus_id' => $campus->id,
+        ]);
+        $previousApplicant = User::factory()->create([
+            'role' => 'student',
+            'campus_id' => $campus->id,
+        ]);
+        $currentApplicantOne = User::factory()->create([
+            'role' => 'student',
+            'campus_id' => $campus->id,
+        ]);
+        $currentApplicantTwo = User::factory()->create([
+            'role' => 'student',
+            'campus_id' => $campus->id,
+        ]);
+        $scholarship = Scholarship::create([
+            'scholarship_name' => 'Trend Test Scholarship',
+            'description' => 'Trend test scholarship',
+            'submission_deadline' => now()->addMonth(),
+            'application_start_date' => now(),
+            'created_by' => $centralUser->id,
+        ]);
+
+        $applications = [
+            [$previousApplicant, 'rejected', now()->subDays(35)],
+            [$currentApplicantOne, 'approved', now()->subDays(5)],
+            [$currentApplicantTwo, 'pending', now()->subDays(4)],
+        ];
+        foreach ($applications as [$applicant, $status, $createdAt]) {
+            $application = Application::create([
+                'user_id' => $applicant->id,
+                'scholarship_id' => $scholarship->id,
+                'status' => $status,
+            ]);
+            $application->forceFill(['created_at' => $createdAt])->save();
+        }
+
+        session(['user_id' => $centralUser->id, 'role' => 'central']);
+
+        $response = $this->get(route('central.dashboard', ['tabs' => 'all_statistics']));
+
+        $response->assertOk()
+            ->assertSee('Up 100.0%')
+            ->assertSee('New')
+            ->assertSee('Down 100.0%')
+            ->assertSee('Last 30 days compared with the previous 30 days');
+    }
+
     public function test_filtered_analytics_returns_status_counts_for_selected_filters(): void
     {
         $campus = Campus::create([

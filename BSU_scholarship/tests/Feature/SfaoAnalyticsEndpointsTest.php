@@ -64,6 +64,45 @@ class SfaoAnalyticsEndpointsTest extends TestCase
         $response->assertOk()->assertJsonPath('summary.approvalRate', 0);
     }
 
+    public function test_campus_comparison_endpoint_is_registered_for_sfao_dashboard(): void
+    {
+        $campus = Campus::create(['name' => 'Comparison Campus', 'type' => 'constituent']);
+        $sfao = User::factory()->create(['role' => 'sfao', 'campus_id' => $campus->id]);
+
+        $response = $this->withSession(['user_id' => $sfao->id, 'role' => 'sfao'])
+            ->getJson(route('sfao.dashboard.campus-comparison'));
+
+        $response->assertOk()
+            ->assertJsonPath('rows.0.campus', 'Comparison Campus')
+            ->assertJsonPath('rows.0.applicants', 0)
+            ->assertJsonPath('rows.0.approved', 0);
+    }
+
+    public function test_dashboard_approval_rate_counts_distinct_approved_applicants(): void
+    {
+        $campus = Campus::create(['name' => 'Approval Rate Campus', 'type' => 'constituent']);
+        $sfao = User::factory()->create(['role' => 'sfao', 'campus_id' => $campus->id]);
+        $approvedApplicant = User::factory()->create(['role' => 'student', 'campus_id' => $campus->id]);
+        $otherApplicant = User::factory()->create(['role' => 'student', 'campus_id' => $campus->id]);
+        $scholarship = Scholarship::create([
+            'scholarship_name' => 'Approval Rate Test',
+            'description' => 'Test scholarship',
+            'submission_deadline' => now()->addMonth(),
+            'application_start_date' => now(),
+            'created_by' => $sfao->id,
+        ]);
+
+        Application::create(['user_id' => $approvedApplicant->id, 'scholarship_id' => $scholarship->id, 'status' => 'approved']);
+        Application::create(['user_id' => $approvedApplicant->id, 'scholarship_id' => $scholarship->id, 'status' => 'approved']);
+        Application::create(['user_id' => $otherApplicant->id, 'scholarship_id' => $scholarship->id, 'status' => 'pending']);
+
+        $response = $this->withSession(['user_id' => $sfao->id, 'role' => 'sfao'])
+            ->get(route('sfao.dashboard'));
+
+        $response->assertOk()
+            ->assertViewHas('analytics', fn (array $analytics) => $analytics['approval_rate'] === 50.0);
+    }
+
     public function test_scholar_analytics_returns_status_totals_for_the_sfao_scope(): void
     {
         $campus = Campus::create(['name' => 'Scholar Campus', 'type' => 'constituent']);

@@ -33,7 +33,6 @@
         unreadCountScholarships: {{ $unreadCountScholarships ?? 0 }},
         unreadCountStatus: {{ $unreadCountStatus ?? 0 }},
         unreadCountComments: {{ $unreadCountComments ?? 0 }},
-        unreadCountGrants: {{ $unreadCountGrants ?? 0 }},
 
         tabMapping: {
             'all_scholarships': { tab: 'scholarships', subTab: 'all' },
@@ -49,7 +48,6 @@
             'scholarship_notifications': { tab: 'notifications', subTab: 'scholarship_created' },
             'status_updates': { tab: 'notifications', subTab: 'application_status' },
             'comments': { tab: 'notifications', subTab: 'sfao_comment' },
-            'grant_notifications': { tab: 'notifications', subTab: 'grant_released' },
             'all-app-forms': { tab: 'all-app-forms', subTab: 'all' },
             'upload_grades': { tab: 'upload_grades', subTab: 'all'},
             'grade_history': { tab: 'grade_history', subTab: 'all'},
@@ -143,18 +141,10 @@
         const type = $event.detail.type;
         if (status === 'read') {
             if (unreadCount > 0) unreadCount--;
-            if (type === 'scholarship_created' && unreadCountScholarships > 0) unreadCountScholarships--;
-            if (type === 'application_status' && unreadCountStatus > 0) unreadCountStatus--;
-            if (type === 'sfao_comment' && unreadCountComments > 0) unreadCountComments--;
-            if (type === 'grant_released' && unreadCountGrants > 0) unreadCountGrants--;
         } else if (status === 'unread') {
             unreadCount++;
-            if (type === 'scholarship_created') unreadCountScholarships++;
-            if (type === 'application_status') unreadCountStatus++;
-            if (type === 'sfao_comment') unreadCountComments++;
-            if (type === 'grant_released') unreadCountGrants++;
         }
-      " @notifications-read-all.window="unreadCount = 0; unreadCountScholarships = 0; unreadCountStatus = 0; unreadCountComments = 0; unreadCountGrants = 0;" x-on:switch-tab.window="
+      " @notifications-read-all.window="unreadCount = 0;" x-on:switch-tab.window="
           const key = normalizeTabKey($event.detail);
           if (shouldReloadScholarshipTab(key)) {
               window.location.href = scholarshipTabUrl(key).toString();
@@ -223,12 +213,7 @@
 
         <!-- Grades Gathering Tab -->
         <div x-show="tab === 'upload_grades'" x-transition>
-            @include('student.forms.upload-grades', [
-                'submittedGrades' => collect(),
-                'latestSubmission' => null,
-                'isReadOnly' => false,
-                'isEditMode' => false,
-            ])
+            @include('student.forms.upload-grades')
         </div>
 
         <div x-show="tab === 'grade_history'" x-transition>
@@ -267,9 +252,10 @@
                             </path>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Scholarship Benefit Policy</h3>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Application Limit Reached</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                        You may apply for every scholarship you qualify for. Government benefits are limited to one claimed grant per semester, while up to three private scholarships may be received simultaneously.
+                        You already have an active application. This scholarship does not allow multiple simultaneous
+                        applications. Please wait for your current application to be processed.
                     </p>
                 </div>
 
@@ -284,24 +270,6 @@
         </div>
 
     </div>
-
-    @php
-        $successAction = match (session('success_action')) {
-            'grades' => [
-                'url' => route('student.dashboard', ['tab' => 'grade_history']),
-                'label' => 'View Submitted Grades',
-            ],
-            'applications' => [
-                'url' => route('student.dashboard', ['tab' => 'applied_scholarships']),
-                'label' => 'View Applications',
-            ],
-            'sfao_form' => [
-                'url' => route('student.dashboard', ['tab' => 'sfao_form']),
-                'label' => 'View SFAO Form',
-            ],
-            default => null,
-        };
-    @endphp
 
     {{-- Success Message Modal --}}
     @if(session('success'))
@@ -342,20 +310,14 @@
                 </div>
 
                 {{-- Action Button --}}
-                @if($successAction)
-                    <a href="{{ $successAction['url'] }}"
-                        class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
-                        {{ $successAction['label'] }}
-                        <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                        </svg>
-                    </a>
-                @else
-                    <button type="button" @click="showModal = false"
-                        class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
-                        Continue
-                    </button>
-                @endif
+                <a href="{{ route('student.dashboard', ['tab' => 'grade_history']) }}"
+                    class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
+                    View Submitted Grades
+                    <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3">
+                        </path>
+                    </svg>
+                </a>
             </div>
         </div>
     @endif

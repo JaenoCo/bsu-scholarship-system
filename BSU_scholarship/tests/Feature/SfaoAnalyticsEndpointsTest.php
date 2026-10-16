@@ -116,7 +116,7 @@ class SfaoAnalyticsEndpointsTest extends TestCase
             'created_by' => $sfao->id,
         ]);
 
-        Scholar::create([
+        Scholar::factory()->create([
             'user_id' => $student->id,
             'scholarship_id' => $scholarship->id,
             'type' => 'new',

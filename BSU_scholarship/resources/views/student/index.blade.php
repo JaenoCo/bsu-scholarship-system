@@ -213,7 +213,7 @@
 
         <!-- Grades Gathering Tab -->
         <div x-show="tab === 'upload_grades'" x-transition>
-            @include('student.forms.upload-grades')
+            @include('student.forms.upload-grades', ['isNewGradeSubmission' => true])
         </div>
 
         <div x-show="tab === 'grade_history'" x-transition>
@@ -270,57 +270,6 @@
         </div>
 
     </div>
-
-    {{-- Success Message Modal --}}
-    @if(session('success'))
-        <div x-data="{ showModal: true }" x-show="showModal" x-cloak
-            class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-labelledby="modal-title" role="dialog"
-            aria-modal="true">
-
-            {{-- Background Overlay --}}
-            <div x-show="showModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0"
-                x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200"
-                x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-                class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" @click="showModal = false"></div>
-
-            {{-- Modal Content --}}
-            <div x-show="showModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95"
-                x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200"
-                x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-                class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all">
-
-                {{-- Success Icon --}}
-                <div class="flex justify-center mb-6">
-                    <div class="flex items-center justify-center h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/30">
-                        <svg class="h-12 w-12 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                </div>
-
-                {{-- Title and Message --}}
-                <div class="text-center mb-8">
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3" id="modal-title">
-                        Success!
-                    </h3>
-                    <p class="text-base text-gray-600 dark:text-gray-400 leading-relaxed">
-                        {{ session('success') }}
-                    </p>
-                </div>
-
-                {{-- Action Button --}}
-                <a href="{{ route('student.dashboard', ['tab' => 'grade_history']) }}"
-                    class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-xl shadow-lg hover:bg-green-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
-                    View Submitted Grades
-                    <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3">
-                        </path>
-                    </svg>
-                </a>
-            </div>
-        </div>
-    @endif
 
     {{-- Error Message Modal --}}
     @if(session('error'))

@@ -46,7 +46,7 @@ class ScholarEditFlowTest extends TestCase
             'created_by' => $centralUser->id,
         ]);
 
-        $scholar = Scholar::create([
+        $scholar = Scholar::factory()->create([
             'user_id' => $student->id,
             'scholarship_id' => $scholarship->id,
             'type' => 'new',

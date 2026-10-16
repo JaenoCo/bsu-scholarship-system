@@ -1356,12 +1356,8 @@ class ApplicationController extends Controller
         // application's created_at into an "AY YYYY-YYYY" label
         // assuming the academic year starts in August. Same August-start
         // assumption used in the academicYearFilter handling above.
-        $yearExpression = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql'
-            ? 'EXTRACT(YEAR FROM created_at)::integer'
-            : 'YEAR(created_at)';
-        $monthExpression = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql'
-            ? 'EXTRACT(MONTH FROM created_at)::integer'
-            : 'MONTH(created_at)';
+        $yearExpression = \App\Support\DatabaseDateExpressions::year('created_at');
+        $monthExpression = \App\Support\DatabaseDateExpressions::month('created_at');
         $academicYears = Application::whereHas('user', function ($q) use ($campusIds) {
             $q->whereIn('campus_id', $campusIds);
         })

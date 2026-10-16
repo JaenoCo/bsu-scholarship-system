@@ -11,7 +11,7 @@
     </div>
 @endif
 
-<form method="POST" action="{{ route('password.email') }}" class="space-y-4">
+<form method="POST" action="{{ route('password.email') }}" class="form-stack">
     @csrf
 
     {{-- Email --}}

@@ -916,6 +916,9 @@
                     </div>
                 </section>
 
+                @if($kpiTrendPeriod)
+                    <p class="small text-secondary mb-2">{{ $kpiTrendPeriod }}</p>
+                @endif
                 <div class="row g-3 g-xl-4 bsu-kpi-grid mb-4">
                     <div class="col-12 col-sm-6 col-xl">
                         @include('central.components.bootstrap-kpi-card', [

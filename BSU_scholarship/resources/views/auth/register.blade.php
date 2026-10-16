@@ -82,7 +82,6 @@
         <select name="education_level" required x-model="formData.education_level" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white">
           <option value="" disabled selected>Select Level</option>
           <option value="Undergraduate">Undergraduate</option>
-          <option value="Graduate School">Graduate School</option>
           <option value="Integrated School">Integrated School</option>
         </select>
       </div>
@@ -99,7 +98,7 @@
 
 
 
-      <div class="mb-4">
+      <!-- <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">College <span class="text-red-500">*</span></label>
         <select name="college" required x-model="formData.college" @change="formData.program = formData.college" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white" :disabled="!formData.campus_id">
           <option value="" disabled selected>Select College</option>
@@ -108,9 +107,9 @@
           </template>
         </select>
         <input type="hidden" name="program" x-model="formData.program">
-      </div>
+      </div> -->
 
-      <div class="mb-4">
+      <!-- <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Year Level <span class="text-red-500">*</span></label>
         <select name="year_level" required x-model="formData.year_level" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white">
           <option value="" disabled selected>Select Year Level</option>
@@ -119,7 +118,7 @@
           <option value="3rd Year">3rd Year</option>
           <option value="4th Year">4th Year</option>
         </select>
-      </div>
+      </div> -->
     </div>
 
     <!-- Step 4: Scholarship Verification -->
@@ -719,7 +718,7 @@
             return false;
           }
         } else if (step === 3) {
-          if (!this.formData.sr_code || !this.formData.education_level || !this.formData.college || !this.formData.program || !this.formData.year_level || !this.formData.campus_id) {
+          if (!this.formData.sr_code || !this.formData.education_level || !this.formData.campus_id) {
             this.showRequiredFieldsModal = true;
             return false;
           }

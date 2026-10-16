@@ -128,7 +128,6 @@ class Form extends Model
             'year_level',
             'campus',
             'units_enrolled',
-            'semester',
             'academic_year',
             'has_existing_scholarship',
             
@@ -195,6 +194,10 @@ class Form extends Model
         $requiredFields = self::getRequiredFields();
         
         foreach ($requiredFields as $field) {
+            if (in_array($field, ['previous_gwa', 'semester'], true)) {
+                continue;
+            }
+
             // Access attribute directly (triggers accessors if defined)
             $value = $this->$field;
             
@@ -244,6 +247,10 @@ class Form extends Model
         $filledRequired = 0;
 
         foreach ($requiredFields as $field) {
+            if (in_array($field, ['previous_gwa', 'semester'], true)) {
+                continue;
+            }
+
             $value = $this->$field;
 
             if ($value === null) {

@@ -1,6 +1,6 @@
 {{-- 
     Reusable page header component for SFAO non-dashboard pages
-    Usage: @include('sfao.partials.page-header', ['title' => 'Page Title'])
+    Usage: @include('sfao.components.page-header', ['title' => 'Page Title'])
 --}}
 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b-2 border-bsu-red">
     <div>
@@ -11,4 +11,3 @@
     </div>
 
 </div>
-

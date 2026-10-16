@@ -370,7 +370,7 @@ if (!$user) {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
+          <!-- <div>
             <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">Scholarship Applied</label>
             @if(isset($scholarship))
               <input type="text" name="scholarship_applied" 
@@ -383,7 +383,7 @@ if (!$user) {
                 disabled
                 class="w-full border-b-2 border-gray-300 dark:border-gray-600 px-2 py-1 focus:border-red-500 dark:focus:border-red-600 focus:outline-none bg-gray-100 dark:bg-gray-600 dark:text-gray-400 transition-colors cursor-not-allowed">
             @endif
-          </div>
+          </div> -->
           <div>
             <label class="block mb-1 font-medium text-gray-700 dark:text-gray-300">Semester <span class="text-red-500">*</span></label>
             <input type="text" name="semester" required placeholder="e.g., 1st Semester"

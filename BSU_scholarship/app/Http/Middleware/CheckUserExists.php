@@ -15,12 +15,20 @@ class CheckUserExists
 
         if (!$user) {
             session()->flush();
+            if ($request->expectsJson()) {
+                abort(403);
+            }
+
             return redirect()->route('login')->with('session_expired', 'Your session has expired. Please log in again.');
         }
 
         // Role check (if passed as parameter)
         if ($role && $user->role !== $role) {
             session()->flush();
+            if ($request->expectsJson()) {
+                abort(403);
+            }
+
             return redirect()->route('login')->with('unauthorized', true);
         }
 

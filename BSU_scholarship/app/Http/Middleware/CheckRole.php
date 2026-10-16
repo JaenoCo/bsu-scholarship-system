@@ -19,10 +19,18 @@ class CheckRole
     public function handle(Request $request, Closure $next, string $role)
     {
         if (!session()->has('user_id')) {
+            if ($request->expectsJson()) {
+                abort(403);
+            }
+
             return redirect('/login');
         }
 
         if (session('role') !== $role) {
+            if ($request->expectsJson()) {
+                abort(403);
+            }
+
             // Redirect to appropriate dashboard based on actual role
             return redirect(match (session('role')) {
                 'student' => route('student.dashboard'),

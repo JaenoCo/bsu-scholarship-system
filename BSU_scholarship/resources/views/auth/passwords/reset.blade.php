@@ -5,7 +5,7 @@
 @section('subheading', 'Enter your new password')
 
 @section('content')
-<form method="POST" action="{{ route('password.update') }}" class="space-y-4">
+<form method="POST" action="{{ route('password.update') }}" class="form-stack">
     @csrf
 
     <input type="hidden" name="token" value="{{ $token }}">

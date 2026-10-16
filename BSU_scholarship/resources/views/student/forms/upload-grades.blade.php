@@ -455,7 +455,14 @@
         $isReadOnly = $isReadOnly ?? false;
         $isEditMode = $isEditMode ?? false;
         $submittedGrades = $submittedGrades ?? collect();
-            $latestSubmission = $latestSubmission ?? null;
+        $latestSubmission = $latestSubmission ?? null;
+
+        if ($isNewGradeSubmission ?? false) {
+            $isReadOnly = false;
+            $isEditMode = false;
+            $submittedGrades = collect();
+            $latestSubmission = null;
+        }
     @endphp
 
     {{--
@@ -650,9 +657,11 @@
             @submit="submitting = true"
             id="gradeSubmissionForm"
             data-draft-key="student-grade-draft-v2-{{ $user->id }}"
+            data-clear-after-upload="{{ session('success_action') === 'grades' ? 'true' : 'false' }}"
             action="{{ $isEditMode ? route('student.grades.upload.update') : route('student.grades.upload.submit') }}"
             method="POST"
             enctype="multipart/form-data"
+            autocomplete="off"
             class="form-lock-wrapper"
         >
             @csrf
@@ -680,7 +689,7 @@
 
                     <div class="field">
                         <label>Semester</label>
-                        <select name="semester" required class="select">
+                        <select name="semester" class="select">
                             <option value="">Select Semester</option>
                             <option value="1st Semester" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == '1st Semester' ? 'selected' : '' }}>1st Semester</option>
                             <option value="2nd Semester" {{ old('semester', $latestSubmission?->semester ?? $submittedGrades->first()->semester ?? '') == '2nd Semester' ? 'selected' : '' }}>2nd Semester</option>
@@ -847,40 +856,6 @@
         }
     }
 
-    function saveDraft() {
-        if (!gradeForm || !draftKey) return;
-        const draft = {
-            school_year: gradeForm.querySelector('[name="school_year"]')?.value || '',
-            semester: gradeForm.querySelector('[name="semester"]')?.value || '',
-            grades: getGradeRows().map((row) => ({
-                subject_code: row.querySelector('[name$="[subject_code]"]')?.value || '',
-                subject_name: row.querySelector('[name$="[subject_name]"]')?.value || '',
-                units: row.querySelector('[name$="[units]"]')?.value || '',
-                grade: row.querySelector('[name$="[grade]"]')?.value || '',
-            })),
-        };
-        localStorage.setItem(draftKey, JSON.stringify(draft));
-    }
-
-    function restoreDraft() {
-        if (!gradeForm || !draftKey) return;
-        let draft;
-        try { draft = JSON.parse(localStorage.getItem(draftKey) || 'null'); } catch { return; }
-        if (!draft || !Array.isArray(draft.grades) || !draft.grades.length) return;
-
-        const schoolYear = gradeForm.querySelector('[name="school_year"]');
-        const semester = gradeForm.querySelector('[name="semester"]');
-        if (schoolYear) schoolYear.value = draft.school_year || schoolYear.value;
-        if (semester) semester.value = draft.semester || semester.value;
-
-        const container = document.getElementById('grades-container');
-        container.innerHTML = '';
-        gradeIndex = 0;
-        draft.grades.slice(0, maxSubjectRows).forEach((grade) => {
-            addGradeRow(grade);
-        });
-    }
-
     function escapeAttribute(value) {
         return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
             '&': '&amp;',
@@ -942,15 +917,9 @@
     }
 
     if (gradeForm) {
-        restoreDraft();
-        gradeForm.addEventListener('input', () => { calculateGwa(); saveDraft(); });
-        gradeForm.addEventListener('change', saveDraft);
-        gradeForm.addEventListener('submit', () => {
-            if (draftKey) localStorage.removeItem(draftKey);
-        });
+        if (draftKey) localStorage.removeItem(draftKey);
+        if (gradeForm.dataset.clearAfterUpload === 'true') gradeForm.reset();
         calculateGwa();
-    } else if (draftKey) {
-        localStorage.removeItem(draftKey);
     }
 </script>
 

@@ -200,7 +200,7 @@ class StudentGradesController extends Controller
         });
 
         return redirect()
-            ->route('student.dashboard', ['tab' => 'grade_history'])
+            ->route('student.dashboard', ['tab' => 'upload_grades'])
             ->with(
                 'success',
                 'Grades submitted successfully. Your uploaded record is now saved and ready for review.'

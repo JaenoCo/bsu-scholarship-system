@@ -5,7 +5,7 @@
 @section('subheading', 'Sign in to your account to continue')
 
 @section('content')
-<form method="POST" action="{{ url('/login') }}" id="loginForm" autocomplete="off" class="space-y-4">
+<form method="POST" action="{{ url('/login') }}" id="loginForm" autocomplete="off" class="form-stack">
   @csrf
 
   {{-- Email --}}

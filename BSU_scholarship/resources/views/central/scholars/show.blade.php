@@ -43,12 +43,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200">
-            {{ session('success') }}
-        </div>
-    @endif
-
     <div class="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
         <div class="space-y-6">
             <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">

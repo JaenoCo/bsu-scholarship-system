@@ -83,12 +83,6 @@
             Security Settings
         </h2>
 
-        @if(session('success'))
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-                <p>{{ session('success') }}</p>
-            </div>
-        @endif
-
         @if($errors->any())
             <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
                 <ul class="list-disc pl-5">
@@ -135,12 +129,6 @@
         <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">
             Backup &amp; Restore
         </h2>
-
-        @if(session('success'))
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
-                {{ session('success') }}
-            </div>
-        @endif
 
         @if($errors->has('backup_file'))
             <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
@@ -200,3 +188,5 @@
     </div>
 
 </div>
+
+<x-modals.success />

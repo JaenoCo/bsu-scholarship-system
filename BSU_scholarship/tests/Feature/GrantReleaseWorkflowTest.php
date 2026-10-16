@@ -140,6 +140,28 @@ class GrantReleaseWorkflowTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_grant_verification_route_is_named_and_renders_the_qr_destination(): void
+    {
+        Mail::fake();
+        $this->createBeneficiary('approved', 'active');
+        session(['user_id' => $this->sfao->id, 'role' => 'sfao']);
+
+        $this->post(route('sfao.scholarships.release-grant', $this->scholarship))
+            ->assertSessionHas('success');
+
+        $release = GrantRelease::sole();
+        $verificationUrl = route('sfao.grant-releases.verify', ['trackingNumber' => $release->tracking_number]);
+
+        $this->assertSame(
+            '/sfao/grant-releases/' . $release->tracking_number . '/verify',
+            route('sfao.grant-releases.verify', ['trackingNumber' => $release->tracking_number], false)
+        );
+        $this->get($verificationUrl)
+            ->assertOk()
+            ->assertViewIs('sfao.grant-release-verify')
+            ->assertSee($release->tracking_number);
+    }
+
     public function test_legacy_active_scholar_with_approved_application_is_included_without_direct_application_link(): void
     {
         Mail::fake();
@@ -153,7 +175,7 @@ class GrantReleaseWorkflowTest extends TestCase
             'scholarship_id' => $this->scholarship->id,
             'status' => 'approved',
         ]);
-        Scholar::create([
+        Scholar::factory()->create([
             'user_id' => $student->id,
             'scholarship_id' => $this->scholarship->id,
             'type' => 'new',
@@ -187,7 +209,7 @@ class GrantReleaseWorkflowTest extends TestCase
             'status' => $applicationStatus,
         ]);
 
-        Scholar::create([
+        Scholar::factory()->create([
             'user_id' => $student->id,
             'scholarship_id' => $this->scholarship->id,
             'application_id' => $application->id,

@@ -115,4 +115,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(StudentSubmittedDocument::class, 'user_id');
     }
+
+    public function latestGradeSubmission()
+    {
+        return $this->hasOne(GradeSubmission::class, 'user_id')->latestOfMany('created_at');
+    }
 }

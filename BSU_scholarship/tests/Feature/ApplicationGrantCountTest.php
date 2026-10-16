@@ -52,15 +52,15 @@ class ApplicationGrantCountTest extends TestCase
             'grant_count' => 1,
         ]);
 
-        $scholar = Scholar::create([
+        $scholar = Scholar::factory()->create([
             'user_id' => $studentUser->id,
             'scholarship_id' => $scholarship->id,
             'application_id' => $application->id,
-            'campus_id' => $campus->id,
             'status' => 'active',
             'type' => 'new',
             'grant_count' => 1,
             'total_grant_received' => 5000,
+            'scholarship_start_date' => now()->toDateString(),
         ]);
 
         session(['user_id' => $sfaoUser->id, 'role' => 'sfao']);
@@ -245,7 +245,7 @@ class ApplicationGrantCountTest extends TestCase
             'status' => 'approved',
         ]);
 
-        Scholar::create([
+        Scholar::factory()->create([
             'user_id' => $studentUser->id,
             'scholarship_id' => $scholarshipB->id,
             'application_id' => $acceptedApplication->id,

@@ -19,7 +19,7 @@
 @endpush
 
 @section('content')
-<form method="POST" action="{{ url('/central/login') }}" id="centralLoginForm" autocomplete="off" class="space-y-4">
+<form method="POST" action="{{ url('/central/login') }}" id="centralLoginForm" autocomplete="off" class="form-stack">
   @csrf
 
   {{-- Email --}}

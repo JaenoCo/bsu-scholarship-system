@@ -13,13 +13,6 @@
       'subtitle' => 'For ' . $scholarship->scholarship_name
     ])
 
-    <!-- Success Message -->
-    @if(session('success'))
-        <div class="bg-green-100 border-l-4 border-green-500 p-4 mb-6 rounded">
-            <p class="text-green-700 font-medium">{{ session('success') }}</p>
-        </div>
-    @endif
-
     <!-- Validation Errors -->
     @if($errors->any())
         <div class="bg-red-100 border-l-4 border-red-500 p-4 mb-6 rounded">

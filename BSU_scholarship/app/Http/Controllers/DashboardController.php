@@ -293,10 +293,9 @@ class DashboardController extends Controller
         $programs = $filterOptions->pluck('program')->filter()->unique()->values();
         $tracks = $filterOptions->pluck('track')->filter()->unique()->values();
         
-        // Academic Years (from Applications) — PostgreSQL-compatible using EXTRACT
-        $datePartsSelect = DB::connection()->getDriverName() === 'pgsql'
-            ? 'DISTINCT EXTRACT(YEAR FROM created_at) as year, EXTRACT(MONTH FROM created_at) as month'
-            : 'DISTINCT YEAR(created_at) as year, MONTH(created_at) as month';
+        // Academic years are computed with driver-aware date expressions.
+        $datePartsSelect = 'DISTINCT ' . \App\Support\DatabaseDateExpressions::year('created_at')
+            . ' as year, ' . \App\Support\DatabaseDateExpressions::month('created_at') . ' as month';
 
         $academicYears = Application::whereHas('user', function($q) use ($campusIds) {
                 $q->whereIn('campus_id', $campusIds);
@@ -496,6 +495,13 @@ class DashboardController extends Controller
             })
             ->where('status', 'approved')
             ->count();
+
+        $approvedApplicants = Application::whereHas('user', function($query) use ($campusIds) {
+                $query->whereIn('campus_id', $campusIds);
+            })
+            ->whereIn('status', ['approved', 'claimed'])
+            ->distinct('user_id')
+            ->count('user_id');
             
         $rejectedApplications = Application::whereHas('user', function($query) use ($campusIds) {
                 $query->whereIn('campus_id', $campusIds);
@@ -509,7 +515,7 @@ class DashboardController extends Controller
         $analytics['in_progress_applications'] = $inProgressApplications;
         $analytics['approved_applications'] = $approvedApplications;
         $analytics['rejected_applications'] = $rejectedApplications;
-        $analytics['approval_rate'] = $studentsWithApplications > 0 ? round(($approvedApplications / $studentsWithApplications) * 100, 1) : 0;
+        $analytics['approval_rate'] = $studentsWithApplications > 0 ? round(($approvedApplicants / $studentsWithApplications) * 100, 1) : 0;
 
         // 2. Department Statistics (Refactored to College)
         // Get all colleges
@@ -2148,6 +2154,34 @@ class DashboardController extends Controller
         $pendingApplications = (clone $applicationQuery)->where('status', 'pending')->count();
         $claimedApplications = (clone $applicationQuery)->where('status', 'claimed')->count();
 
+        // Compare the current 30-day period with the preceding 30 days. The
+        // calculation is application-based, matching the dashboard KPI labels.
+        $currentStart = now()->subDays(30)->startOfDay();
+        $currentEnd = now()->endOfDay();
+        $previousStart = (clone $currentStart)->subDays(30);
+        $previousEnd = (clone $currentStart)->subSecond();
+        $trendCounts = function ($start, $end): array {
+            $period = Application::query()->whereBetween('created_at', [$start, $end]);
+            return [
+                'total_applicants' => (clone $period)->distinct('user_id')->count('user_id'),
+                'approved_applications' => (clone $period)->whereIn('status', ['approved', 'claimed'])->count(),
+                'pending_applications' => (clone $period)->where('status', 'pending')->count(),
+                'rejected_applications' => (clone $period)->where('status', 'rejected')->count(),
+            ];
+        };
+        $currentTrendCounts = $trendCounts($currentStart, $currentEnd);
+        $previousTrendCounts = $trendCounts($previousStart, $previousEnd);
+        $kpiTrends = collect($currentTrendCounts)->map(function ($current, $metric) use ($previousTrendCounts) {
+            return ['current' => $current, 'previous' => $previousTrendCounts[$metric]];
+        })->all();
+        $currentDecisions = $currentTrendCounts['approved_applications'] + $currentTrendCounts['rejected_applications'];
+        $previousDecisions = $previousTrendCounts['approved_applications'] + $previousTrendCounts['rejected_applications'];
+        $kpiTrends['approval_rate'] = [
+            'current' => $currentDecisions ? round(($currentTrendCounts['approved_applications'] / $currentDecisions) * 100, 1) : 0,
+            'previous' => $previousDecisions ? round(($previousTrendCounts['approved_applications'] / $previousDecisions) * 100, 1) : 0,
+            'has_data' => $currentDecisions > 0 || $previousDecisions > 0,
+        ];
+
         // Get scholarship statistics
         $totalScholarships = Scholarship::count();
         $activeScholarships = Scholarship::where('is_active', true)->count();
@@ -2184,10 +2218,8 @@ class DashboardController extends Controller
              ];
         });
 
-        // Application Status Trends (Monthly for current year) — PostgreSQL-compatible
-        $monthExpression = DB::connection()->getDriverName() === 'pgsql'
-            ? 'EXTRACT(MONTH FROM created_at)::integer'
-            : 'MONTH(created_at)';
+        // Application status trends use a portable month expression.
+        $monthExpression = \App\Support\DatabaseDateExpressions::month('created_at');
 
         $monthlyApplications = Application::selectRaw("{$monthExpression} as month, COUNT(*) as count")
             ->whereYear('created_at', date('Y'))
@@ -2290,6 +2322,9 @@ class DashboardController extends Controller
                 'pending' => $pendingApplications,
                 'in_progress' => (clone $applicationQuery)->where('status', 'in_progress')->count(),
                 'claimed' => $claimedApplications,
+                'kpi_trends' => array_merge($kpiTrends, [
+                    'period' => 'Last 30 days compared with the previous 30 days',
+                ]),
                 'monthly_trends' => [
                     'labels' => $months,
                     'data' => $applicationTrends

@@ -25,8 +25,10 @@
         font-size: 16px; /* Prevents zoom on iOS */
     }
 
-    /* Improved form spacing on mobile */
-    @apply space-y-4;
+    /* Reusable vertical spacing for form controls. */
+    .form-stack {
+        @apply space-y-4;
+    }
 
     /* Better responsive grids */
     .grid-auto-mobile {

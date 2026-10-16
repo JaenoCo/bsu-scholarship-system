@@ -1,5 +1,9 @@
 @props(['form'])
 
+@php
+  $uploadedGwa = $form?->user?->latestGradeSubmission?->verified_gwa;
+@endphp
+
 <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-700 rounded-lg p-6 hover:shadow-lg transition-shadow">
   <div class="flex items-center mb-4">
     <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mr-4">
@@ -37,8 +41,8 @@
     <div class="flex justify-between text-sm">
       <span class="text-gray-600 dark:text-gray-300">GWA:</span>
       <span class="font-medium text-gray-800 dark:text-gray-200">
-        @if($form && $form->previous_gwa)
-          {{ number_format($form->previous_gwa, 2) }}
+        @if(is_numeric($uploadedGwa) && (float) $uploadedGwa > 0)
+          {{ number_format((float) $uploadedGwa, 2) }}
         @else
           <span class="text-gray-400">Not provided</span>
         @endif
@@ -48,7 +52,7 @@
   
   <div class="flex items-center justify-between">
     <div class="flex items-center">
-      @if($form && $form->program && $form->year_level && $form->previous_gwa)
+      @if($form && $form->program && $form->year_level)
         <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
         </svg>

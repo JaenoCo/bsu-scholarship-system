@@ -54,5 +54,7 @@ class FormRequiredProgressTest extends TestCase
         $this->assertTrue($form->isComplete());
         $this->assertSame(100.0, round($form->getOverallProgress(), 1));
         $this->assertSame(100.0, round($form->getRequiredFieldsProgress(), 1));
+        $this->assertNotContains('previous_gwa', $form::getRequiredFields());
+        $this->assertNotContains('semester', $form::getRequiredFields());
     }
 }

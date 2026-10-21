@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run relevant PHPUnit file",
+			"type": "shell",
+			"command": "Set-Location \"C:\\xampp\\htdocs\\_bsu-scholarship-system\\BSU_scholarship\"; php artisan test tests/Unit/FormRequiredProgressTest.php",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

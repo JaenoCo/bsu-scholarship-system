@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Services\ScholarshipInsightsService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -731,6 +732,217 @@ class ReportController extends Controller
         $reportData = $this->generateCentralOverallScholarReportData();
 
         return view('central.reports.overall', compact('user', 'reportData'));
+    }
+
+    /**
+     * Download the Central Administration scholarship program listing.
+     *
+     * The layout follows the scholarship-program workbook supplied by Central
+     * Administration, while all entries and counts are generated from the
+     * current system records.
+     */
+    public function exportCentralScholarshipProgram()
+    {
+        if (!session()->has('user_id') || session('role') !== 'central') {
+            return redirect('/login')->with('session_expired', true);
+        }
+
+        $currentAcademicYearStart = now()->month >= 8 ? now()->year : now()->year - 1;
+        $academicYears = collect(range($currentAcademicYearStart - 2, $currentAcademicYearStart))
+            ->map(fn ($year) => $year . '-' . ($year + 1))
+            ->values();
+        $currentAcademicYear = $academicYears->last();
+
+        $constituentCampuses = Campus::constituent()
+            ->with(['extensionCampuses' => fn ($query) => $query->orderBy('name')])
+            ->orderBy('name')
+            ->get();
+        $orphanExtensions = Campus::extension()
+            ->whereDoesntHave('parentCampus')
+            ->orderBy('name')
+            ->get();
+
+        $scholarships = Scholarship::query()
+            ->with([
+                'campuses:id,name',
+                'scholars:id,user_id,scholarship_id,scholarship_start_date,created_at',
+                'scholars.user:id,campus_id',
+            ])
+            ->orderBy('scholarship_type')
+            ->orderBy('scholarship_name')
+            ->get();
+
+        $templatePath = resource_path('templates/central-scholarship-program-template.xlsx');
+        abort_unless(is_file($templatePath), 500, 'The scholarship program export template is unavailable.');
+
+        // Use the user-provided workbook itself so its sheets, headings, merged
+        // cells, fonts, widths, row heights, and print settings remain intact.
+        $spreadsheet = IOFactory::load($templatePath);
+        $summarySheet = $spreadsheet->getSheetByName('Scholarship Program');
+        $detailsSheet = $spreadsheet->getSheetByName('Details');
+        $amountSheet = $spreadsheet->getSheetByName('Copy of Scholarship Program');
+        $lookupSheet = $spreadsheet->getSheetByName('Sheet2');
+
+        foreach ([$summarySheet, $detailsSheet, $amountSheet, $lookupSheet] as $sheet) {
+            abort_unless($sheet !== null, 500, 'The scholarship program export template is incomplete.');
+        }
+
+        $clearValues = function ($sheet, int $fromRow, int $toRow, int $toColumn) {
+            for ($row = $fromRow; $row <= $toRow; $row++) {
+                for ($column = 1; $column <= $toColumn; $column++) {
+                    $coordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column) . $row;
+                    $sheet->getCell($coordinate)->setValue(null);
+                }
+            }
+        };
+
+        $summarySheet->unmergeCells('B10:D10');
+        $clearValues($summarySheet, 10, 1002, 4);
+        $clearValues($detailsSheet, 9, 1001, 2);
+        $amountSheet->unmergeCells('H10:M10');
+        $amountSheet->unmergeCells('J53:K53');
+        $clearValues($amountSheet, 10, 1002, 13);
+        $clearValues($lookupSheet, 1, 2, 2);
+
+        $summarySheet->setCellValue('A6', 'SY ' . ($currentAcademicYearStart - 2) . '-' . ($currentAcademicYearStart + 1));
+        foreach ($academicYears as $index => $academicYear) {
+            $summarySheet->setCellValue(chr(66 + $index) . '8', 'SY ' . $academicYear);
+        }
+
+        $campusScholarshipCounts = [];
+        foreach ($scholarships as $scholarship) {
+            foreach ($scholarship->scholars as $scholar) {
+                $campusId = $scholar->user?->campus_id;
+                $date = $scholar->scholarship_start_date ?? $scholar->created_at;
+                if (!$campusId || !$date) {
+                    continue;
+                }
+
+                $academicYearStart = $date->month >= 8 ? $date->year : $date->year - 1;
+                $academicYear = $academicYearStart . '-' . ($academicYearStart + 1);
+                // This report intentionally represents the current academic year
+                // only. The two earlier template columns remain zeroed, preserving
+                // the supplied workbook layout without carrying forward old data.
+                if ($academicYear === $currentAcademicYear) {
+                    $campusScholarshipCounts[$scholarship->id][$campusId][$academicYear] =
+                        ($campusScholarshipCounts[$scholarship->id][$campusId][$academicYear] ?? 0) + 1;
+                }
+            }
+        }
+
+        $copyRowFormat = function ($sheet, int $sourceRow, int $targetRow, string $firstColumn, string $lastColumn) {
+            $sourceRange = "{$firstColumn}{$sourceRow}:{$lastColumn}{$sourceRow}";
+            $targetRange = "{$firstColumn}{$targetRow}:{$lastColumn}{$targetRow}";
+            $sheet->duplicateStyle($sheet->getStyle($sourceRange), $targetRange);
+            // Red text in the reference file marks excluded sample data. Rows
+            // written from the live system are always reportable, so they use
+            // the same layout with ordinary black text.
+            $sheet->getStyle($targetRange)->getFont()->getColor()->setARGB('FF000000');
+            $sheet->getRowDimension($targetRow)->setRowHeight($sheet->getRowDimension($sourceRow)->getRowHeight());
+        };
+
+        $summaryRow = 10;
+        $detailRow = 9;
+
+        $writeCampus = function ($campus, string $label) use (
+            &$summaryRow,
+            &$detailRow,
+            $copyRowFormat,
+            $summarySheet,
+            $detailsSheet,
+            $scholarships,
+            $academicYears,
+            $campusScholarshipCounts
+        ) {
+            $copyRowFormat($summarySheet, 11, $summaryRow, 'A', 'D');
+            $summarySheet->setCellValue('A' . $summaryRow, $label . ': ' . $campus->name);
+            $copyRowFormat($detailsSheet, 10, $detailRow, 'A', 'B');
+            $detailsSheet->setCellValue('A' . $detailRow, $label . ': ' . $campus->name);
+            $summaryRow++;
+            $detailRow++;
+
+            $programs = $scholarships->filter(function ($scholarship) use ($campus) {
+                return ((int) $scholarship->campus_id === (int) $campus->id)
+                    || $scholarship->campuses->contains('id', $campus->id)
+                    || ($scholarship->campus_id === null && $scholarship->campuses->isEmpty());
+            });
+
+            if ($programs->isEmpty()) {
+                $copyRowFormat($summarySheet, 12, $summaryRow, 'A', 'D');
+                $summarySheet->setCellValue('A' . $summaryRow, 'No scholarship programs found.');
+                $copyRowFormat($detailsSheet, 11, $detailRow, 'A', 'B');
+                $detailsSheet->setCellValue('A' . $detailRow, 'No scholarship programs found.');
+                $summaryRow++;
+                $detailRow++;
+                return;
+            }
+
+            foreach ($programs as $scholarship) {
+                $copyRowFormat($summarySheet, 12, $summaryRow, 'A', 'D');
+                $summarySheet->setCellValue('A' . $summaryRow, $scholarship->scholarship_name);
+                foreach ($academicYears as $index => $academicYear) {
+                    $summarySheet->setCellValueExplicit(
+                        chr(66 + $index) . $summaryRow,
+                        $campusScholarshipCounts[$scholarship->id][$campus->id][$academicYear] ?? 0,
+                        DataType::TYPE_NUMERIC
+                    );
+                }
+
+                $copyRowFormat($detailsSheet, 11, $detailRow, 'A', 'B');
+                $details = trim((string) $scholarship->description);
+                $details .= $scholarship->grant_amount !== null
+                    ? ($details ? "\n" : '') . 'Grant amount: Php ' . number_format((float) $scholarship->grant_amount, 2)
+                    : '';
+                $details .= ($details ? "\n" : '') . 'Campus: ' . $campus->name;
+                $detailsSheet->fromArray([[$scholarship->scholarship_name, $details]], null, 'A' . $detailRow);
+                $summaryRow++;
+                $detailRow++;
+            }
+        };
+
+        foreach ($constituentCampuses as $constituent) {
+            $copyRowFormat($summarySheet, 10, $summaryRow, 'A', 'D');
+            $summarySheet->setCellValue('A' . $summaryRow, 'CONSTITUENT CAMPUS: ' . $constituent->name);
+            $copyRowFormat($detailsSheet, 9, $detailRow, 'A', 'B');
+            $detailsSheet->setCellValue('A' . $detailRow, 'CONSTITUENT CAMPUS: ' . $constituent->name);
+            $summaryRow++;
+            $detailRow++;
+
+            $writeCampus($constituent, 'Campus');
+            foreach ($constituent->extensionCampuses as $extension) {
+                $writeCampus($extension, 'Extension Campus');
+            }
+        }
+
+        if ($orphanExtensions->isNotEmpty()) {
+            $copyRowFormat($summarySheet, 10, $summaryRow, 'A', 'D');
+            $summarySheet->setCellValue('A' . $summaryRow, 'EXTENSION CAMPUSES WITHOUT A CONSTITUENT');
+            $copyRowFormat($detailsSheet, 9, $detailRow, 'A', 'B');
+            $detailsSheet->setCellValue('A' . $detailRow, 'EXTENSION CAMPUSES WITHOUT A CONSTITUENT');
+            $summaryRow++;
+            $detailRow++;
+
+            foreach ($orphanExtensions as $extension) {
+                $writeCampus($extension, 'Extension Campus');
+            }
+        }
+
+        if ($constituentCampuses->isEmpty() && $orphanExtensions->isEmpty()) {
+            $copyRowFormat($summarySheet, 12, $summaryRow, 'A', 'D');
+            $summarySheet->setCellValue('A' . $summaryRow, 'No campuses found.');
+            $copyRowFormat($detailsSheet, 11, $detailRow, 'A', 'B');
+            $detailsSheet->setCellValue('A' . $detailRow, 'No campuses found.');
+        }
+
+        $spreadsheet->setActiveSheetIndexByName('Scholarship Program');
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'Scholarship_Program_' . $academicYears->last() . '.xlsx';
+
+        return response()->streamDownload(
+            fn () => $writer->save('php://output'),
+            $filename,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
     }
 
     /**

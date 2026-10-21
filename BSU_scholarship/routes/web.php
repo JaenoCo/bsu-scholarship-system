@@ -401,6 +401,8 @@ Route::middleware(['web', 'checkUserExists:central', 'role:central'])
         Route::post('/change-password', [UserController::class, 'changePassword'])->name('change-password');
 
         // Reports Management
+        Route::get('/reports/scholarship-program/export', [ReportController::class, 'exportCentralScholarshipProgram'])
+            ->name('reports.scholarship-program.export');
         Route::get('/reports/overall', [ReportController::class, 'centralOverallReport'])->name('reports.overall');
         Route::get('/reports/{id}', [ReportController::class, 'centralShowReport'])->name('reports.show');
         Route::post('/reports/{id}/review', [ReportController::class, 'reviewReport'])->name('reports.review');

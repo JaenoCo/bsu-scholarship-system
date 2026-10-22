@@ -36,13 +36,13 @@
     @csrf
     <input type="hidden" name="role" value="student">
 
-    <!-- Step 1: Personal Info -->
+    <!-- Step 1: Personal Information -->
     <div x-show="currentStep === 1" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-x-4" x-transition:enter-end="opacity-100 transform translate-x-0">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Personal Information</h3>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <x-auth.input type="text" label="First Name" name="first_name" placeholder="First Name" required x-model="formData.first_name" />
-        <x-auth.input type="text" label="Middle Name (Optional)" name="middle_name" placeholder="Middle Name" x-model="formData.middle_name" />
+        <x-auth.input type="text" label="Middle Name" name="middle_name" placeholder="Middle Name" x-model="formData.middle_name" />
         <x-auth.input type="text" label="Last Name" name="last_name" placeholder="Last Name" required x-model="formData.last_name" />
       </div>
       
@@ -60,20 +60,23 @@
       </div>
     </div>
 
-    <!-- Step 2: Contact Info -->
+    <!-- Step 2: Contact Details -->
     <div x-show="currentStep === 2" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-x-4" x-transition:enter-end="opacity-100 transform translate-x-0">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Contact Information</h3>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Contact Details</h3>
       
-      <x-auth.input type="email" label="BSU Email" name="email" placeholder="example@g.batstate-u.edu.ph" pattern="[a-zA-Z0-9._%+\-]+@g\.batstate-u\.edu\.ph" required x-model="formData.email">
+      <x-auth.input type="email" label="BatstateU Account" name="email" placeholder="example@g.batstate-u.edu.ph" pattern="[a-zA-Z0-9._%+\-]+@g\.batstate-u\.edu\.ph" required x-model="formData.email">
         <p class="mt-1 text-xs text-gray-500">Must end with @g.batstate-u.edu.ph</p>
       </x-auth.input>
       
-      <x-auth.input type="text" label="Contact Number" name="contact_number" placeholder="09123456789" required x-model="formData.contact_number" />
+      <x-auth.input type="tel" label="Contact Number" name="contact_number" placeholder="09123456789" required
+                    inputmode="numeric" maxlength="11" pattern="09[0-9]{9}"
+                    title="Enter an 11-digit Philippine mobile number starting with 09 (for example, 09123456789)."
+                    x-model="formData.contact_number" />
     </div>
 
-    <!-- Step 3: Academic Info -->
+    <!-- Step 3: Academic Credentials -->
     <div x-show="currentStep === 3" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-x-4" x-transition:enter-end="opacity-100 transform translate-x-0">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Academic Information</h3>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Academic Credentials</h3>
       
       <x-auth.input type="text" label="SR Code" name="sr_code" placeholder="XX-XXXXX" required x-model="formData.sr_code" />
       
@@ -155,9 +158,9 @@
       </div>
     </div>
 
-    <!-- Step 5: Credentials -->
+    <!-- Step 5: Security -->
     <div x-show="currentStep === 5" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-x-4" x-transition:enter-end="opacity-100 transform translate-x-0">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Credentials</h3>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 border-b pb-2">Security</h3>
       
       <x-auth.password-input label="Password" name="password" placeholder="Create a strong password" autocomplete="new-password" showStrength="true" required x-model="formData.password" />
       <x-auth.password-input label="Confirm Password" name="password_confirmation" placeholder="Confirm your password" autocomplete="new-password" required x-model="formData.password_confirmation" />
@@ -646,7 +649,7 @@
       currentStep: 1,
       campuses: @json($campuses),
       availableColleges: [],
-      steps: ['Personal Info', 'Contact Info', 'Academic Info', 'Scholarship Verification', 'Credentials'],
+      steps: ['Personal Information', 'Contact Details', 'Academic Credentials', 'Scholarship Verification', 'Security'],
       formData: {
         first_name: '',
         middle_name: '',
@@ -715,6 +718,10 @@
           }
           if (!this.formData.email.endsWith('@g.batstate-u.edu.ph')) {
             this.showEmailErrorModal = true;
+            return false;
+          }
+          if (!/^09\d{9}$/.test(this.formData.contact_number)) {
+            alert('Enter a valid 11-digit Philippine mobile number starting with 09 (for example, 09123456789).');
             return false;
           }
         } else if (step === 3) {

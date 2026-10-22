@@ -66,6 +66,7 @@ class StoreApplicationRequest extends FormRequest
             // ------------------- Certification -------------------
             'student_signature' => 'nullable|string',
             'date_signed'       => 'nullable|date',
+            'declaration_confirmed' => 'accepted',
 
             // ------------------- User Data -------------------
             'last_name'          => 'nullable|string',
@@ -90,6 +91,13 @@ class StoreApplicationRequest extends FormRequest
             'scholarship_id'     => 'nullable|exists:scholarships,id',
             'save_and_navigate'  => 'nullable|string',
             'print_after_save'   => 'nullable|boolean',
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'declaration_confirmed.accepted' => 'You must confirm the declaration before completing your application.',
         ];
     }
     

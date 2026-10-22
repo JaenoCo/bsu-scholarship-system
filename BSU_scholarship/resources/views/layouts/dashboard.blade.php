@@ -23,7 +23,7 @@
     <link rel="icon" type="image/png" href="{{ asset('images/lugo.png') }}">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="{{ asset('css/sfao-style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/sfao-style.css') }}?v={{ filemtime(public_path('css/sfao-style.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     
     <!-- Styles Stack -->

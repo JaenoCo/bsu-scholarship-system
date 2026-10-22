@@ -575,15 +575,8 @@ if (!$user) {
       <!-- Stage 5: Certification Section -->
       <div class="form-stage hidden" data-stage="5">
       <section class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-8 border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h2 class="text-3xl font-bold text-red-800 dark:text-red-400 mb-6 border-b-2 border-red-700 dark:border-red-500 pb-2">Certification</h2>
+        <h2 class="text-3xl font-bold text-red-800 dark:text-red-400 mb-6 border-b-2 border-red-700 dark:border-red-500 pb-2">Declaration</h2>
         <div class="space-y-4">
-          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p class="text-sm text-yellow-800">
-              <strong>Note:</strong> By submitting this form, you certify that all information provided is true and accurate. 
-              Any false information may result in disqualification from scholarship consideration.
-            </p>
-          </div>
-
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Student Signature <span class="text-red-500">*</span></label>
@@ -599,10 +592,18 @@ if (!$user) {
 
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 class="font-semibold text-blue-800 mb-2">Declaration</h4>
-            <p class="text-sm text-blue-700">
-              I hereby declare that the information provided in this application form is true, complete, and accurate to the best of my knowledge. 
-              I understand that any false information may result in the rejection of my application or termination of any scholarship granted.
-            </p>
+            <label for="declaration_confirmed" class="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" id="declaration_confirmed" name="declaration_confirmed" value="1" required
+                {{ old('declaration_confirmed') ? 'checked' : '' }}
+                class="mt-1 h-4 w-4 rounded border-gray-300 text-bsu-red focus:ring-bsu-red">
+              <span class="text-sm text-gray-700 dark:text-gray-00">
+                I hereby declare that the information provided in this application form is true, complete, and accurate to the best of my knowledge. 
+              I understand that any false information may result in the rejection of my application or termination of any scholarship granted. <span class="text-red-500">*</span>
+              </span>
+            </label>
+            @error('declaration_confirmed')
+              <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
           </div>
         </div>
       </section>

@@ -178,7 +178,7 @@ class AuthController extends Controller
             'birthdate'     => 'required|date|before:-18 years',
             'sex'           => 'required|in:Male,Female',
             'email'         => ['required','email','unique:users,email','regex:/^[a-zA-Z0-9._%+-]+@g\.batstate-u\.edu\.ph$/'],
-            'contact_number'=> 'required|string|max:20',
+            'contact_number'=> ['required', 'string', 'regex:/^09[0-9]{9}$/'],
             'sr_code'       => 'required|string|unique:users,sr_code',
             'education_level'=> 'required|string',
             'college'       => 'nullable|string|max:255',
@@ -189,6 +189,8 @@ class AuthController extends Controller
             'campus_id'     => 'required|exists:campuses,id',
             'selected_scholarships' => 'nullable|array',
             'selected_scholarships.*' => 'exists:scholarships,id',
+        ], [
+            'contact_number.regex' => 'Enter a valid 11-digit Philippine mobile number starting with 09.',
         ]);
 
         $fullName = $request->first_name . ' ' . ($request->middle_name ? $request->middle_name . ' ' : '') . $request->last_name;

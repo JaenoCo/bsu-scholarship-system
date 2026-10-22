@@ -12,7 +12,7 @@
       </svg>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-green-800 dark:text-green-200">Academic Data</h3>
+      <h3 class="text-lg font-semibold text-green-800 dark:text-green-200">Education Data</h3>
       <p class="text-sm text-green-600 dark:text-green-300">Program, grades & achievements</p>
     </div>
   </div>

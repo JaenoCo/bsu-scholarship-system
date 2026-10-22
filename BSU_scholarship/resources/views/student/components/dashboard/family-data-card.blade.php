@@ -8,7 +8,7 @@
       </svg>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-purple-800 dark:text-purple-200">Family Data</h3>
+      <h3 class="text-lg font-semibold text-purple-800 dark:text-purple-200">Family Background</h3>
       <p class="text-sm text-purple-600 dark:text-purple-300">Parents & family information</p>
     </div>
   </div>

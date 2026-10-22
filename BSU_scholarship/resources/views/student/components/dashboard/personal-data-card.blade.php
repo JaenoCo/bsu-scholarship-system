@@ -8,7 +8,7 @@
       </svg>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-200">Personal Data</h3>
+      <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-200">Personal Information</h3>
       <p class="text-sm text-blue-600 dark:text-blue-300">Basic information & contact</p>
     </div>
   </div>

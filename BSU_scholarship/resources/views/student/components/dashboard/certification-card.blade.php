@@ -8,7 +8,7 @@
       </svg>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-red-800 dark:text-red-200">Certification</h3>
+      <h3 class="text-lg font-semibold text-red-800 dark:text-red-200">Verification</h3>
       <p class="text-sm text-red-600 dark:text-red-300">Signature & verification</p>
     </div>
   </div>

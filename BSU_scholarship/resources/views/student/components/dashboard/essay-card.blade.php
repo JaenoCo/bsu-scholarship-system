@@ -8,7 +8,7 @@
       </svg>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-indigo-800 dark:text-indigo-200">Essay / Question</h3>
+      <h3 class="text-lg font-semibold text-indigo-800 dark:text-indigo-200">Essay</h3>
       <p class="text-sm text-indigo-600 dark:text-indigo-300">Reason for applying</p>
     </div>
   </div>

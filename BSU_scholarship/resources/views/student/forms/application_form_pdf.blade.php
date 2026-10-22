@@ -32,7 +32,7 @@
     </table>
 
     <!-- Personal Data -->
-    <div class="section-title">Personal Data</div>
+    <div class="section-title">Personal Information</div>
     <table>
         <tr>
             <td width="33%">Last Name: {{ $form->last_name }}</td>
@@ -115,7 +115,7 @@
     </table>
 
     <!-- Family Data -->
-    <div class="section-title">Family Data</div>
+    <div class="section-title">Family Background</div>
     <table>
         <tr>
             <td colspan="2"><strong>Father</strong> ({{ $form->father_living ? 'Living' : 'Deceased' }})</td>
